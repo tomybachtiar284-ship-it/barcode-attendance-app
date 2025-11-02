@@ -1,0 +1,748 @@
+/* ============================================================================
+   AREA 1: KONFIGURASI ROOT (VARIABLES)
+   ========================================================================== */
+:root{
+  /* ===== WARNA TEMA ===== */
+  --primary-700:#1e5ad6;
+  --primary-600:#2b7bff;
+  --primary-500:#4a8cff;
+  --primary-300:#a6c8ff;
+  --primary-200:#d6e6ff;
+  --primary-100:#eaf2ff;
+  --primary-50:#267eb4;
+
+  /* ===== WARNA DASAR ===== */
+  --bg:#23d9e2fd;
+  --surface:#ffffff;
+  --surface-2:#f4f8ff;
+  --line:#e6eefc;
+  --text:#0b2545;
+  --muted:#5f6b7a;
+
+  /* ===== WARNA STATUS ===== */
+  --success:#10b981;
+  --warning:#f59e0b;
+  --danger:#ef4444;
+
+  /* ===== LAYOUT & EFEK ===== */
+  --radius:18px;
+  --shadow:0 10px 30px rgba(22,64,180,.10);
+  --focus-ring:0 0 0 3px rgba(43,123,255,.18);
+
+  /* ===== KHUSUS ===== */
+  --sky-200:#dbeafe;
+
+  /* ===== BACKGROUND APLIKASI ===== */
+  --app-gradient:linear-gradient(135deg,#16c7c4 0%,#2c7be5 60%,#0e3a66 100%);
+  --bg-art-url:url('assets/bg-plant.svg.png');
+  --bg-art-opac:.3;
+  --bg-art-pos:bottom right;
+  --bg-art-size:min(1800px,300vw) auto;
+  --bg-art-pos-fs:center;
+  --bg-art-size-fs:cover;
+
+  /* ===== MINI CALENDAR (ukuran default) ===== */
+  --cal-max-w:420px;
+  --cal-cols:4;
+  --cal-month-h:44px;
+  --cal-gap:8px;
+  --cal-radius:10px;
+  --cal-pad:10px;
+
+  /* ===== MINI CALENDAR (warna) ===== */
+  --cal-card-bg:var(--surface);
+  --cal-card-border:var(--line);
+  --cal-chip-bg:var(--surface-2);
+  --cal-chip-text:var(--text);
+  --cal-chip-border:var(--line);
+  --cal-chip-hover-bg:var(--primary-200);
+  --cal-chip-active-bg:var(--primary-100);
+  --cal-chip-active-text:var(--primary-700);
+  --cal-chip-focus:var(--primary-500);
+
+  /* ===== BESAR FOTO SCAN ===== */
+  --scan-photo-size:300px;
+
+  /* ===== Transparansi panel (override di Area 13) ===== */
+  --panel-alpha:.70;
+  --panel-alpha-2:.62;
+}
+
+/* ============================================================================
+   AREA 2: RESET GLOBAL & DASAR HALAMAN
+   ========================================================================== */
+*{box-sizing:border-box;}
+html,body{
+  min-height:100%;
+  margin:0;
+  font-family:Inter,system-ui,Segoe UI,Roboto,Arial,sans-serif;
+  color:var(--text);
+}
+html{
+  background:var(--app-gradient);
+  background-attachment:fixed;
+}
+body{position:relative;z-index:0;}
+body::before{
+  content:"";position:fixed;inset:0;
+  background:var(--bg-art-url) var(--bg-art-pos)/var(--bg-art-size) no-repeat;
+  opacity:var(--bg-art-opac);pointer-events:none;z-index:-1;
+}
+body::after{
+  content:"";position:fixed;inset:0;
+  background:radial-gradient(1000px 200px at 30% 0%,rgba(255,255,255,.10),rgba(255,255,255,0) 70%);
+  pointer-events:none;z-index:-1;
+}
+
+/* ============================================================================
+   AREA 3: LAYOUT UTAMA (Sidebar & Main)
+   ========================================================================== */
+.sidebar,.main{position:relative;z-index:1}
+
+/* Sidebar */
+.sidebar{
+  position:fixed;inset:0 auto 0 0;width:280px;padding:24px;
+  background:var(--surface);border-right:1px solid var(--line);
+  display:flex;flex-direction:column;gap:24px;box-shadow:var(--shadow);
+}
+.brand{display:flex;align-items:center;gap:12px}
+.logo{
+  width:44px;height:44px;border-radius:12px;display:grid;place-items:center;
+  background:linear-gradient(160deg,var(--primary-500),var(--primary-600));
+  color:#fff;font-weight:900;box-shadow:0 6px 20px rgba(43,123,255,.35);
+}
+.brand-name{font-weight:700}
+.brand-sub{color:var(--muted);font-size:.9rem}
+
+/* Nav */
+.nav{display:flex;flex-direction:column;gap:8px}
+.navlink{
+  display:block;width:100%;text-align:left;padding:12px 14px;border-radius:12px;
+  color:var(--text);cursor:pointer;background:none;border:none;font-size:1rem;
+}
+.navlink:hover{background:var(--primary-100)}
+.navlink.active{background:var(--primary-200);color:var(--primary-700);outline:1px solid var(--primary-300)}
+.sidebar-footer{margin-top:auto;color:var(--muted);font-size:.9rem}
+
+/* Main */
+.main{margin-left:280px;padding:24px;min-height:100%}
+.topbar{display:none}
+.main{padding-top:16px}
+
+/* ============================================================================
+   AREA 4: KOMPONEN UMUM
+   ========================================================================== */
+.grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin:16px 0}
+.grid-2{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+.grid-5{display:grid;grid-template-columns:repeat(5,1fr);gap:12px}
+
+.card{
+  background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);
+  padding:16px;box-shadow:var(--shadow);
+  transition:transform .18s ease,box-shadow .18s ease,border-color .18s ease;
+}
+.card.subtle{background:var(--surface-2)}
+.card-title{font-weight:700;margin-bottom:12px}
+.card:hover{transform:translateY(-2px);box-shadow:0 12px 28px rgba(2,6,23,.12)}
+
+/* Toolbar & Inputs */
+.toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}
+.toolbar .left{display:flex;gap:8px;flex-wrap:wrap}
+.toolbar label{display:flex;align-items:center;gap:6px}
+.search,input,select{
+  padding:10px 12px;background:#fff;border:1px solid var(--line);border-radius:12px;
+  color:var(--text);outline:none;min-width:260px;font-size:.95rem;
+}
+
+/* Buttons */
+.btn{
+  padding:10px 14px;border-radius:12px;cursor:pointer;border:1px solid var(--line);
+  color:var(--text);background:#fff;font-weight:600;
+  transition:transform .12s ease,box-shadow .12s ease,background .2s ease;
+}
+.btn:hover{background:var(--primary-100);transform:translateY(-1px);box-shadow:0 8px 18px rgba(2,6,23,.08)}
+.btn.primary{
+  color:#fff;border-color:var(--primary-600);
+  background:linear-gradient(180deg,var(--primary-600),var(--primary-700));
+  box-shadow:0 6px 18px rgba(43,123,255,.25);
+}
+.btn.ghost{background:#fff}
+.btn.light{background:#fff;border:1px solid var(--primary-300);color:var(--primary-700)}
+
+/* Tables */
+.table-wrap{overflow:auto;border-radius:12px;border:1px solid var(--line);background:#fff}
+.table{width:100%;border-collapse:collapse}
+.table th,.table td{
+  padding:12px 10px;border-bottom:1px solid var(--line);text-align:left;font-size:.95rem;white-space:nowrap;
+}
+.table th{background:var(--primary-100);color:var(--text);position:sticky;top:0;z-index:1}
+.table tr:hover td{background:var(--primary-100)}
+
+/* Dialog (Modal) */
+dialog::backdrop{background:rgba(7,25,69,.25)}
+.modal{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:16px;position:relative}
+.modal-close{
+  position:absolute;right:10px;top:8px;border:0;background:transparent;font-size:24px;line-height:1;cursor:pointer;color:#334155;
+}
+
+/* Progress Bar */
+.progress-bar{height:12px;background:var(--primary-100);border-radius:99px;border:1px solid var(--primary-200);overflow:hidden}
+.progress{
+  height:100%;background:linear-gradient(90deg,var(--primary-600),var(--primary-300));
+  width:0%;position:relative;transition:width .45s cubic-bezier(.22,1,.36,1);overflow:hidden;
+}
+.progress::after{
+  content:"";position:absolute;inset:0;transform:translateX(-120%);
+  background:linear-gradient(120deg,transparent 0%,rgba(255,255,255,.6) 50%,transparent 100%);
+  animation:barShine 2.8s linear infinite;
+}
+@keyframes barShine{0%{transform:translateX(-120%)}100%{transform:translateX(120%)}}
+
+/* Bump angka statistik saat berubah */
+.stat-value.changed{animation:bump .5s ease}
+@keyframes bump{
+  0%{transform:scale(1)}
+  35%{transform:scale(1.08)}
+  100%{transform:scale(1)}
+}
+
+/* ============================================================================
+   AREA 5: HALAMAN SCANNER (#route-scan)
+   ========================================================================== */
+#route-scan .scan-ui{display:flex;flex-direction:column;gap:16px;color:var(--text)}
+#route-scan .scan-hero{display:grid;grid-template-columns:1.2fr .85fr;gap:16px}
+#route-scan .scan-title{margin:0}
+
+/* Kiri */
+#route-scan .scan-hero-left{
+  background:linear-gradient(135deg,var(--primary-100),#fff);
+  border:1px solid var(--primary-200);border-radius:20px;padding:18px;box-shadow:var(--shadow);
+}
+#route-scan .scan-hello{font-weight:700;color:var(--primary-600);margin-bottom:6px}
+#route-scan .scan-sub{color:var(--muted)}
+.scan-input.light{
+  width:100%;padding:14px 16px;font-size:1.06rem;background:#fff;border:1px solid var(--primary-300);
+  border-radius:16px;color:var(--text);box-shadow:0 6px 18px rgba(43,123,255,.10) inset;
+}
+.scan-input.light:focus-visible{
+  border-color:var(--primary-600);box-shadow:0 0 0 3px rgba(43,123,255,.25) inset;outline:none;
+}
+.hint.light{color:var(--muted);margin-top:8px}
+
+/* Kanan */
+#route-scan .scan-hero-right{
+  display:grid;grid-template-columns:var(--scan-photo-size) 1fr;gap:16px;align-items:center;
+  background:linear-gradient(135deg,#f5fffb,var(--primary-50));
+  border:1px solid var(--primary-200);border-radius:20px;padding:16px;box-shadow:var(--shadow);
+}
+#route-scan .photo-big,
+#scanPhoto{
+  width:var(--scan-photo-size);height:var(--scan-photo-size);
+  border-radius:24px;background:#e6eefb center/cover no-repeat;border:1px solid var(--primary-300);
+}
+#route-scan .info .name{
+  display:inline-flex;align-items:center;gap:8px;background:#fff;color:var(--text);
+  padding:8px 12px;border:1px solid var(--primary-300);border-radius:14px;font-weight:800;
+  box-shadow:0 2px 8px rgba(43,123,255,.12);margin-bottom:6px;
+}
+#route-scan .info{display:flex;flex-direction:column;gap:10px}
+#route-scan .info .meta{
+  display:grid;grid-template-columns:repeat(2,minmax(160px,1fr));gap:10px;
+}
+#route-scan .info .meta span{
+  width:100%;min-height:38px;display:inline-flex;align-items:center;justify-content:space-between;
+  padding:10px 12px;border-radius:14px;border:1px solid var(--primary-300);background:#fff;
+  font-size:14px;line-height:1;font-weight:600;gap:6px;
+}
+/* label meta */
+#scanNID::before{content:"NID";font-size:11px;letter-spacing:.03em;color:var(--muted);margin-right:6px}
+#scanTitle::before{content:"JABATAN";font-size:11px;letter-spacing:.03em;color:var(--muted);margin-right:6px}
+#scanCompany::before{content:"PERUSAHAAN";font-size:11px;letter-spacing:.03em;color:var(--muted);margin-right:6px}
+#scanShift::before{content:"SHIFT";font-size:11px;letter-spacing:.03em;color:var(--muted);margin-right:6px}
+
+/* Pill status */
+#route-scan .pill.light{
+  display:inline-flex;align-items:center;gap:8px;border-radius:999px;padding:8px 12px;margin-top:10px;font-weight:700;
+  background:#ecfff6;border:1px solid #bff3d9;color:#036a36;
+}
+#route-scan .pill.light.warn{background:#fff7e6;border-color:#ffe0a9;color:#7a4a00}
+#route-scan .pill.light.danger{background:#ffecec;border-color:#ffc6c6;color:#7a1a1a}
+#route-scan .ts{margin-top:6px;color:var(--muted);font-weight:600}
+#route-scan .pill.light,#route-scan .ts{align-self:flex-start}
+
+/* Presence bubbles (opsional) */
+#scanPresence{margin-top:12px}
+#scanPresenceBubbles{display:flex;flex-wrap:wrap;gap:8px}
+.presence-bubble{
+  display:flex;align-items:center;gap:8px;padding:8px 10px;border:1px solid var(--line);
+  border-radius:999px;background:var(--surface-2);font-weight:600;color:var(--text);
+}
+.presence-bubble .dot{width:8px;height:8px;border-radius:50%;background:var(--success);box-shadow:0 0 0 6px rgba(16,185,129,.15)}
+.presence-bubble.off .dot{background:#94a3b8;box-shadow:none}
+.presence-bubble .count{font-variant-numeric:tabular-nums}
+
+/* Tabel riwayat */
+#route-scan .scan-table.card-light{background:var(--surface-2);border:1px solid var(--line);border-radius:20px;padding:16px;box-shadow:var(--shadow)}
+#route-scan .card-title-light{font-weight:800;color:var(--text);margin-bottom:10px}
+#route-scan .table-wrap.light{border:1px solid var(--line);border-radius:16px}
+#route-scan .table.light{color:var(--text)}
+#route-scan .table.light th{background:var(--primary-100);color:var(--text);border-bottom:1px solid var(--line);font-weight:700}
+#route-scan .table.light td{border-bottom:1px solid var(--line)}
+#route-scan .table.light tr:hover td{background:var(--primary-100)}
+
+/* Statistik Kehadiran (Pie + Tabel) */
+#route-scan .scan-stats{
+  margin-top:14px;background:rgba(255,255,255,.72);
+  border:1px solid var(--primary-200);border-radius:16px;padding:12px;backdrop-filter:blur(6px);
+}
+#route-scan .scan-stats-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px}
+#route-scan .scan-stats-grid{display:grid;grid-template-columns:360px 1fr;gap:12px;align-items:center}
+#route-scan .scan-stats .chart-col{min-height:260px;display:grid;place-items:center}
+#route-scan .scan-stats canvas{width:100%!important;height:260px!important}
+#route-scan .table.presence th,#route-scan .table.presence td{white-space:nowrap}
+#route-scan .presence-bar{height:8px;background:var(--primary-100);border:1px solid var(--primary-200);border-radius:999px;overflow:hidden}
+#route-scan .presence-bar>i{display:block;height:100%;background:linear-gradient(90deg,var(--success),#0670f3);width:0%;transition:width .45s ease}
+
+/* ============================================================================
+   AREA 6: DASHBOARD (#route-dashboard)
+   ========================================================================== */
+.greet{display:flex;align-items:center;justify-content:space-between;gap:24px}
+.stat-label{color:var(--muted);margin-bottom:6px}
+.stat-value{font-size:2.2rem;font-weight:800}
+.stat-sub{color:var(--muted)}
+
+/* Kartu statistik dibuat compact */
+#route-dashboard .card.stat{background:#eff3f1;border:1px solid #cfd8ea;border-radius:16px}
+#route-dashboard .card.stat .stat-label{color:#0d09f7}
+#route-dashboard .card.stat .stat-value{color:#0f172a}
+
+/* progress bar */
+#route-dashboard .progress-bar{background:#e6efff}
+#route-dashboard .progress{background:#2563eb}
+
+/* Panel shift di dalam kartu Scan 24 jam */
+.scan-two-col{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start}
+#scanRightCol .card-subtitle{font-weight:600;color:#ff0404;margin-bottom:6px}
+#statCurrentShift .row{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0}
+#statCurrentShift .chip{background:#f8ef04;border:1px solid #c7d2fe;color:#ef0808;border-radius:999px;padding:2px 8px;font-size:12px;line-height:18px;font-weight:600}
+#statCurrentShift .muted{color:var(--muted)}
+
+/* ====== 6B. DASHBOARD TRIO: Kalender | Informasi | Aktivitas ====== */
+.dash-trio{
+  display:grid;
+  grid-template-columns:minmax(300px,0.9fr) 1.1fr 1.1fr;
+  gap:16px;
+  align-items:start;
+  margin-top:16px;
+}
+.dash-trio > .card{height:100%}
+#newsCardDash .news-grid{grid-template-columns:1fr}
+#recentCard .table-wrap{max-height:420px;overflow:auto}
+
+/* Responsif */
+@media (max-width:1300px){
+  .dash-trio{grid-template-columns:1fr 1fr}
+  #recentCard{grid-column:1 / -1}
+}
+@media (max-width:850px){
+  .dash-trio{grid-template-columns:1fr}
+}
+
+/* ============================================================================
+   AREA 7: COMPANY PRESENCE CARDS
+   ========================================================================== */
+.company-grid,
+#companyPresenceGrid{
+  display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px
+}
+.company-card{
+  --accent:#2563eb;--bg:#eff6ff;
+  background:linear-gradient(180deg,rgba(2,6,23,.06),var(--bg));
+  border:1px solid rgba(2,6,23,.08);
+  border-radius:14px;padding:14px 16px;display:flex;align-items:center;justify-content:space-between;
+  box-shadow:0 2px 10px rgba(2,6,23,.06);transition:transform .18s ease,box-shadow .18s ease;
+}
+@supports (background: color-mix(in srgb, #000 10%, #fff)){
+  .company-card{
+    background:linear-gradient(180deg,color-mix(in srgb,var(--accent) 6%,#ffffff),var(--bg));
+    border:1px solid color-mix(in srgb,var(--accent) 30%,transparent);
+  }
+}
+.company-card .name{font-weight:700;letter-spacing:.2px}
+.company-card .sub{color:#64748b;font-size:12px;margin-top:2px}
+.company-card .badge{
+  min-width:36px;height:36px;line-height:36px;text-align:center;border-radius:40px;font-weight:800;font-size:20px;
+  background:rgba(2,6,23,.03);color:#0f172a;border:1px solid rgba(2,6,23,.08);
+}
+@supports (color: color-mix(in srgb, #000 10%, #fff)){
+  .company-card .badge{
+    background:color-mix(in srgb,var(--accent) 16%,white);
+    color:color-mix(in srgb,var(--accent) 85%,#0f172a);
+    border:1px solid color-mix(in srgb,var(--accent) 35%,transparent);
+  }
+}
+.company-card:hover{transform:translateY(-2px);box-shadow:0 10px 22px rgba(2,6,23,.10)}
+.company-card:nth-child(4n+1){--accent:#d9463c;--bg:#feedec}
+.company-card:nth-child(4n+2){--accent:#f59e0b;--bg:#fffbeb}
+.company-card:nth-child(4n+3){--accent:#10b981;--bg:#f0fdf4}
+.company-card:nth-child(4n+4){--accent:#a855f7;--bg:#fbf5ff}
+
+@keyframes cardBlink{0%,100%{box-shadow:0 0 0 0 color-mix(in srgb,var(--accent,#22c55e) 0%,transparent)}50%{box-shadow:0 0 0 10px color-mix(in srgb,var(--accent,#22c55e) 20%,transparent)}}
+@keyframes badgePing{0%,100%{transform:scale(1)}50%{transform:scale(1.06)}}
+.company-card.live,.company-card.present{animation:cardBlink 1.4s ease-in-out infinite}
+.company-card.live .badge,.company-card.present .badge{animation:badgePing 1.4s ease-in-out infinite}
+.company-card.empty{filter:grayscale(.25);opacity:.95}
+
+/* LIVE STATS CHIPS */
+.live-row{display:flex;align-items:center;gap:8px;margin:6px 0 2px}
+.chip-wrap{display:flex;flex-wrap:wrap;gap:8px}
+.stat-chip{
+  display:inline-flex;align-items:center;gap:6px;padding:.35rem .7rem;border-radius:999px;
+  background:var(--primary-100);border:1px solid var(--line);font-weight:600;color:var(--text);
+}
+.stat-chip b{font-variant-numeric:tabular-nums}
+
+/* ============================================================================
+   AREA 9: NEWS CARDS
+   ========================================================================== */
+.news-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px}
+.news-card{
+  border:1px solid var(--sky-200);
+  background:linear-gradient(180deg,#FF0000,#f9fbff);
+  border-radius:16px;padding:12px;position:relative;overflow:hidden;
+  will-change:transform,box-shadow;animation:newsPulse 3.6s ease-in-out infinite;
+}
+.news-card .title{font-weight:800;margin-bottom:6px;color:#f3f4f1}
+.news-card .meta{font-size:.85rem;color:#040e19;margin-bottom:6px}
+.news-card .body{color:#2e2e0e}
+.news-card a{color:#2563eb;text-decoration:none}
+.news-card a:hover{text-decoration:underline}
+.card-light .news-card{border-color:var(--sky-200)}
+@keyframes newsPulse{0%,100%{box-shadow:0 8px 22px rgba(220,20,60,.18);transform:translateY(0)}50%{box-shadow:0 14px 34px rgba(220,20,60,.30);transform:translateY(-2px)}}
+@keyframes newsGlow{0%,100%{opacity:.18;transform:translateY(0)}50%{opacity:.36;transform:translateY(-6px)}}
+@keyframes newsSweep{0%{transform:translateX(-130%)}100%{transform:translateX(130%)}}
+.news-card::after{
+  content:"";position:absolute;inset:-40% -10% auto -10%;height:60%;
+  background:radial-gradient(60% 50% at 20% 0%,rgba(255,255,255,.55),rgba(255,255,255,0) 60%);
+  pointer-events:none;animation:newsGlow 3.6s ease-in-out infinite;
+}
+.news-card::before{
+  content:"";position:absolute;inset:0;background:linear-gradient(130deg,transparent 5%,rgba(5,235,243,.821) 50%,transparent 100%);
+  mix-blend-mode:screen;transform:translateX(-130%);animation:newsSweep 6.5s linear infinite;pointer-events:none;
+}
+.news-card:hover{animation-play-state:paused}
+.news-card:hover::before,.news-card:hover::after{animation-play-state:paused}
+
+/* ============================================================================
+   AREA 10: KOMPONEN LAIN
+   ========================================================================== */
+.clock,#liveClock{
+  font-family:"Bernard MT Condensed",Inter,system-ui,Segoe UI,Roboto,Arial,sans-serif;
+  font-weight:800;font-size:clamp(2.2rem,4vw,3.6rem);line-height:1;letter-spacing:.02em;
+  color:#ff0000;font-variant-numeric:tabular-nums lining-nums;
+}
+
+/* Dialog Kamera */
+dialog.camdlg{border:0;padding:0;background:transparent;width:auto}
+dialog.camdlg::backdrop{background:rgba(0,0,0,.85)}
+.cam-box{width:min(94vw,640px);background:#0b1220;border:1px solid #1e293b;border-radius:14px;box-shadow:0 10px 40px rgba(0,0,0,.5);padding:12px}
+.cam-head{display:flex;justify-content:space-between;color:#e5e7eb;font-weight:600;margin-bottom:8px}
+.cam-view{position:relative;background:#000;border-radius:10px;overflow:hidden}
+.cam-view video{width:100%;height:auto;display:block}
+.cam-actions{display:flex;gap:8px;justify-content:space-between;margin-top:10px}
+.cam-actions .btn{padding:10px 14px;border-radius:10px;border:1px solid #334155;background:#111827;color:#e5e7eb}
+.cam-actions .btn.primary{background:#2563eb;border-color:#1d4ed8}
+.cam-actions .btn.warn{background:#d97706;border-color:#b45309;color:#111}
+.cam-thumb{margin-top:8px;width:86px;height:86px;border-radius:10px;object-fit:cover;border:1px solid #e5e7eb}
+
+/* Tabel Shift Compact */
+#tableSched.compact select.sched{min-width:86px;height:26px;font-size:12px;padding:2px 6px}
+#tableSched.compact th,#tableSched.compact td{padding:4px}
+
+/* ============================================================================
+   AREA 11: FULLSCREEN
+   ========================================================================== */
+#route-scan:fullscreen,#route-dashboard:fullscreen,
+#route-scan:-webkit-full-screen,#route-dashboard:-webkit-full-screen{
+  background:var(--app-gradient)!important;min-height:100vh;margin:0;padding:12px;border-radius:0;position:relative;z-index:0;
+}
+#route-scan:fullscreen::before,#route-dashboard:fullscreen::before,
+#route-scan:-webkit-full-screen::before,#route-dashboard:-webkit-full-screen::before{
+  content:"";position:fixed;inset:0;background:var(--bg-art-url) var(--bg-art-pos-fs,center)/var(--bg-art-size-fs,cover) no-repeat;
+  opacity:var(--bg-art-opac);pointer-events:none;z-index:-1;
+}
+#route-scan:fullscreen>*,
+#route-dashboard:fullscreen>*,
+#route-scan:-webkit-full-screen>*,
+#route-dashboard:-webkit-full-screen>*{position:relative;z-index:1}
+
+/* ============================================================================
+   AREA 12: HELPERS, RESPONSIVE & AKSESIBILITAS
+   ========================================================================== */
+.hidden{display:none}
+.muted{color:var(--muted)}
+
+/* Responsive untuk scan panel */
+@media (max-width:1100px){
+  #route-scan .scan-hero{grid-template-columns:1fr}
+  #route-scan .scan-hero-right{grid-template-columns:1fr;text-align:center}
+  #route-scan .photo-big{margin:0 auto}
+  #route-scan .scan-stats-grid{grid-template-columns:1fr}
+  #route-scan .scan-stats canvas{height:220px!important}
+}
+
+/* Performa Mobile */
+@media (max-device-width:1024px){
+  html,body{background-attachment:scroll}
+  body::before,body::after{position:absolute}
+}
+
+/* Reduce Motion */
+@media (prefers-reduced-motion:reduce){
+  .company-card.live,.company-card.present,
+  .company-card.live .badge,.company-card.present .badge,
+  .progress::after,.news-card,.news-card::before,.news-card::after{animation:none!important}
+  .card:hover,.btn:hover,.company-card:hover{transform:none}
+}
+
+/* Focus Styles */
+:is(.navlink,.btn):focus-visible{outline:2px solid var(--primary-300);outline-offset:2px}
+:is(input,select,.search):focus-visible{outline:none;border-color:var(--primary-300);box-shadow:var(--focus-ring)}
+
+/* ============================================================================
+   AREA 13: MINI CALENDAR OVERRIDES (sizing + colors)
+   ========================================================================== */
+/* Override variabel kalender agar compact */
+:root{
+  --cal-max-w:400px;
+  --cal-cols:4;
+  --cal-month-h:20px;
+  --cal-gap:3px;
+  --cal-radius:8px;
+  --cal-pad:6px 10px;
+  --cal-font:10px;
+}
+
+/* Paksa kartu kalender transparan */
+#calendarCard,
+#miniCalendar:where(.card){
+  background:transparent!important;
+  border:none!important;
+  box-shadow:none!important;
+}
+
+/* Lebar kartu + posisi kiri */
+#calendarCard{max-width:var(--cal-max-w);margin:2px 0 0}
+/* Skala font kalender */
+#miniCalendar{font-size:var(--cal-font)}
+/* Grid bulan rapat */
+#calendarCard #miniCalendar .cal-months{
+  grid-template-columns:repeat(var(--cal-cols),minmax(4px,1fr))!important;
+  gap:var(--cal-gap)!important;
+}
+/* Ukuran chip bulan & tahun */
+#miniCalendar .cal-month{height:var(--cal-month-h);padding:var(--cal-pad)!important;border-radius:var(--cal-radius)!important}
+#miniCalendar .cal-years{gap:var(--cal-gap)!important}
+#miniCalendar .cal-year{padding:6px 10px!important;border-radius:var(--cal-radius)!important}
+/* Mode super-kompak opsional */
+#calendarCard.compact{transform:scale(.8);transform-origin:top left}
+
+/* Panel transparan */
+.card{background:rgba(255,255,255,var(--panel-alpha))!important;}
+.card.subtle,#route-scan .scan-table.card-light{background:rgba(244,248,255,var(--panel-alpha-2))!important;}
+.table-wrap{background:rgba(255,255,255,var(--panel-alpha))!important;}
+#route-scan .scan-hero-left,#route-scan .scan-hero-right{
+  background:rgba(255,255,255,var(--panel-alpha))!important;backdrop-filter:blur(6px);
+}
+
+/* ==== Kalender Bulan Ini (month-view) ==== */
+#monthCalendar { --mc-cell-h:42px; }
+#monthCalendar .mc-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px}
+#monthCalendar .mc-title{font-weight:800}
+#monthCalendar .mc-nav{display:flex;gap:6px}
+#monthCalendar .mc-nav .btn{padding:6px 10px;border-radius:10px}
+#monthCalendar .mc-dow{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-bottom:4px}
+#monthCalendar .mc-d{text-align:center;font-size:12px;font-weight:700;color:var(--muted);padding:4px 0}
+#monthCalendar .mc-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
+#monthCalendar .mc-day{
+  position:relative;display:flex;align-items:center;justify-content:center;
+  height:var(--mc-cell-h);border:1px solid var(--line);border-radius:12px;
+  background:var(--surface);font-weight:700;color:var(--text);
+  transition:transform .12s ease, box-shadow .12s ease;
+}
+#monthCalendar .mc-day:hover{transform:translateY(-1px);box-shadow:0 8px 18px rgba(2,6,23,.06)}
+#monthCalendar .mc-day.muted{color:#94a3b8;background:var(--surface-2)}
+#monthCalendar .mc-day.today{
+  border-color:var(--primary-600);background:var(--primary-100);color:var(--primary-700);
+  box-shadow:0 0 0 3px rgba(43,123,255,.18) inset;
+}
+#monthCalendar .mc-day.has-logs::after{
+  content:"";width:6px;height:6px;border-radius:50%;background:var(--success);position:absolute;bottom:6px;
+}
+
+/* Lebar kartu kalender ringkas (default) */
+#monthCalendarCard{max-width:520px}
+@media (max-width:1100px){ #monthCalendar .mc-day{height:38px} }
+
+/* Kalender mengikuti kolom dash-trio */
+.dash-trio #monthCalendarCard{max-width:none;width:100%}
+
+/* ============================================================================
+   AREA 14: SEMBUNYIKAN KALENDER STRIP LAMA (TAHUN/BULAN DI BAWAH)
+   ========================================================================== */
+#calendar, #calendarBottom, #yearCalendar, #yearNav, #monthNav,
+.calendar-bottom, .calendar-strip, .kalender-bawah { display:none !important; }
+
+/* =========================
+   FINAL PATCH — DASHBOARD & LIST PANEL
+   ========================= */
+
+/* 1) Sembunyikan mini calendar lama (tahun & bulan) */
+#calendarCard,
+#miniCalendar{
+  display:none !important;
+}
+
+/* 2) Trio layout: Kalender | Info | Aktivitas */
+.dash-trio{
+  display:grid;
+  grid-template-columns: 0.95fr 1.05fr 1.2fr;
+  gap:16px;
+  align-items:start;
+}
+
+/* Kartu di trio fleksibel dan bisa men-scroll isi */
+.dash-trio .card{
+  display:flex;
+  flex-direction:column;
+  min-height:360px;
+}
+#newsCardDash .news-grid{
+  margin-top:4px;
+  display:grid;
+  grid-template-columns:1fr;
+  gap:12px;
+  overflow:auto;
+  flex:1;
+  min-height:0;
+}
+#recentCard .table-wrap{
+  overflow:auto;
+  flex:1;
+  min-height:0;
+}
+
+/* Responsif */
+@media (max-width:1400px){
+  .dash-trio{ grid-template-columns: 1fr 1fr; }
+  #recentCard{ grid-column: 1 / -1; }
+}
+@media (max-width:900px){
+  .dash-trio{ grid-template-columns: 1fr; }
+  #monthCalendarCard, #newsCardDash, #recentCard{ min-height: auto; }
+}
+
+/* 3) Kalender Bulan Ini (month-view) – konsisten */
+#monthCalendar { --mc-cell-h: 42px; }
+#monthCalendarCard{ max-width:520px; }
+#monthCalendar .mc-head{ display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:8px; }
+#monthCalendar .mc-title{ font-weight:800; }
+#monthCalendar .mc-nav{ display:flex; gap:6px; }
+#monthCalendar .mc-nav .btn{ padding:6px 10px; border-radius:10px; }
+#monthCalendar .mc-dow{ display:grid; grid-template-columns:repeat(7,1fr); gap:6px; margin-bottom:4px; }
+#monthCalendar .mc-d{ text-align:center; font-size:12px; font-weight:700; color:var(--muted); padding:4px 0; }
+#monthCalendar .mc-grid{ display:grid; grid-template-columns:repeat(7,1fr); gap:6px; }
+#monthCalendar .mc-day{
+  position:relative; display:flex; align-items:center; justify-content:center;
+  height:var(--mc-cell-h); border:1px solid var(--line); border-radius:12px;
+  background:var(--surface); font-weight:700; color:var(--text);
+  transition:transform .12s ease, box-shadow .12s ease;
+}
+#monthCalendar .mc-day:hover{ transform:translateY(-1px); box-shadow:0 8px 18px rgba(2,6,23,.06); }
+#monthCalendar .mc-day.muted{ color:#94a3b8; background:var(--surface-2); }
+#monthCalendar .mc-day.today{
+  border-color:var(--primary-600); background:var(--primary-100); color:var(--primary-700);
+  box-shadow:0 0 0 3px rgba(43,123,255,.18) inset;
+}
+#monthCalendar .mc-day.has-logs::after{ content:""; width:6px; height:6px; border-radius:50%; background:var(--success); position:absolute; bottom:6px; }
+@media (max-width:1100px){ #monthCalendar .mc-day{ height:38px; } }
+
+/* 4) Konsistensi panel transparan & sembunyikan label persen Education */
+.card{ background: rgba(255,255,255,var(--panel-alpha,.70)) !important; }
+.table-wrap{ background: rgba(255,255,255,var(--panel-alpha,.70)) !important; }
+/* HIDE persen "95%" di Education Highlights */
+.edu-bar .val { display: none !important; }
+
+/* =========================
+   FINAL PATCH — BRAND / LOGO PANEL PERSISTEN
+   (letakkan di paling bawah agar menang melawan style sebelumnya)
+   ========================= */
+
+/* Token ukuran panel logo (ubah bebas) */
+:root{ --brand-size: 200px; }
+
+/* Panel logo dasar yang tidak memudar isi */
+.logo-panel{
+  --panel-alpha: .50;
+  --panel-alpha-2: .45;
+  display:flex;align-items:center;justify-content:center;
+  border-radius:100%;
+  padding:9px; backdrop-filter: blur(6px);
+}
+
+/* Gambar/logo di dalam panel */
+.logo-panel > img,
+.logo-panel .logo-img,
+.brand-corner .logo-img{
+  width:100% !important;
+  height:100% !important;
+  object-fit:contain;
+  display:block;
+  filter:none;
+}
+
+/* Jika ada inline width/height dari JS, timpa biar konsisten */
+.logo-panel[style*="width"],
+.logo-panel[style*="height"]{
+  width: var(--brand-size) !important;
+  height: var(--brand-size) !important;
+}
+
+/* Panel khusus pojok brand: kontrol opacity tanpa mempengaruhi konten */
+:root{
+  --brand-panel-alpha: .9;
+  --brand-panel-blur : 0px;
+  --brand-panel-bg-rgb: 225,255,255;
+  --brand-panel-border: var(--line);
+}
+.brand-corner.card,
+.brand-corner.card.subtle{
+  background: rgba(var(--brand-panel-bg-rgb), var(--brand-panel-alpha)) !important;
+  border: 1px solid var(--brand-panel-border) !important;
+  backdrop-filter: blur(var(--brand-panel-blur));
+  -webkit-backdrop-filter: blur(var(--brand-panel-blur));
+}
+/* Kontainer brand jangan menyusutkan panel */
+.brand-corner{ flex:0 0 auto; }
+
+/* Opsional: panel greet sedikit lebih gelap (tanpa ubah layout) */
+#route-dashboard .greet{
+  --greet-tint: 0,255,255;
+  --greet-alpha: .68;
+  position: relative;
+  background: linear-gradient(
+      135deg,
+      rgba(var(--greet-tint), calc(var(--greet-alpha) + .06)),
+      rgba(var(--greet-tint), var(--greet-alpha))
+  ) !important;
+  border-color: color-mix(in srgb, rgb(var(--greet-tint)) 40%, transparent);
+  backdrop-filter: blur(6px);
+  box-shadow: 0 10px 26px rgba(0,0,0,.12);
+}
+#route-dashboard .greet::after{
+  content:"";
+  position:absolute; inset:0;
+  border-radius: inherit;
+  pointer-events:none;
+  background: radial-gradient(120% 140% at 10% 0%, rgba(255,255,255,.893), transparent 20%);
+}

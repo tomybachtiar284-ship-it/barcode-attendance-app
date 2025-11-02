@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Halaman Login</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <link rel="stylesheet" href="style.css">
+</head>
+<body class="bg-gray-100 flex items-center justify-center min-h-screen p-4">
+
+    <div class="w-full max-w-6xl flex flex-col lg:flex-row bg-white shadow-2xl rounded-2xl overflow-hidden">
+
+        <div class="w-full lg:w-1/2 p-8 lg:p-12 order-2 lg:order-1 flex flex-col justify-center
+                    bg-gradient-to-br from-blue-600 to-blue-800 text-white">
+            
+            <h2 class="text-3xl font-bold mb-2">Welcome to SmartAttend</h2>
+            <p class="text-blue-100 mb-8">PLTU AMPANA</p>
+
+            <div id="messageBox" class="hidden p-3 rounded-lg mb-4 text-center font-medium">
+                </div>
+
+            <form id="loginForm" class="space-y-5">
+                <div class="relative">
+                    <span class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd" />
+                        </svg>
+                    </span>
+                    <input 
+                        type="text" 
+                        id="username"
+                        placeholder="Email or Username"
+                        class="w-full p-3 pl-12 rounded-lg bg-white text-gray-900 border border-transparent 
+                               focus:outline-none focus:ring-2 focus:ring-red-400"
+                    >
+                </div>
+                
+                <div class="relative">
+                    <span class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M18 8a6 6 0 01-7-7.743 5.743L4 17.485V19h1.515l6.742-6.742A6 6 0 0118 8zm-6-3a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd" />
+                        </svg>
+                    </span>
+                    <input 
+                        type="password" 
+                        id="password"
+                        placeholder="Password"
+                        class="w-full p-3 pl-12 rounded-lg bg-white text-gray-900 border border-transparent 
+                               focus:outline-none focus:ring-2 focus:ring-red-400"
+                    >
+                </div>
+                
+                <button 
+                    type="submit"
+                    class="w-full p-3 rounded-lg bg-red-600 hover:bg-red-700 text-white font-bold 
+                           transform transition-transform hover:scale-105 focus:outline-none 
+                           focus:ring-2 focus:ring-red-400 focus:ring-offset-2 focus:ring-offset-blue-700"
+                >
+                    Sign in
+                </button>
+
+                <div class="text-center">
+                    <a href="#" class="text-sm text-blue-200 hover:text-white hover:underline">
+                        Forgot password?
+                    </a>
+                </div>
+            </form>
+        </div>
+
+        <div class="w-full lg:w-1/2 p-8 lg:p-12 order-1 lg:order-2 flex flex-col justify-center items-center relative">
+            
+            <div class="absolute top-8 right-8 flex items-center gap-2">
+                <span class="w-6 h-6 bg-red-600 rounded-md"></span>
+                <span class="font-bold text-gray-700">Smartattend</span>
+            </div>
+
+            <div class="w-full max-w-md">
+                <svg viewBox="0 0 500 350" xmlns="http://www.w3.org/2000/svg">
+                    <g class="animate-float">
+                        <path d="M 50 250 L 450 250 L 420 300 L 80 300 Z" fill="#E0E7FF"/>
+                        <rect x="90" y="245" width="320" height="10" rx="5" fill="#C7D2FE"/>
+                        
+                        <rect x="100" y="50" width="300" height="200" rx="10" fill="#E0E7FF"/>
+                        <rect x="110" y="60" width="280" height="180" rx="5" fill="#FFFFFF"/>
+                        
+                        <g class="animate-fade-in delay-1">
+                            <rect x="125" y="75" width="80" height="10" rx="3" fill="#6366F1"/>
+                            <rect x="125" y="95" width="180" height="6" rx="3" fill="#A5B4FC"/>
+                            <rect x="125" y="110" width="150" height="6" rx="3" fill="#C7D2FE"/>
+                            <circle cx="350" cy="90" r="20" fill="#F87171" class="animate-pulse-dot"/>
+                            <circle cx="350" cy="90" r="15" fill="#DC2626"/>
+                        </g>
+                        
+                        <path d="M 130 200 C 160 160, 190 190, 220 170 S 280 140, 310 160 S 350 200, 370 180" 
+                              fill="none" stroke="#34D399" stroke-width="6" 
+                              stroke-linecap="round" class="animate-draw"/>
+                    </g>
+                    
+                    <rect x="30" y="150" width="50" height="70" rx="5" fill="#FFFFFF" shadow="md" class="animate-fade-in delay-1" transform="rotate(-15 55 185)"/>
+                    <rect x="35" y="155" width="40" height="4" rx="2" fill="#A5B4FC" transform="rotate(-15 55 185)"/>
+                    <rect x="35" y="165" width="40" height="4" rx="2" fill="#C7D2FE" transform="rotate(-15 55 185)"/>
+
+                    <rect x="420" y="180" width="60" height="40" rx="5" fill="#FFFFFF" shadow="md" class="animate-fade-in delay-2" transform="rotate(10 450 200)"/>
+                    <rect x="425" y="185" width="50" height="6" rx="3" fill="#F87171" transform="rotate(10 450 200)"/>
+                </svg>
+            </div>
+
+            <h3 class="text-3xl font-extrabold text-gray-800 mt-8">
+                SmartAttend
+            </h3>
+            <p class="text-gray-500 tracking-widest uppercase text-sm">
+                PLTU AMPANA
+            </p>
+        </div>
+
+    </div>
+
+    <script src="app.js" defer></script>
+
+</body>
+</html>

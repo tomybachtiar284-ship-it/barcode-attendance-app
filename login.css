@@ -1,0 +1,49 @@
+/* Mengatur font default ke Inter */
+body {
+    font-family: 'Inter', sans-serif;
+}
+
+/* === Animasi untuk Ilustrasi "Hidup" === */
+
+/* Animasi mengambang */
+@keyframes float {
+    0% { transform: translateY(0px); }
+    50% { transform: translateY(-12px); }
+    100% { transform: translateY(0px); }
+}
+.animate-float {
+    animation: float 6s ease-in-out infinite;
+}
+
+/* Animasi untuk garis grafik */
+@keyframes draw-line {
+    from { stroke-dashoffset: 800; }
+    to { stroke-dashoffset: 0; }
+}
+.animate-draw {
+    stroke-dasharray: 800;
+    stroke-dashoffset: 800;
+    animation: draw-line 3s ease-out 1s forwards;
+}
+
+/* Animasi untuk titik notifikasi */
+@keyframes pulse-dot {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: .7; transform: scale(1.1); }
+}
+.animate-pulse-dot {
+    animation: pulse-dot 2.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Animasi untuk item yang muncul */
+@keyframes fade-in {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0px); }
+}
+.animate-fade-in {
+    animation: fade-in 1s ease-out forwards;
+}
+/* Delay class agar elemen muncul satu per satu */
+.delay-1 { animation-delay: 0.5s; opacity: 0; }
+.delay-2 { animation-delay: 0.8s; opacity: 0; }
+
