@@ -1,56 +1,56 @@
-// Mendapatkan elemen yang diperlukan
-const loginForm = document.getElementById('loginForm');
-const usernameInput = document.getElementById('username');
-const passwordInput = document.getElementById('password');
-const messageBox = document.getElementById('messageBox');
+// SmartAttend • Login (hard-coded)
+// Kredensial: username=admin, password=12345
+(() => {
+  const USERNAME    = 'admin';
+  const PASSWORD    = '12345';
+  const SESSION_KEY = 'SA_SESSION';
 
-// Fungsi untuk menampilkan pesan
-function showMessage(message, type) {
-    // Mengatur teks dan warna
-    messageBox.textContent = message;
-    messageBox.classList.remove('hidden', 'bg-red-200', 'text-red-800', 'bg-green-200', 'text-green-800');
+  const $ = (s,el=document)=>el.querySelector(s);
 
-    if (type === 'error') {
-        messageBox.classList.add('bg-red-200', 'text-red-800');
-    } else if (type === 'success') {
-        messageBox.classList.add('bg-green-200', 'text-green-800');
-    }
-    
-    // Menampilkan kotak pesan
-    messageBox.classList.remove('hidden');
+  function showMsg(t, ok=false){
+    const m = $('#msg'); if(!m) return;
+    m.textContent = t;
+    m.classList.remove('hidden','err','ok');
+    m.classList.add(ok ? 'ok' : 'err');
+  }
+  function hideMsg(){ $('#msg')?.classList.add('hidden'); }
 
-    // Menyembunyikan pesan setelah 3 detik
-    setTimeout(() => {
-        messageBox.classList.add('hidden');
-    }, 3000);
-}
+  // Redirect ke "folder ini" supaya server menayangkan index.html
+  function redirectHome(){
+    const dirUrl = location.href.replace(/[^/]+$/, ''); // berlaku untuk http(s) dan file://
+    location.replace(dirUrl);
+  }
+  function isLoggedIn(){ try { return !!localStorage.getItem(SESSION_KEY); } catch { return false; } }
+  function setSession(name='Administrator', role='admin', remember=false){
+    const payload = { uid:'admin', name, role, at:Date.now(), remember:!!remember };
+    try { localStorage.setItem(SESSION_KEY, JSON.stringify(payload)); } catch {}
+  }
 
-// Menambahkan event listener ke formulir
-loginForm.addEventListener('submit', function(e) {
-    // Mencegah formulir dikirim secara default
-    e.preventDefault();
+  function bind(){
+    if(isLoggedIn()) { redirectHome(); return; }
 
-    const username = usernameInput.value;
-    const password = passwordInput.value;
+    $('#btnPeek')?.addEventListener('click', ()=>{
+      const p=$('#password'); if(!p) return;
+      p.type = p.type === 'password' ? 'text' : 'password';
+      $('#btnPeek').textContent = p.type === 'password' ? 'Lihat' : 'Sembunyi';
+      p.focus();
+    });
 
-    // Validasi sederhana
-    if (username.trim() === '' || password.trim() === '') {
-        showMessage('Username dan Password tidak boleh kosong.', 'error');
-        return;
-    }
+    $('#forgot')?.addEventListener('click', e=>{ e.preventDefault(); alert('Hubungi Admin untuk reset password.'); });
 
-    if (password.length < 6) {
-        showMessage('Password minimal harus 6 karakter.', 'error');
-        return;
-    }
+    $('#form')?.addEventListener('submit', e=>{
+      e.preventDefault(); hideMsg();
+      const u = ($('#login')?.value||'').trim();
+      const p = ($('#password')?.value||'').trim();
+      const remember = $('#remember')?.checked || false;
 
-    // Jika lolos validasi (simulasi sukses)
-    // Di aplikasi nyata, di sini Anda akan mengirim data ke server (fetch/axios)
-    showMessage('Login berhasil! Mengalihkan...', 'success');
+      if(!u || !p){ showMsg('Email/Username dan Password wajib diisi.'); return; }
+      if(u !== USERNAME || p !== PASSWORD){ showMsg('Username atau password salah.'); return; }
 
-    // (Opsional) Arahkan pengguna setelah sukses
-    // setTimeout(() => {
-    //     window.location.href = '/dashboard'; // Ganti dengan halaman tujuan
-    // }, 1500);
-});
-
+      setSession('Administrator','admin',remember);
+      showMsg('Login berhasil. Mengalihkan…', true);
+      setTimeout(redirectHome, 300);
+    });
+  }
+  document.addEventListener('DOMContentLoaded', bind);
+})();

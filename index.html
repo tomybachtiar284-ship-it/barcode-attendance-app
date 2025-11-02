@@ -5,6 +5,20 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Dasbor Kehadiran Karyawan • SmartAttend</title>
 
+  <!-- GUARD: blokir akses bila belum login -->
+  <script>
+    (function(){
+      try{
+        const a = JSON.parse(localStorage.getItem('SA_AUTH') || 'null');
+        if(!(a && a.expiresAt && a.expiresAt > Date.now())) {
+          location.replace('login.html');
+        }
+      }catch{
+        location.replace('login.html');
+      }
+    })();
+  </script>
+
   <!-- Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -18,6 +32,8 @@
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" referrerpolicy="no-referrer"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- NEW: jsPDF untuk cetak ID Card -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 
   <!-- Helper style kecil (tidak bentrok) -->
   <style>
@@ -60,71 +76,44 @@
     .edu-bar i{display:block;height:100%;width:var(--pct,60%);border-radius:inherit;background:linear-gradient(90deg,var(--primary-500,#4a8cff),var(--primary-300,#a6c8ff))}
     .edu-bar .val{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px;color:#0b2545}
 
-    /* ===== BRAND CORNER (Logo kiri-atas untuk Dashboard & Scan) ===== */
-    :root{
-      --brand-size: 150px; /* 76–150px sesuai kebutuhan */
-      --brand-gap : 12px;
-    }
+    /* ===== BRAND CORNER ===== */
+    :root{ --brand-size:150px; --brand-gap:12px; }
     #route-dashboard, #route-scan{ position:relative; }
     .brand-corner{
-      --panel-alpha: .55; /* opasitas panel logo */
-
+      --panel-alpha: .55;
       position:absolute; top:12px; left:12px;
       width:var(--brand-size); height:var(--brand-size);
       display:grid; place-items:center; padding:10px;
       background:rgba(255,255,255,var(--panel-alpha));
       border:1px solid var(--line); border-radius:16px;
-      box-shadow:var(--shadow); z-index:4;
-      backdrop-filter: blur(6px);
+      box-shadow:var(--shadow); z-index:4; backdrop-filter: blur(6px);
     }
     .brand-corner img{ max-width:100%; max-height:100%; object-fit:contain; display:block; }
-
-    /* Geser konten agar tidak ketimpa logo */
     #route-dashboard .greet{ margin-left:calc(var(--brand-size) + var(--brand-gap)); }
     #route-scan .scan-hero-left{ margin-left:calc(var(--brand-size) + var(--brand-gap)); }
-
-    /* Responsif */
-    @media (max-width:1100px){
-      .brand-corner{ --brand-size:76px; top:10px; left:10px; }
-      #route-dashboard .greet, #route-scan .scan-hero-left{ margin-left:0; }
-    }
-
-    /* Tetap tampil saat fullscreen */
+    @media (max-width:1100px){ .brand-corner{ --brand-size:76px; top:10px; left:10px; } #route-dashboard .greet, #route-scan .scan-hero-left{ margin-left:0; } }
     #route-dashboard:fullscreen .brand-corner,
     #route-dashboard:-webkit-full-screen .brand-corner,
     #route-scan:fullscreen .brand-corner,
-    #route-scan:-webkit-full-screen .brand-corner{
-      position:absolute; top:12px; left:12px;
-    }
+    #route-scan:-webkit-full-screen .brand-corner{ position:absolute; top:12px; left:12px; }
 
     /* =========================
        PATCH: LOCK SIZE + HIDE % LABEL
        ========================= */
     .edu-bar .val{ display:none !important; }  /* sembunyikan label % */
-
-    /* Kunci ukuran logo panel (dua lokasi) */
-    #brandLogoPanelDash.brand-corner,
-    #brandLogoPanelScan.brand-corner{
-      inline-size: var(--brand-size) !important;
-      block-size:  var(--brand-size) !important;
-      min-inline-size: var(--brand-size) !important;
-      min-block-size:  var(--brand-size) !important;
-      aspect-ratio: 1 / 1;
-      border-radius: 50% !important; /* buat bulat */
-      flex: 0 0 auto !important;
+    #brandLogoPanelDash.brand-corner, #brandLogoPanelScan.brand-corner{
+      inline-size: var(--brand-size) !important; block-size: var(--brand-size) !important;
+      min-inline-size: var(--brand-size) !important; min-block-size: var(--brand-size) !important;
+      aspect-ratio: 1 / 1; border-radius: 50% !important; flex: 0 0 auto !important;
     }
-    #brandLogoPanelDash.brand-corner img,
-    #brandLogoPanelScan.brand-corner img{
-      inline-size:100% !important;
-      block-size:100% !important;
-      object-fit:contain !important;
+    #brandLogoPanelDash.brand-corner img, #brandLogoPanelScan.brand-corner img{
+      inline-size:100% !important; block-size:100% !important; object-fit:contain !important;
     }
 
     /* ====== Layout gabungan: Recent + Education ====== */
     #recentCard .subhead{font-weight:700;margin:0 0 8px;color:var(--text)}
     #recentCard .recent-flex{
-      display:grid;
-      grid-template-columns:minmax(260px,0.95fr) 1.05fr; /* kiri=Education, kanan=Tabel */
+      display:grid; grid-template-columns:minmax(260px,0.95fr) 1.05fr;
       gap:12px; align-items:start; min-height:0;
     }
     #recentCard .recent-edu{display:flex;flex-direction:column;min-height:0}
@@ -132,38 +121,23 @@
     #recentCard .edu-list.compact{grid-template-columns:1fr}
     #recentCard .edu-list.compact .edu-item{grid-template-columns:56px 1fr;gap:10px;padding:10px;border-radius:12px}
     #recentCard .edu-list.compact .thumb{width:56px;height:56px;border-radius:10px}
-    /* Jika Education kosong → sembunyikan kolom kiri & tabel full */
     #recentCard[data-has-edu="0"] .recent-edu{display:none}
     #recentCard[data-has-edu="0"] .recent-table{grid-column:1 / -1}
-    /* Responsif */
-    @media (max-width:1100px){
-      #recentCard .recent-flex{grid-template-columns:1fr}
-      #recentCard .recent-edu{order:2}
-    }
+    @media (max-width:1100px){ #recentCard .recent-flex{grid-template-columns:1fr} #recentCard .recent-edu{order:2} }
 
-    /* =========================
-       >> BARU: Animasi “hidup” untuk Education (Highlights)
-       ========================= */
+    /* Animasi halus Education */
     .edu-item{ position:relative; will-change:transform, box-shadow; animation:eduPulse 3.4s ease-in-out infinite; }
-    .edu-item::after{
-      content:""; position:absolute; inset:-20% -10% auto -10%; height:60%;
+    .edu-item::after{ content:""; position:absolute; inset:-20% -10% auto -10%; height:60%;
       background:radial-gradient(60% 50% at 20% 0%, rgba(255,255,255,.55), rgba(255,255,255,0) 60%);
-      pointer-events:none; animation:eduGlow 3.4s ease-in-out infinite;
-    }
-    .edu-item::before{
-      content:""; position:absolute; inset:0;
+      pointer-events:none; animation:eduGlow 3.4s ease-in-out infinite; }
+    .edu-item::before{ content:""; position:absolute; inset:0;
       background:linear-gradient(130deg,transparent 5%, rgba(255,255,255,.55) 50%, transparent 95%);
-      mix-blend-mode:screen; transform:translateX(-130%);
-      animation:eduSweep 6s linear infinite; pointer-events:none;
-    }
+      mix-blend-mode:screen; transform:translateX(-130%); animation:eduSweep 6s linear infinite; pointer-events:none; }
     .edu-item .thumb{ animation:eduPing 2.6s ease-in-out infinite; transform-origin:center; }
     .edu-bar i{ position:relative; }
-    .edu-bar i::after{
-      content:""; position:absolute; inset:0;
-      transform:translateX(-120%);
+    .edu-bar i::after{ content:""; position:absolute; inset:0; transform:translateX(-120%);
       background:linear-gradient(120deg, transparent 0%, rgba(255,255,255,.65) 50%, transparent 100%);
-      animation:eduBarShine 2.6s linear infinite;
-    }
+      animation:eduBarShine 2.6s linear infinite; }
     @keyframes eduPulse{ 0%,100%{ box-shadow:0 8px 18px rgba(2,6,23,.08); transform:translateY(0) } 50%{ box-shadow:0 14px 28px rgba(2,6,23,.16); transform:translateY(-2px) } }
     @keyframes eduGlow{ 0%,100%{ opacity:.18; transform:translateY(0) } 50%{ opacity:.34; transform:translateY(-4px) } }
     @keyframes eduSweep{ 0%{ transform:translateX(-130%) } 100%{ transform:translateX(130%) } }
@@ -172,6 +146,34 @@
     @media (prefers-reduced-motion:reduce){
       .edu-item, .edu-item::before, .edu-item::after, .edu-item .thumb, .edu-bar i::after{ animation:none !important; }
     }
+
+    /* =========================
+       TAMBAHAN: BRAND SIDEBAR + LOGOUT
+       ========================= */
+    .sidebar{ display:flex; flex-direction:column; min-height:100dvh; }
+    .brand{
+      display:flex; align-items:center; gap:12px;
+      padding:14px 16px; text-decoration:none; color:var(--text,#0b2540);
+    }
+    .brand-logo{ width:34px; height:34px; object-fit:contain; display:block; }
+    .brand-name{ font-weight:800; font-size:18px; letter-spacing:.2px; }
+    .brand-sub{ font-size:12px; color:#64748b; margin-top:2px; }
+
+    .sidebar-footer{ margin-top:auto; padding:12px 14px 16px; display:grid; gap:8px; }
+    .logout-btn{
+      width:100%; display:flex; align-items:center; justify-content:center; gap:8px;
+      padding:12px 14px; border-radius: var(--radius, 16px);
+      border:1px solid color-mix(in srgb, var(--surface, #fff), #000 7%);
+      background: color-mix(in srgb, var(--surface, #fff), #000 3%);
+      color: var(--text, #0b2540); font-weight:700; cursor:pointer;
+      transition: transform .06s ease, background .2s ease, box-shadow .2s ease;
+    }
+    .logout-btn:hover{
+      background: color-mix(in srgb, var(--surface, #fff), #000 7%);
+      box-shadow: 0 6px 18px rgba(0,0,0,.08) inset;
+    }
+    .logout-btn:active{ transform: translateY(1px) }
+    @media (prefers-reduced-motion: reduce){ .logout-btn{ transition:none } }
   </style>
 </head>
 
@@ -179,7 +181,11 @@
   <!-- SIDEBAR -->
   <aside class="sidebar">
     <div class="brand">
-      <div class="logo">◎</div>
+      <!-- GUNAKAN LOGO YANG SAMA DENGAN BRAND-CORNER -->
+      <img class="brand-logo"
+           src="assets/LOGO PLN NP SERVICES - FIN.png"
+           alt="PLN Nusantara Power Services"
+           onerror="this.onerror=null; this.src='assets/LOGO PLN NP SERVICES - FIN.svg';">
       <div>
         <div class="brand-name">SmartAttend</div>
         <div class="brand-sub">PLTU AMPANA</div>
@@ -196,7 +202,11 @@
       <button class="navlink" data-route="education">🎓 Education</button>
     </nav>
 
-    <div class="sidebar-footer"><small>v1.4 • Local-first</small></div>
+    <!-- FOOTER + LOGOUT -->
+    <div class="sidebar-footer">
+      <button id="btnLogout" class="logout-btn" type="button" aria-label="Logout dari SmartAttend">🚪 Logout</button>
+      <small class="muted">v1.4 • Local-first</small>
+    </div>
   </aside>
 
   <!-- MAIN -->
@@ -287,8 +297,6 @@
         </div>
         <!-- /GABUNG -->
       </div>
-
-      <!-- (Kartu Education terpisah DIHAPUS) -->
     </section>
 
     <!-- SCAN -->
@@ -823,8 +831,8 @@
 
     /* === Highlights renderer (gabungan) === */
     function renderHighlights(){
-      const hostStandalone = document.querySelector('#eduList');        // jika masih ada
-      const hostInRecent   = document.querySelector('#eduListRecent');  // panel gabungan
+      const hostStandalone = document.querySelector('#eduList');
+      const hostInRecent   = document.querySelector('#eduListRecent');
       const rc             = document.getElementById('recentCard');
 
       const items = load().sort((a,b)=>b.ts-a.ts).slice(0,6);
@@ -938,7 +946,7 @@
     })();
   </script>
 
-  <!-- >>> BARU: sinkron jumlah “(N terakhir hari ini)” di header tabel recent <<< -->
+  <!-- Sinkron jumlah "(N terakhir hari ini)" -->
   <script>
     (function(){
       function getLocal(key, fallback=[]) {
@@ -966,6 +974,135 @@
       window.addEventListener('attendance:changed', setHeader);
       setInterval(setHeader, 15000);
     })();
+  </script>
+
+  <!-- ========= NEW: Download ID Card (A1) ========= -->
+  <script>
+  (function(){
+    const hasJsPDF = !!(window.jspdf && window.jspdf.jsPDF);
+    if(!hasJsPDF){ console.warn('jsPDF belum termuat'); }
+
+    function loadImg(url){
+      return new Promise((resolve,reject)=>{
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.onload = ()=>resolve(img);
+        img.onerror = reject;
+        img.src = url;
+      });
+    }
+
+    async function generateIdCardA1(emp){
+      const { jsPDF } = window.jspdf;
+      const W = 594, H = 841; // mm, A1 portrait
+      const doc = new jsPDF({ unit:'mm', format:[W,H], orientation:'portrait' });
+
+      // Try load background template (opsional)
+      try{
+        const bg = await loadImg('assets/idcard-a1-template.png');
+        doc.addImage(bg, 'PNG', 0, 0, W, H);
+      }catch(e){
+        // fallback background sederhana
+        doc.setFillColor(248,250,252);
+        doc.rect(0,0,W,H,'F');
+        doc.setDrawColor(230,236,246);
+        doc.roundedRect(10,10,W-20,H-20,4,4,'S');
+      }
+
+      // Foto (opsional)
+      if(emp.photo){
+        try{
+          const p = await loadImg(emp.photo);
+          const pw=90, ph=110, py=170;
+          doc.addImage(p, 'JPEG', (W-pw)/2, py, pw, ph);
+        }catch{}
+      }
+
+      // Nama & detail
+      doc.setTextColor(20,45,85);
+      doc.setFont('helvetica','bold'); doc.setFontSize(42);
+      doc.text(emp.name || '-', W/2, 320, {align:'center', maxWidth: W-60});
+      doc.setFont('helvetica','normal'); doc.setFontSize(24);
+      const lines = [
+        `NID: ${emp.nid || '-'}`,
+        `Jabatan: ${emp.title || '-'}`,
+        `Perusahaan: ${emp.company || '-'}`,
+        `Shift: ${emp.shift || '-'}`
+      ];
+      let y = 335;
+      for(const ln of lines){ doc.text(ln, W/2, y, {align:'center'}); y += 11; }
+
+      // Barcode di tengah
+      try{
+        const cvs = document.getElementById('hiddenBarcode');
+        JsBarcode(cvs, String(emp.nid||''), {format:'CODE128', displayValue:false, margin:0, height:180, width:4});
+        const data = cvs.toDataURL('image/png');
+        const bw = 320, bh = 70, bx = (W-bw)/2, by = 390;
+        doc.addImage(data, 'PNG', bx, by, bw, bh);
+      }catch(e){ console.warn('Barcode gagal dibuat', e); }
+
+      // Footer lokasi
+      doc.setFont('helvetica','bold'); doc.setFontSize(36);
+      doc.text('PLTU AMPANA', W/2, H-50, {align:'center'});
+
+      const file = `IDCARD_${(emp.nid||emp.name||'KARYAWAN').toString().replace(/\s+/g,'_')}.pdf`;
+      doc.save(file);
+    }
+
+    function extractEmpFromRow(tr){
+      const td = tr.querySelectorAll('td');
+      return {
+        photo  : tr.querySelector('img')?.src || null,
+        nid    : (td[1]?.textContent||'').trim(),
+        name   : (td[2]?.textContent||'').trim(),
+        title  : (td[3]?.textContent||'').trim(),
+        company: (td[4]?.textContent||'').trim(),
+        shift  : (td[5]?.textContent||'').trim()
+      };
+    }
+
+    function ensureIdCardButtons(){
+      const tbody = document.querySelector('#tableEmp tbody'); if(!tbody) return;
+      tbody.querySelectorAll('tr').forEach(tr=>{
+        const actions = tr.querySelector('td:last-child'); if(!actions) return;
+        if(actions.querySelector('.btn-idcard')) return;
+        const btn = document.createElement('button');
+        btn.className = 'btn light btn-idcard';
+        btn.title = 'Unduh ID Card';
+        btn.textContent = '🪪';
+        actions.insertBefore(btn, actions.firstChild);
+      });
+    }
+
+    // Delegasi klik tombol
+    document.addEventListener('click', async (e)=>{
+      const b = e.target.closest('.btn-idcard'); if(!b) return;
+      const tr = b.closest('tr'); if(!tr) return;
+      const emp = extractEmpFromRow(tr);
+      await generateIdCardA1(emp);
+    });
+
+    document.addEventListener('DOMContentLoaded', ()=>{
+      ensureIdCardButtons();
+      const tb = document.querySelector('#tableEmp tbody');
+      if(tb){
+        const mo = new MutationObserver(ensureIdCardButtons);
+        mo.observe(tb, {childList:true, subtree:true});
+      }
+    });
+  })();
+  </script>
+
+  <!-- ======== LOGOUT (sesuai rekomendasi SA_AUTH) ======== -->
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      document.getElementById('btnLogout')?.addEventListener('click', () => {
+        if(confirm('Logout dari SmartAttend?')){
+          try { localStorage.removeItem('SA_AUTH'); } catch {}
+          location.replace('login.html');
+        }
+      });
+    });
   </script>
 </body>
 </html>

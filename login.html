@@ -1,126 +1,332 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Halaman Login</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    
-    <link rel="stylesheet" href="style.css">
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>SmartAttend • Sign in</title>
+
+  <!-- Auto-redirect bila sudah login -->
+  <script>
+    (function(){
+      try{
+        const a = JSON.parse(localStorage.getItem('SA_AUTH') || 'null');
+        if (a && a.expiresAt && a.expiresAt > Date.now()) {
+          const dir = location.href.replace(/[^/]+$/, '');
+          location.replace(dir);
+        }
+      }catch{}
+    })();
+  </script>
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+
+  <style>
+    :root{
+      --bg1:#eaf1ff; --bg2:#f7fbff;
+      --card:#ffffff; --text:#0b2540; --muted:#64748b;
+      --primary:#1e5ad6; --primary-2:#1539b7;
+      --accent:#60a5fa;
+      --danger:#e11d2e;
+      --radius:18px;
+      --shadow:0 18px 60px rgba(2,6,23,.18);
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0; font-family:Inter,system-ui,Arial; color:var(--text);
+      background:
+        radial-gradient(1200px 800px at 20% -10%, #c7d2fe55 0%, #ffffff00 60%),
+        radial-gradient(900px 700px at 120% 10%, #99f6e455 0%, #ffffff00 55%),
+        linear-gradient(180deg, var(--bg2), var(--bg1));
+      overflow:auto;
+      animation:bgPulse 16s ease-in-out infinite alternate;
+    }
+    @keyframes bgPulse{
+      0%{ background-position:0 0,0 0,0 0 }
+      100%{ background-position:2% -2%, -3% 1%, 0 0 }
+    }
+
+    .wrap{min-height:100%;display:grid;place-items:center;padding:28px}
+    .card{
+      width:min(1100px,96vw); background:var(--card); border-radius:24px;
+      box-shadow:var(--shadow); display:grid; grid-template-columns:1.05fr 1fr;
+      overflow:hidden; position:relative; isolation:isolate;
+    }
+
+    /* Soft moving blobs */
+    .card::before,.card::after{
+      content:""; position:absolute; inset:auto; filter:blur(40px); opacity:.55; z-index:0;
+      border-radius:50%;
+      animation:blob 24s ease-in-out infinite;
+    }
+    .card::before{ width:280px; height:280px; left:-80px; top:-80px; background:#8ab6ff66; }
+    .card::after{ width:320px; height:320px; right:-90px; bottom:-100px; background:#a7f3d066; animation-direction:reverse;}
+    @keyframes blob{
+      0%{ transform:translate3d(0,0,0) scale(1) }
+      50%{ transform:translate3d(20px,-10px,0) scale(1.06) }
+      100%{ transform:translate3d(0,0,0) scale(1) }
+    }
+
+    .left{
+      padding:36px; color:#fff; position:relative; z-index:1;
+      background:
+        radial-gradient(1200px 700px at -40% -20%, rgba(255,255,255,.18), transparent 60%),
+        linear-gradient(135deg, var(--primary) 0%, var(--primary-2) 70%, #0c2a86 100%);
+    }
+    .head h1{margin:0 0 6px;font-size:32px;font-weight:800}
+    .sub{margin:0 0 18px;color:rgba(255,255,255,.9)}
+    .msg{margin:8px 0 14px;padding:10px 12px;border-radius:12px;font-weight:600}
+    .msg.err{background:#fee2e2;color:#991b1b}.msg.ok{background:#dcfce7;color:#14532d}.hidden{display:none}
+
+    .field{
+      position:relative; display:block; margin:14px 0; background:#fff;
+      border-radius:14px; border:1px solid #e6eef7;
+      box-shadow:0 1px 2px rgba(2,6,23,.05);
+      transform:translateZ(0); transition:transform .15s ease, box-shadow .2s ease, border-color .2s ease;
+    }
+    .field:focus-within{
+      transform:translateY(-1px);
+      box-shadow:0 10px 28px rgba(59,130,246,.18), 0 1px 2px rgba(2,6,23,.05);
+      border-image:linear-gradient(90deg,#7aa7ff,#22d3ee) 1;
+      outline:0;
+    }
+    .field .ico{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:#94a3b8;font-weight:700}
+    .field input{
+      width:100%; border:0; outline:0; background:transparent; color:#0f172a;
+      padding:14px 44px 14px 36px; font-size:15px; border-radius:inherit;
+    }
+    .peek{position:absolute;right:10px;top:50%;transform:translateY(-50%);font:600 12px Inter;
+          color:#64748b;background:transparent;border:0;cursor:pointer}
+
+    .row{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:6px 0 14px}
+    .chk{display:flex;align-items:center;gap:8px;font-size:13px;color:#e2e8f0}
+    .link{color:#c7d2fe;text-decoration:none;font-size:13px}.link:hover{text-decoration:underline}
+
+    .btn{
+      position:relative; overflow:hidden;
+      display:inline-flex; align-items:center; justify-content:center; gap:8px;
+      border:1px solid rgba(0,0,0,.04);
+      background:linear-gradient(180deg,#ef4444,#dc2626);
+      color:#fff; padding:14px 16px; width:100%;
+      font-weight:800; border-radius:12px; cursor:pointer;
+      transition:transform .06s ease, filter .2s ease, box-shadow .2s ease;
+      box-shadow:0 6px 20px rgba(239,68,68,.3);
+    }
+    .btn:hover{ filter:brightness(1.05) }
+    .btn:active{ transform:translateY(1px) }
+    .btn::after{
+      content:""; position:absolute; inset:0; translate:-120% 0; pointer-events:none;
+      background:linear-gradient(120deg, transparent 0%, rgba(255,255,255,.4) 50%, transparent 100%);
+      transition:translate .7s ease;
+    }
+    .btn:hover::after{ translate:120% 0 }
+    .btn.loading{ pointer-events:none; opacity:.9 }
+    .btn.loading::before{
+      content:""; width:16px; height:16px; border-radius:50%;
+      border:2px solid rgba(255,255,255,.7); border-right-color:transparent;
+      margin-right:8px; display:inline-block; animation:spin .9s linear infinite;
+    }
+    @keyframes spin{to{transform:rotate(360deg)}}
+
+    /* RIPPLE */
+    .ripple{
+      position:absolute; border-radius:50%; transform:translate(-50%,-50%); pointer-events:none;
+      width:12px;height:12px;background:rgba(255,255,255,.5); animation:rip .5s ease-out forwards;
+    }
+    @keyframes rip{to{opacity:0; transform:translate(-50%,-50%) scale(12)}}
+
+    .right{position:relative;background:#fff;display:grid;grid-template-rows:auto 1fr auto; z-index:1}
+    .brand{position:absolute;top:18px;right:20px;display:flex;align-items:center;gap:10px}
+    .brand img{width:28px;height:28px;object-fit:contain}
+    .art{display:grid;place-items:center;padding:40px 26px; perspective:800px}
+    .art3d{transform-style:preserve-3d; transition:transform .25s ease; will-change:transform}
+    .foot{padding:0 26px 26px;text-align:center}
+    .foot h2{margin:0;font-size:28px}.foot p{margin:6px 0 0;color:var(--muted);letter-spacing:.4px}
+
+    @media (max-width:980px){.card{grid-template-columns:1fr}.right{display:none}}
+
+    /* Reduced motion */
+    @media (prefers-reduced-motion:reduce){
+      .card::before,.card::after{animation:none}
+      .art3d{transition:none}
+      body{animation:none}
+    }
+  </style>
 </head>
-<body class="bg-gray-100 flex items-center justify-center min-h-screen p-4">
 
-    <div class="w-full max-w-6xl flex flex-col lg:flex-row bg-white shadow-2xl rounded-2xl overflow-hidden">
+<body>
+  <main class="wrap">
+    <section class="card" role="region" aria-label="Form Login">
+      <!-- LEFT: form -->
+      <div class="left">
+        <header class="head">
+          <h1>Welcome to <span>SmartAttend</span></h1>
+          <p class="sub">PLTU AMPANA</p>
+        </header>
 
-        <div class="w-full lg:w-1/2 p-8 lg:p-12 order-2 lg:order-1 flex flex-col justify-center
-                    bg-gradient-to-br from-blue-600 to-blue-800 text-white">
-            
-            <h2 class="text-3xl font-bold mb-2">Welcome to SmartAttend</h2>
-            <p class="text-blue-100 mb-8">PLTU AMPANA</p>
+        <div id="msg" class="msg hidden" role="alert"></div>
 
-            <div id="messageBox" class="hidden p-3 rounded-lg mb-4 text-center font-medium">
-                </div>
+        <form id="form" autocomplete="off" novalidate>
+          <label class="field">
+            <span class="ico">@</span>
+            <input id="login" type="text" inputmode="email" placeholder="Email atau Username" autofocus />
+          </label>
 
-            <form id="loginForm" class="space-y-5">
-                <div class="relative">
-                    <span class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                            <path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd" />
-                        </svg>
-                    </span>
-                    <input 
-                        type="text" 
-                        id="username"
-                        placeholder="Email or Username"
-                        class="w-full p-3 pl-12 rounded-lg bg-white text-gray-900 border border-transparent 
-                               focus:outline-none focus:ring-2 focus:ring-red-400"
-                    >
-                </div>
-                
-                <div class="relative">
-                    <span class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                            <path fill-rule="evenodd" d="M18 8a6 6 0 01-7-7.743 5.743L4 17.485V19h1.515l6.742-6.742A6 6 0 0118 8zm-6-3a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd" />
-                        </svg>
-                    </span>
-                    <input 
-                        type="password" 
-                        id="password"
-                        placeholder="Password"
-                        class="w-full p-3 pl-12 rounded-lg bg-white text-gray-900 border border-transparent 
-                               focus:outline-none focus:ring-2 focus:ring-red-400"
-                    >
-                </div>
-                
-                <button 
-                    type="submit"
-                    class="w-full p-3 rounded-lg bg-red-600 hover:bg-red-700 text-white font-bold 
-                           transform transition-transform hover:scale-105 focus:outline-none 
-                           focus:ring-2 focus:ring-red-400 focus:ring-offset-2 focus:ring-offset-blue-700"
-                >
-                    Sign in
-                </button>
+          <label class="field">
+            <span class="ico">＼</span>
+            <input id="password" type="password" placeholder="Password" />
+            <button type="button" class="peek" id="btnPeek" aria-label="Tampilkan/Sembunyikan password">Lihat</button>
+          </label>
 
-                <div class="text-center">
-                    <a href="#" class="text-sm text-blue-200 hover:text-white hover:underline">
-                        Forgot password?
-                    </a>
-                </div>
-            </form>
+          <div class="row">
+            <label class="chk"><input id="remember" type="checkbox" /> Ingat saya di perangkat ini</label>
+            <a href="#" id="forgot" class="link">Lupa password?</a>
+          </div>
+
+          <button id="btnSignIn" class="btn" type="submit">Sign in</button>
+        </form>
+      </div>
+
+      <!-- RIGHT: ilustrasi/brand -->
+      <div class="right" aria-hidden="true">
+        <div class="brand">
+          <img src="assets/LOGO PLN NP SERVICES - FIN.png"
+               onerror="this.onerror=null; this.src='assets/LOGO PLN NP SERVICES - FIN.svg';"
+               alt="PLN NP Services">
+          <b>SmartAttend</b>
         </div>
 
-        <div class="w-full lg:w-1/2 p-8 lg:p-12 order-1 lg:order-2 flex flex-col justify-center items-center relative">
-            
-            <div class="absolute top-8 right-8 flex items-center gap-2">
-                <span class="w-6 h-6 bg-red-600 rounded-md"></span>
-                <span class="font-bold text-gray-700">Smartattend</span>
-            </div>
-
-            <div class="w-full max-w-md">
-                <svg viewBox="0 0 500 350" xmlns="http://www.w3.org/2000/svg">
-                    <g class="animate-float">
-                        <path d="M 50 250 L 450 250 L 420 300 L 80 300 Z" fill="#E0E7FF"/>
-                        <rect x="90" y="245" width="320" height="10" rx="5" fill="#C7D2FE"/>
-                        
-                        <rect x="100" y="50" width="300" height="200" rx="10" fill="#E0E7FF"/>
-                        <rect x="110" y="60" width="280" height="180" rx="5" fill="#FFFFFF"/>
-                        
-                        <g class="animate-fade-in delay-1">
-                            <rect x="125" y="75" width="80" height="10" rx="3" fill="#6366F1"/>
-                            <rect x="125" y="95" width="180" height="6" rx="3" fill="#A5B4FC"/>
-                            <rect x="125" y="110" width="150" height="6" rx="3" fill="#C7D2FE"/>
-                            <circle cx="350" cy="90" r="20" fill="#F87171" class="animate-pulse-dot"/>
-                            <circle cx="350" cy="90" r="15" fill="#DC2626"/>
-                        </g>
-                        
-                        <path d="M 130 200 C 160 160, 190 190, 220 170 S 280 140, 310 160 S 350 200, 370 180" 
-                              fill="none" stroke="#34D399" stroke-width="6" 
-                              stroke-linecap="round" class="animate-draw"/>
-                    </g>
-                    
-                    <rect x="30" y="150" width="50" height="70" rx="5" fill="#FFFFFF" shadow="md" class="animate-fade-in delay-1" transform="rotate(-15 55 185)"/>
-                    <rect x="35" y="155" width="40" height="4" rx="2" fill="#A5B4FC" transform="rotate(-15 55 185)"/>
-                    <rect x="35" y="165" width="40" height="4" rx="2" fill="#C7D2FE" transform="rotate(-15 55 185)"/>
-
-                    <rect x="420" y="180" width="60" height="40" rx="5" fill="#FFFFFF" shadow="md" class="animate-fade-in delay-2" transform="rotate(10 450 200)"/>
-                    <rect x="425" y="185" width="50" height="6" rx="3" fill="#F87171" transform="rotate(10 450 200)"/>
-                </svg>
-            </div>
-
-            <h3 class="text-3xl font-extrabold text-gray-800 mt-8">
-                SmartAttend
-            </h3>
-            <p class="text-gray-500 tracking-widest uppercase text-sm">
-                PLTU AMPANA
-            </p>
+        <div class="art" id="artPane">
+          <div class="art3d" id="art3d">
+            <svg viewBox="0 0 560 360" width="520" height="334" style="filter:drop-shadow(0 18px 24px rgba(2,6,23,.10))">
+              <rect x="80" y="60" rx="14" width="400" height="220" fill="#eef2ff"/>
+              <rect x="96" y="78" rx="8"  width="368" height="188" fill="#ffffff"/>
+              <rect x="116" y="96" rx="4"  width="120" height="10" fill="#5b7cfa"/>
+              <rect x="116" y="118" rx="4" width="180" height="8"  fill="#9db4ff"/>
+              <rect x="116" y="136" rx="4" width="160" height="8"  fill="#c9d6ff"/>
+              <circle cx="408" cy="108" r="18" fill="#f87171"/>
+              <path d="M130 210 C 170 160, 230 200, 280 176 S 360 160, 410 190"
+                    fill="none" stroke="#22c55e" stroke-width="6" stroke-linecap="round">
+                <animate attributeName="d" dur="3.2s" repeatCount="indefinite"
+                  values="
+                    M130 210 C 170 160, 230 200, 280 176 S 360 160, 410 190;
+                    M130 210 C 170 170, 230 190, 280 182 S 360 170, 410 188;
+                    M130 210 C 170 160, 230 200, 280 176 S 360 160, 410 190"/>
+              </path>
+            </svg>
+          </div>
         </div>
 
-    </div>
+        <footer class="foot">
+          <h2>SmartAttend</h2>
+          <p>PLTU AMPANA</p>
+        </footer>
+      </div>
+    </section>
+  </main>
 
-    <script src="app.js" defer></script>
+  <script>
+    // ===== SmartAttend Login (enhanced UI) =====
+    // Kredensial hard-coded:
+    //   username: admin
+    //   password: 12345
+    (()=>{
+      const CRED_USER = 'admin';
+      const CRED_PASS = '12345';
+      const AUTH_KEY  = 'SA_AUTH';
+      const $ = (s,el=document)=>el.querySelector(s);
 
+      function showMsg(t, ok=false){
+        const m = $('#msg'); if(!m) return;
+        m.textContent = t;
+        m.classList.remove('hidden','err','ok');
+        m.classList.add(ok ? 'ok' : 'err');
+      }
+      function hideMsg(){ $('#msg')?.classList.add('hidden'); }
+
+      function setAuth(remember=false){
+        const now = Date.now();
+        const expiresAt = now + (remember ? 30*24*60*60*1000 : 12*60*60*1000);
+        const payload = {
+          user:{ uid:'admin', name:'Administrator', role:'admin' },
+          token: Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2),
+          createdAt: now, expiresAt
+        };
+        try { localStorage.setItem(AUTH_KEY, JSON.stringify(payload)); } catch {}
+      }
+      function redirectToApp(){
+        const dir = location.href.replace(/[^/]+$/, '');
+        location.replace(dir);
+      }
+
+      // Button ripple
+      function addRipple(e){
+        const b = e.currentTarget;
+        const r = document.createElement('span');
+        r.className = 'ripple';
+        const rect = b.getBoundingClientRect();
+        r.style.left = (e.clientX - rect.left) + 'px';
+        r.style.top  = (e.clientY - rect.top)  + 'px';
+        b.appendChild(r);
+        setTimeout(()=>r.remove(), 500);
+      }
+
+      // Parallax tilt (panel kanan)
+      function bindParallax(){
+        const pane = document.getElementById('artPane');
+        const art  = document.getElementById('art3d');
+        if(!pane || !art) return;
+        const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        if(reduce) return;
+        pane.addEventListener('mousemove', (e)=>{
+          const r = pane.getBoundingClientRect();
+          const dx = (e.clientX - (r.left + r.width/2)) / r.width;
+          const dy = (e.clientY - (r.top  + r.height/2)) / r.height;
+          art.style.transform = `rotateY(${dx*8}deg) rotateX(${-dy*8}deg) translateZ(0)`;
+        });
+        pane.addEventListener('mouseleave', ()=>{ art.style.transform='rotateY(0) rotateX(0)'; });
+      }
+
+      function bind(){
+        $('#btnPeek')?.addEventListener('click', ()=>{
+          const p=$('#password'); if(!p) return;
+          p.type = p.type === 'password' ? 'text' : 'password';
+          $('#btnPeek').textContent = p.type === 'password' ? 'Lihat' : 'Sembunyi';
+          p.focus();
+        });
+
+        const btn = $('#btnSignIn');
+        btn?.addEventListener('pointerdown', addRipple);
+        $('#forgot')?.addEventListener('click', (e)=>{ e.preventDefault(); alert('Hubungi Administrator untuk reset password.'); });
+
+        $('#form')?.addEventListener('submit', (e)=>{
+          e.preventDefault(); hideMsg();
+          const u = ($('#login')?.value||'').trim();
+          const p = ($('#password')?.value||'').trim();
+          const remember = $('#remember')?.checked || false;
+
+          if(!u || !p){ showMsg('Email/Username dan Password wajib diisi.'); return; }
+          if(u !== CRED_USER || p !== CRED_PASS){
+            showMsg('Username atau password salah.');
+            return;
+          }
+          // Simulasi verifikasi singkat (untuk animasi)
+          btn?.classList.add('loading');
+          setTimeout(()=>{
+            setAuth(remember);
+            showMsg('Login berhasil. Mengalihkan…', true);
+            setTimeout(redirectToApp, 650);
+          }, 300);
+        });
+
+        bindParallax();
+      }
+
+      document.addEventListener('DOMContentLoaded', bind);
+    })();
+  </script>
 </body>
 </html>

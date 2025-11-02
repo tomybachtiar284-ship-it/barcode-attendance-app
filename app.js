@@ -21,8 +21,8 @@ window.addEventListener('DOMContentLoaded', () => {
   const capStatus=s=>s==='datang'?'Masuk':'Keluar';
   const load=(k,f)=>{try{return JSON.parse(localStorage.getItem(k))??f;}catch{return f;}}; 
   const save=(k,v)=>localStorage.setItem(k,JSON.stringify(v));
-  const esc=s=>String(s??'').replace(/[&<>"']/g,m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m]));
-  function toast(m){const t=document.createElement('div');t.textContent=m;t.style.position='fixed';t.style.right='18px';t.style.bottom='18px';t.style.background='rgba(12,18,32,.95)';t.style.border='1px solid #1f2636';t.style.padding='10px 14px';t.style.borderRadius='12px';t.style.color='#e8edf3';t.style.zIndex=999999;document.body.appendChild(t);setTimeout(()=>t.remove(),2200);}
+  const esc=s=>String(s??'').replace(/[&<>"']/g,m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;' }[m]));
+  function toast(m){const t=document.createElement('div');t.textContent=m;t.style.position='fixed';t.style.right='18px';t.style.bottom='18px';t.style.background='rgba(12,18,32,.95)';t.style.border='1px solid #1f2636';t.style.padding='10px 14px';t.style.borderRadius='12px';t.style.color='#e8edf3';t.style.zIndex=999999;document.body.appendChild(t);setTimeout(()=>t.remove(),2200);} 
 
   let employees=load(LS_EMP,[]),
       attendance=load(LS_ATT,[]),
@@ -86,9 +86,9 @@ window.addEventListener('DOMContentLoaded', () => {
   };
   function normalizeTime(s){
     s=String(s||'').trim(); if(!s) return '';
-    s=s.replace(/[.,\\-h ]/g,':');
-    if(/^\\d{3,4}$/.test(s)){ const t=s.length===3?`0${s}`:s; return `${t.slice(0,2)}:${t.slice(2)}`;}
-    const m=s.match(/^(\\d{1,2})(?::(\\d{1,2}))?$/); if(!m) return s;
+    s=s.replace(/[.,\-h ]/g,':');
+    if(/^\d{3,4}$/.test(s)){ const t=s.length===3?`0${s}`:s; return `${t.slice(0,2)}:${t.slice(2)}`;}
+    const m=s.match(/^(\d{1,2})(?::(\d{1,2}))?$/); if(!m) return s;
     const H=Math.min(24,parseInt(m[1]||'0',10)), M=Math.min(59,parseInt(m[2]||'0',10));
     return `${pad(H)}:${pad(M)}`;
   }
