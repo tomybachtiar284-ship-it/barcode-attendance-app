@@ -1,0 +1,12 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Redirect…</title>
+<script>
+(function () {
+  var p = location.pathname.split('/');
+  var base = '/' + (p[1] || '') + '/';
+  // Jika bukan *.github.io (pakai custom domain), pakai root '/'
+  if (!location.hostname.endsWith('.github.io')) base = '/';
+  location.replace(base + (location.search || '') + (location.hash || ''));
+})();
+</script>
