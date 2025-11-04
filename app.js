@@ -1,11 +1,12 @@
-// SmartAttend app.js — FINAL v1.4 (polished)
+// SmartAttend app.js — FINAL v1.4 (polished, Supabase-integrated)
 // - Sinkron dengan HTML terbaru (scan stats pakai script inline -> kita panggil via window.refreshScanStats jika ada)
 // - Perbaikan “late” untuk shift lintas tengah malam menggunakan tanggal basis shift
 // - Hapus duplikasi mini calendar & scan stats internal yang tak terpakai
 // - Event refresh terpadu: scan:saved, attendance:update, attendance:changed
 // - Sync ke window.* agar script lain bisa membaca data langsung
 // - Hapus satu baris attendance saja (bukan semua)
-//
+// - NEW: Supabase Integration (offline-first). Push/pull employees, attendance, news, shifts config, dan jadwal bulanan.
+
 window.addEventListener('DOMContentLoaded', () => {
   const LS_EMP='SA_EMPLOYEES', LS_ATT='SA_ATTENDANCE', LS_SHIFTS='SA_SHIFTS',
         LS_NEWS='SA_NEWS', LS_SCHED='SA_SHIFT_MONTHLY';
@@ -56,6 +57,197 @@ window.addEventListener('DOMContentLoaded', () => {
     }else el.textContent = newStr;
   }
 
+  // =========================================================
+  // === Supabase Integration (SupaSync) =====================
+  // =========================================================
+  const SUPA = window.supabase || null;
+  const SUPA_ENABLED = !!SUPA;
+
+  // Nama tabel (ubah sesuai milikmu)
+  const T_EMP='employees';
+  const T_ATT='attendance';
+  const T_NEWS='news';
+  const T_SHIFTS = 'shifts';     // data json, id='global'
+  const T_SCHED='shift_monthly';   // data json, id='YYYY-MM'
+
+  const supa = {
+    async select(table, builder){
+      if(!SUPA_ENABLED) return {data:null, error:'OFFLINE'};
+      try{
+        let q = SUPA.from(table).select('*');
+        if(typeof builder==='function') q = builder(q);
+        const { data, error } = await q;
+        if(error) console.warn('[Supabase select]', table, error);
+        return { data, error };
+      }catch(err){ console.warn('[Supabase select ex]', err); return {data:null,error:err}; }
+    },
+    async upsert(table, payload, conflict){
+      if(!SUPA_ENABLED) return {data:null, error:'OFFLINE'};
+      try{
+        let q = SUPA.from(table).upsert(payload, { onConflict: conflict }).select();
+        const { data, error } = await q;
+        if(error) console.warn('[Supabase upsert]', table, error);
+        return { data, error };
+      }catch(err){ console.warn('[Supabase upsert ex]', err); return {data:null,error:err}; }
+    },
+    async insert(table, payload){
+      if(!SUPA_ENABLED) return {data:null, error:'OFFLINE'};
+      try{
+        const { data, error } = await SUPA.from(table).insert(payload).select();
+        if(error) console.warn('[Supabase insert]', table, error);
+        return { data, error };
+      }catch(err){ console.warn('[Supabase insert ex]', err); return {data:null,error:err}; }
+    },
+    async del(table, builder){
+      if(!SUPA_ENABLED) return {data:null, error:'OFFLINE'};
+      try{
+        let q = SUPA.from(table).delete();
+        if(typeof builder==='function') q = builder(q);
+        const { data, error } = await q;
+        if(error) console.warn('[Supabase delete]', table, error);
+        return { data, error };
+      }catch(err){ console.warn('[Supabase delete ex]', err); return {data:null,error:err}; }
+    }
+  };
+
+  // --- Merge helpers (last-write-wins) ---
+  const parseIso = s => (s ? Date.parse(s) || 0 : 0);
+
+  function mergeEmployees(remote=[]){
+    let changed=false;
+    remote.forEach(r=>{
+      const i = employees.findIndex(e=>e.nid==r.nid);
+      const rec = { nid:r.nid, name:r.name, title:r.title, company:r.company, shift:r.shift, photo:r.photo||'', updated_at:r.updated_at||null };
+      if(i>=0){
+        const lv = parseIso(employees[i].updated_at);
+        const rv = parseIso(rec.updated_at);
+        if(rv && rv >= lv){ employees[i]=rec; changed=true; }
+      }else{ employees.push(rec); changed=true; }
+    });
+    if(changed){ save(LS_EMP,employees); syncGlobals(); renderEmployees(); renderDashboard(); initMonthlyScheduler(); }
+  }
+  function mergeNews(remote=[]){
+    const map = new Map(news.map(n=>[+n.ts, n]));
+    let changed=false;
+    remote.forEach(n=>{
+      const ts = Number(n.ts||0); if(!ts) return;
+      if(!map.has(ts)){ map.set(ts, { ts, title:n.title, body:n.body||'', link:n.link||'' }); changed=true; }
+      else{
+        // prefer remote if text differs
+        const cur = map.get(ts);
+        if(cur.title!==n.title || (cur.body||'')!==(n.body||'') || (cur.link||'')!==(n.link||'')){
+          map.set(ts,{ ts, title:n.title, body:n.body||'', link:n.link||'' }); changed=true;
+        }
+      }
+    });
+    if(changed){ news = Array.from(map.values()); save(LS_NEWS,news); renderLatest(); renderNewsWidgets(); }
+  }
+  function mergeAttendance(remote=[]){
+    const have = new Set(attendance.map(a=>Number(a.ts)));
+    let add=0;
+    remote.forEach(r=>{
+      const ts=Number(r.ts); if(!ts || have.has(ts)) return;
+      attendance.push({
+        ts, status:r.status, nid:r.nid, name:r.name, title:r.title, company:r.company,
+        shift:r.shift, okShift: !!r.okShift, note:r.note||'', late: !!r.late
+      });
+      add++;
+    });
+    if(add){ save(LS_ATT,attendance); syncGlobals(); renderDashboard(); renderScanTable(); renderScanStats(); updateScanLiveCircle(); }
+  }
+  function applyRemoteShiftsRow(row){
+    if(!row || !row.data) return false;
+    shifts = row.data;
+    save(LS_SHIFTS, shifts); syncGlobals();
+    renderShiftForm(); renderDashboard(); renderCurrentShiftPanel();
+    return true;
+  }
+  function applyRemoteSchedRow(row){
+    if(!row) return false;
+    const id=row.id, data=row.data||{};
+    if(!id) return false;
+    sched[id]=data;
+    save(LS_SCHED,sched); syncGlobals();
+    renderSchedTable(); renderCurrentShiftPanel();
+    return true;
+  }
+
+  // --- Pullers ---
+  async function pullEmployees(){ 
+    const {data} = await supa.select(T_EMP, q=>q.order('updated_at', {ascending:false}));
+    if(data) mergeEmployees(data);
+  }
+  async function pullNews(){
+    const {data} = await supa.select(T_NEWS, q=>q.order('ts', {ascending:false}).limit(100));
+    if(data) mergeNews(data);
+  }
+  async function pullRecentAttendance(days=3){
+    const since = Date.now() - days*24*3600*1000;
+    const {data} = await supa.select(T_ATT, q=>q.gte('ts', since).order('ts', {ascending:true}).limit(5000));
+    if(data) mergeAttendance(data);
+  }
+  async function pullShifts(){
+    const {data} = await supa.select(T_SHIFTS, q=>q.eq('id','global').single());
+    if(data) applyRemoteShiftsRow(data);
+  }
+  async function pullSched(monthId){
+    if(!monthId) return;
+    const {data} = await supa.select(T_SCHED, q=>q.eq('id', monthId).single());
+    if(data) applyRemoteSchedRow(data);
+  }
+
+  // --- Pushers ---
+  async function pushEmployee(emp){
+    const payload = {...emp, updated_at: new Date().toISOString()};
+    await supa.upsert(T_EMP, payload, 'nid');
+  }
+  async function deleteEmployeeRemote(nid){
+    await supa.del(T_EMP, q=>q.eq('nid', nid));
+  }
+  async function pushAttendance(rec){
+    await supa.insert(T_ATT, rec);
+  }
+  async function deleteAttendanceRemote(ts){
+    await supa.del(T_ATT, q=>q.eq('ts', ts));
+  }
+  async function pushNews(item){
+    await supa.upsert(T_NEWS, item, 'ts');
+  }
+  async function deleteNewsRemote(ts){
+    await supa.del(T_NEWS, q=>q.eq('ts', ts));
+  }
+  async function pushShiftsCfg(){
+    await supa.upsert(T_SHIFTS, { id: 'global', data: shifts, updated_at: new Date().toISOString() }, 'id');
+  }
+  async function pushSchedMonth(id){
+    await supa.upsert(T_SCHED, { id, data: sched[id]||{}, updated_at: new Date().toISOString() }, 'id');
+  }
+  async function deleteSchedMonthRemote(id){
+    await supa.del(T_SCHED, q=>q.eq('id', id));
+  }
+
+  // --- Bootstrap/periodic sync ---
+  async function supaBootstrap(){
+    if(!SUPA_ENABLED) return;
+    await Promise.all([
+      pullEmployees(),
+      pullNews(),
+      pullShifts(),
+      pullRecentAttendance(3)
+    ]);
+    // tarik jadwal bulan aktif (jika ada)
+    const mp=$('#schedMonth'); const id = (mp?.value) || monthKey(new Date());
+    pullSched(id);
+  }
+  if(SUPA_ENABLED){
+    supaBootstrap();
+    window.addEventListener('online', supaBootstrap);
+    setInterval(()=>{ pullRecentAttendance(1); pullNews(); }, 60000); // 60s refresh ringan
+  }
+  // =========================================================
+  // === / Supabase Integration ==============================
+  // =========================================================
+
   // Router
   $$('.navlink').forEach(btn=>btn.addEventListener('click',()=>{
     $$('.navlink').forEach(b=>b.classList.remove('active')); btn.classList.add('active');
@@ -67,6 +259,7 @@ window.addEventListener('DOMContentLoaded', () => {
     if(route==='scan'){ renderScanPage(); $('#scanInput')?.focus(); }
     if(route==='latest') renderLatest();
     if(route==='shifts'){ renderShiftForm(); initMonthlyScheduler(); }
+    if(route==='education'){ /* UI education ada di HTML inline */ }
   }));
 
   // Clock
@@ -372,7 +565,7 @@ window.addEventListener('DOMContentLoaded', () => {
   });
   window.addEventListener('load',()=>{$('#scanInput')?.focus();});
 
-  function handleScan(raw){
+  async function handleScan(raw){
     const parsed=parseRaw(raw); const ts=now(); const emp=findEmp(parsed);
     if(!emp){
       toast('Karyawan tidak ditemukan di database.');
@@ -407,6 +600,14 @@ window.addEventListener('DOMContentLoaded', () => {
     window.dispatchEvent(new Event('attendance:changed'));
     window.dispatchEvent(new Event('attendance:update'));
     renderScanStats();
+
+    // Supabase push
+    if(SUPA_ENABLED){
+      pushAttendance({
+        ...rec,
+        created_at: new Date().toISOString()
+      });
+    }
   }
 
   // ===== Employees =====
@@ -526,13 +727,15 @@ window.addEventListener('DOMContentLoaded', () => {
   }
 
   // Employees open/save/delete
-  empTBody?.addEventListener('click',e=>{
+  empTBody?.addEventListener('click',async e=>{
     const b=e.target.closest('button'); if(!b) return; const nid=b.dataset.id; const idx=employees.findIndex(x=>x.nid==nid); if(idx<0) return;
     if(b.dataset.act==='edit'){ openEmp(employees[idx],idx); }
     else if(b.dataset.act==='del'){
       if(confirm(`Hapus karyawan ${employees[idx].name}?`)){
+        const removed = employees[idx];
         employees.splice(idx,1); save(LS_EMP,employees); syncGlobals();
         renderEmployees(); renderDashboard(); toast('Data karyawan dihapus.'); initMonthlyScheduler();
+        if(SUPA_ENABLED) deleteEmployeeRemote(removed.nid);
       }
     }
     else if(b.dataset.act==='barcode'){ dlBarcode(employees[idx]); }
@@ -577,6 +780,8 @@ window.addEventListener('DOMContentLoaded', () => {
     save(LS_EMP,employees); syncGlobals();
     renderEmployees(); renderDashboard(); $('#empModal')?.close(); toast('Data karyawan disimpan.');
     initMonthlyScheduler();
+
+    if(SUPA_ENABLED) pushEmployee(emp);
   });
 
   // Import/Export employees
@@ -586,15 +791,18 @@ window.addEventListener('DOMContentLoaded', () => {
     const data=await file.arrayBuffer(); const wb=XLSX.read(data);
     const ws=wb.Sheets[wb.SheetNames[0]]; const rows=XLSX.utils.sheet_to_json(ws);
     let up=0, add=0;
+    const toPush=[];
     rows.forEach(r=>{
       const emp={ nid:String(r.NID??r.nid??'').trim(), name:String(r.Nama??r.name??'').trim(), title:String(r.Jabatan??r.title??''), company:String(r.Perusahaan??r.company??''),
                   shift:String(r.Grup??r.Shift??'A'), photo:String(r.FotoURL??r.photo??'') };
       if(!emp.nid||!emp.name) return;
       const i=employees.findIndex(e=>e.nid==emp.nid);
       if(i>=0){employees[i]=emp; up++;} else {employees.push(emp); add++;}
+      toPush.push(emp);
     });
     save(LS_EMP,employees); syncGlobals(); renderEmployees(); renderDashboard(); initMonthlyScheduler();
     toast(`Import selesai. Tambah ${add}, Update ${up}.`); ev.target.value='';
+    if(SUPA_ENABLED && toPush.length){ Promise.all(toPush.map(pushEmployee)); }
   });
   $('#btnExportEmp')?.addEventListener('click',()=>{
     const rows=employees.map(e=>({NID:e.nid,Nama:e.name,Jabatan:e.title,Perusahaan:e.company,Grup:e.shift,FotoURL:e.photo}));
@@ -717,6 +925,8 @@ window.addEventListener('DOMContentLoaded', () => {
     save(LS_SHIFTS,shifts); syncGlobals();
     toast('Pengaturan shift disimpan.');
     renderDashboard(); renderCurrentShiftPanel();
+
+    if(SUPA_ENABLED) pushShiftsCfg();
   });
 
   // ===== Attendance (laporan) =====
@@ -741,12 +951,16 @@ window.addEventListener('DOMContentLoaded', () => {
     $('#btnExportAtt').dataset.count=rows.length;
   }
   $('#btnFilterAtt')?.addEventListener('click',filterAttendance);
-  $('#tableAtt tbody')?.addEventListener('click', (e)=>{
+  $('#tableAtt tbody')?.addEventListener('click', async (e)=>{
     const btn = e.target.closest('button[data-act="del-att"]'); if(!btn) return;
     const tr = btn.closest('tr'); const ts = Number(tr?.dataset.ts||'0'); if(!ts) return;
     if(confirm('Hapus baris kehadiran ini?')){
       const idx = attendance.findIndex(a=>a.ts===ts);
-      if(idx>=0){ attendance.splice(idx,1); save(LS_ATT,attendance); syncGlobals(); filterAttendance(); renderDashboard(); renderScanTable(); renderScanStats(); toast('Baris dihapus.'); }
+      if(idx>=0){ 
+        attendance.splice(idx,1); save(LS_ATT,attendance); syncGlobals();
+        filterAttendance(); renderDashboard(); renderScanTable(); renderScanStats(); toast('Baris dihapus.');
+        if(SUPA_ENABLED) deleteAttendanceRemote(ts);
+      }
     }
   });
   $('#btnExportAtt')?.addEventListener('click',()=>{
@@ -780,7 +994,7 @@ window.addEventListener('DOMContentLoaded', () => {
   $('#btnAddNews')?.addEventListener('click', () => openNews(null, null));
   $('#btnBackNews')?.addEventListener('click', (e) => { e.preventDefault(); $('#newsModal')?.close(); });
   $('#newsModal')?.addEventListener('close', () => { const d=$('#newsModal'); if(d) d.dataset.ts=''; });
-  $('#btnSaveNews')?.addEventListener('click',e=>{
+  $('#btnSaveNews')?.addEventListener('click',async e=>{
     e.preventDefault();
     const d=$('#newsModal'); if(!d) return;
     const tsStr=d.dataset.ts || '';
@@ -790,13 +1004,18 @@ window.addEventListener('DOMContentLoaded', () => {
     const idx=news.findIndex(n=>n.ts===tsVal);
     if(idx>=0){ news[idx]=item; } else { news.push(item); }
     save(LS_NEWS,news); renderLatest(); renderNewsWidgets(); toast('Info tersimpan.');
+
+    if(SUPA_ENABLED) pushNews(item);
   });
   $('#tableNews')?.addEventListener('click',e=>{
     const b=e.target.closest('button'); if(!b) return; const ts=Number(b.dataset.ts||'0'); if(!ts) return;
     const idx=news.findIndex(n=>n.ts===ts); if(idx<0) return;
     if(b.dataset.act==='edit-news') openNews(news[idx], ts);
     if(b.dataset.act==='del-news'){
-      if(confirm('Hapus info ini?')){ news.splice(idx,1); save(LS_NEWS,news); renderLatest(); renderNewsWidgets(); toast('Info dihapus.'); }
+      if(confirm('Hapus info ini?')){ 
+        news.splice(idx,1); save(LS_NEWS,news); renderLatest(); renderNewsWidgets(); toast('Info dihapus.');
+        if(SUPA_ENABLED) deleteNewsRemote(ts);
+      }
     }
   });
 
@@ -836,12 +1055,26 @@ window.addEventListener('DOMContentLoaded', () => {
       });
     });
   }
-  function initMonthlyScheduler(){ if(!$('#schedMonth')) return; if(!$('#schedMonth').value) $('#schedMonth').value=monthKey(new Date()); ensureMonth($('#schedMonth').value); renderSchedTable(); }
-  $('#schedMonth')?.addEventListener('change',()=>renderSchedTable());
-  $('#btnSchedSave')?.addEventListener('click',()=>{ save(LS_SCHED,sched); syncGlobals(); toast('Jadwal bulan ini disimpan.'); renderCurrentShiftPanel(); });
+  function initMonthlyScheduler(){ 
+    if(!$('#schedMonth')) return; 
+    if(!$('#schedMonth').value) $('#schedMonth').value=monthKey(new Date()); 
+    ensureMonth($('#schedMonth').value); 
+    renderSchedTable(); 
+    // pull dari Supabase untuk bulan ini, jika tersedia
+    if(SUPA_ENABLED){ pullSched($('#schedMonth').value).then(()=>renderSchedTable()); }
+  }
+  $('#schedMonth')?.addEventListener('change',()=>{ renderSchedTable(); if(SUPA_ENABLED) pullSched($('#schedMonth').value).then(()=>renderSchedTable()); });
+  $('#btnSchedSave')?.addEventListener('click',()=>{ 
+    const id=$('#schedMonth').value || monthKey(new Date());
+    save(LS_SCHED,sched); syncGlobals(); toast('Jadwal bulan ini disimpan.'); renderCurrentShiftPanel(); 
+    if(SUPA_ENABLED) pushSchedMonth(id);
+  });
   $('#btnSchedReset')?.addEventListener('click',()=>{
     const id=$('#schedMonth').value; if(!id) return;
-    if(confirm('Kosongkan jadwal untuk bulan ini?')){ sched[id]={}; save(LS_SCHED,sched); syncGlobals(); renderSchedTable(); toast('Bulan dikosongkan.'); renderCurrentShiftPanel(); }
+    if(confirm('Kosongkan jadwal untuk bulan ini?')){ 
+      sched[id]={}; save(LS_SCHED,sched); syncGlobals(); renderSchedTable(); toast('Bulan dikosongkan.'); renderCurrentShiftPanel();
+      if(SUPA_ENABLED) deleteSchedMonthRemote(id);
+    }
   });
   $('#btnSchedDownload')?.addEventListener('click',()=>{
     const id=$('#schedMonth').value||monthKey(new Date()); const [yy,mm]=id.split('-').map(Number); const dim=daysIn(yy,mm-1); ensureMonth(id);
@@ -875,6 +1108,7 @@ window.addEventListener('DOMContentLoaded', () => {
       }
     });
     save(LS_SCHED,sched); syncGlobals(); renderSchedTable(); toast(`Import jadwal: ${applied} sel terisi.`); ev.target.value=''; renderCurrentShiftPanel();
+    if(SUPA_ENABLED) pushSchedMonth(id);
   });
 
   // ===== Seeds =====
@@ -914,7 +1148,8 @@ window.addEventListener('DOMContentLoaded', () => {
       #scanLiveCircle .big{font:700 28px/1 Inter,system-ui,Arial; fill:var(--text,#0b2545)}
       #scanLiveCircle .sub{font:500 12px/1 Inter,system-ui,Arial; fill:#64748b}
       #scanLiveCircle.pulse{animation:sl_pulse .8s ease}
-      @keyframes sl_pulse{0%{transform:scale(1)}50%{transform:scale(1.04)}100%{transform:scale(1)}}
+      @keyframes sl_pulse{0%{transform:scale(1)}50%{transform:scale(1.04)}100%{transform:scale(1)}
+      }
       .scan-hero-right .circle-wrap{display:flex;flex-direction:column;align-items:center;gap:6px}
       .circle-legend{font:600 12px Inter,system-ui,Arial;color:#334155}
     `;
