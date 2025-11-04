@@ -17,3 +17,6 @@ build/
 
 # Env
 .env
+config.local.js
+.env
+.env.*
