@@ -1,4 +1,4 @@
-<!DOCTYPE html> 
+<!DOCTYPE html>
 <html lang="id">
 <head>
   <meta charset="utf-8" />
@@ -206,6 +206,23 @@
       display:block; height:100%; width:0;
       background:linear-gradient(90deg,var(--primary-500,#4a8cff),var(--primary-300,#a6c8ff));
     }
+
+    /* ====== Dev reset button style (added) ====== */
+    #dev-reset-local {
+      position: fixed;
+      right: 16px;
+      bottom: 18px;
+      z-index: 99999;
+      padding: 10px 14px;
+      border-radius: 12px;
+      border: none;
+      background: #ef4444;
+      color: #fff;
+      font-weight: 700;
+      box-shadow: 0 8px 26px rgba(0,0,0,0.18);
+      cursor: pointer;
+    }
+    @media (max-width:520px){ #dev-reset-local{ right:12px; bottom:12px; padding:8px 10px } }
   </style>
 </head>
 
@@ -1060,6 +1077,7 @@
         `Jabatan: ${emp.title || '-'}`,
         `Perusahaan: ${emp.company || '-'}`,
         `Shift: ${emp.shift || '-'}`
+
       ];
       let y = 335;
       for(const ln of lines){ doc.text(ln, W/2, y, {align:'center'}); y += 11; }
@@ -1137,5 +1155,42 @@
       });
     });
   </script>
+
+  <!-- ====== ADDED: Reset Data Lokal (Developer) button & script ====== -->
+  <button id="dev-reset-local" title="Reset semua data lokal SmartAttend (developer)">Reset Data Lokal (Developer)</button>
+  <script>
+    (function(){
+      const BTN = document.getElementById('dev-reset-local');
+      if(!BTN) return;
+      BTN.addEventListener('click', ()=>{
+        const ok = confirm(
+          'Reset Data Lokal akan menghapus data lokal berikut:\n' +
+          'SA_EMPLOYEES, SA_ATTENDANCE, SA_SHIFTS, SA_NEWS, SA_SHIFT_MONTHLY, SA_EDUCATION, SA_AUTH\n\n' +
+          'Lanjutkan?'
+        );
+        if(!ok) return;
+        try{
+          const keys = ['SA_EMPLOYEES','SA_ATTENDANCE','SA_SHIFTS','SA_NEWS','SA_SHIFT_MONTHLY','SA_EDUCATION','SA_AUTH'];
+          keys.forEach(k=>localStorage.removeItem(k));
+          // also attempt common alternate keys (non destructive if absent)
+          const alt = ['employees','attendance','shifts_cfg','shift_monthly','news','APP_EMPLOYEES'];
+          alt.forEach(k=>localStorage.removeItem(k));
+          alert('Data lokal berhasil dihapus. Halaman akan direfresh.');
+          // dispatch events so UI listeners can react before reload (optional)
+          try{ window.dispatchEvent(new Event('attendance:changed')); window.dispatchEvent(new Event('attendance:update')); window.dispatchEvent(new Event('education:changed')); }catch(e){}
+          location.reload();
+        }catch(err){
+          alert('Gagal menghapus data lokal: ' + (err && err.message ? err.message : err));
+        }
+      });
+
+      // optional: hide button on production by reading an env flag in localStorage
+      try{
+        const hide = localStorage.getItem('HIDE_DEV_RESET') === '1';
+        if(hide){ BTN.style.display='none'; }
+      }catch(e){}
+    })();
+  </script>
+
 </body>
 </html>

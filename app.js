@@ -1,9 +1,10 @@
-// SmartAttend app.js — FINAL v1.4 (polished, Supabase-integrated)
-// See header in your original file for usage notes (must include supabase-js and window.supabase in HTML)
+// SmartAttend app.js — FINAL v1.4 (polished, Supabase-integrated, with robust supabase fallback + queued push/retry)
+// NOTE: put this file after any supabase client script tags. If you use module import for supabase,
+// also set window.SUPABASE_URL and window.SUPABASE_ANON in HTML so fallback can create client synchronously.
 
 window.addEventListener('DOMContentLoaded', () => {
   const LS_EMP='SA_EMPLOYEES', LS_ATT='SA_ATTENDANCE', LS_SHIFTS='SA_SHIFTS',
-        LS_NEWS='SA_NEWS', LS_SCHED='SA_SHIFT_MONTHLY';
+        LS_NEWS='SA_NEWS', LS_SCHED='SA_SHIFT_MONTHLY', PUSH_QUEUE_KEY='SA_PUSH_QUEUE';
 
   const BLINK_ALL_COMPANY_CARDS = true;
 
@@ -29,7 +30,8 @@ window.addEventListener('DOMContentLoaded', () => {
         DAYTIME:{start:'08:00',end:'16:00'}
       }),
       news=load(LS_NEWS,[]),
-      sched=load(LS_SCHED,{});
+      sched=load(LS_SCHED,{}),
+      pushQueue=load(PUSH_QUEUE_KEY,[]); // persisted queue of attendance payloads to push
 
   // expose ke window agar script lain dapat ikut pakai
   function syncGlobals(){
@@ -46,26 +48,66 @@ window.addEventListener('DOMContentLoaded', () => {
     if(el.textContent !== newStr){
       el.textContent = newStr;
       const target = el.classList.contains('stat-value') ? el : (el.closest('.card')?.querySelector('.stat-value') || el);
-      target.classList.add('changed');
-      setTimeout(()=>target.classList.remove('changed'), 700);
+      if(target){
+        target.classList.add('changed');
+        setTimeout(()=>target.classList.remove('changed'), 700);
+      }
     }else el.textContent = newStr;
   }
 
-  // =========================================================
-  // === Supabase Integration (SupaSync) =====================
-  // =========================================================
-  function isSupabaseEnabled(){ return !!(window && window.supabase); }
+  // -----------------------------------------------------------------------
+  // Supabase integration helpers + robust fallback + queued push + retries
+  // -----------------------------------------------------------------------
+  function isSupabaseEnabled(){ return !!(window && window.supabase && typeof window.supabase.from === 'function'); }
 
-  // Nama tabel
-  const T_EMP='employees';
-  const T_ATT='attendance';
-  const T_NEWS='news';
-  const T_SHIFTS='shifts_cfg';
-  const T_SCHED='shift_monthly';
+  // Try to create a fallback window.supabase client synchronously if possible.
+  // Requires window.SUPABASE_URL and window.SUPABASE_ANON to be set in HTML.
+  function ensureSupabaseClientFallback(){
+    try{
+      if(isSupabaseEnabled()){
+        console.info('[Supabase] already initialized');
+        return true;
+      }
+      const URL = window.SUPABASE_URL || null;
+      const ANON = window.SUPABASE_ANON || null;
+      if(!URL || !ANON){
+        // No credentials provided — cannot auto-create client.
+        console.warn('[Supabase fallback] missing SUPABASE_URL/SUPABASE_ANON on window. Skipping fallback.');
+        return false;
+      }
+      // Many UMD builds expose `supabase` or `createClient`. Try available options.
+      if(typeof window.supabase === 'undefined'){
+        if(typeof supabase !== 'undefined' && typeof supabase.createClient === 'function'){
+          window.supabase = supabase.createClient(URL, ANON);
+          console.info('[Supabase fallback] created client via global supabase.createClient');
+        } else if(typeof createClient === 'function'){
+          window.supabase = createClient(URL, ANON);
+          console.info('[Supabase fallback] created client via createClient() global');
+        } else {
+          // If UMD script loaded but global name differs, try to detect
+          if(window.supabasejs && typeof window.supabasejs.createClient === 'function'){
+            window.supabase = window.supabasejs.createClient(URL, ANON);
+            console.info('[Supabase fallback] created client via supabasejs');
+          } else {
+            console.warn('[Supabase fallback] UMD supabase not found as global; ensure <script src=".../supabase.min.js"> is loaded before app.js');
+            return false;
+          }
+        }
+      }
+      return isSupabaseEnabled();
+    }catch(err){
+      console.error('[Supabase fallback] error creating client', err);
+      return false;
+    }
+  }
 
+  // Try fallback at startup (if module import failed)
+  ensureSupabaseClientFallback();
+
+  // Wrapped supa utilities that return standardized objects
   const supa = {
     async select(table, builder){
-      if(!isSupabaseEnabled()) return {data:null, error:'OFFLINE'};
+      if(!isSupabaseEnabled()) return {data:null, error:{message:'OFFLINE'}};
       try{
         let q = window.supabase.from(table).select('*');
         if(typeof builder==='function'){ const maybe = builder(q); if(maybe) q = maybe; }
@@ -75,7 +117,7 @@ window.addEventListener('DOMContentLoaded', () => {
       }catch(err){ console.warn('[Supabase select ex]', err); return {data:null,error:err}; }
     },
     async upsert(table, payload, conflict){
-      if(!isSupabaseEnabled()) return {data:null, error:'OFFLINE'};
+      if(!isSupabaseEnabled()) return {data:null, error:{message:'OFFLINE'}};
       try{
         const { data, error } = await window.supabase.from(table).upsert(payload, { onConflict: conflict }).select();
         if(error) console.warn('[Supabase upsert]', table, error);
@@ -83,7 +125,7 @@ window.addEventListener('DOMContentLoaded', () => {
       }catch(err){ console.warn('[Supabase upsert ex]', err); return {data:null,error:err}; }
     },
     async insert(table, payload){
-      if(!isSupabaseEnabled()) return {data:null, error:'OFFLINE'};
+      if(!isSupabaseEnabled()) return {data:null, error:{message:'OFFLINE'}};
       try{
         const { data, error } = await window.supabase.from(table).insert(payload).select();
         if(error) console.warn('[Supabase insert]', table, error);
@@ -91,7 +133,7 @@ window.addEventListener('DOMContentLoaded', () => {
       }catch(err){ console.warn('[Supabase insert ex]', err); return {data:null,error:err}; }
     },
     async del(table, builder){
-      if(!isSupabaseEnabled()) return {data:null, error:'OFFLINE'};
+      if(!isSupabaseEnabled()) return {data:null, error:{message:'OFFLINE'}};
       try{
         let q = window.supabase.from(table).delete();
         if(typeof builder==='function'){ const maybe = builder(q); if(maybe) q = maybe; }
@@ -101,6 +143,65 @@ window.addEventListener('DOMContentLoaded', () => {
       }catch(err){ console.warn('[Supabase delete ex]', err); return {data:null,error:err}; }
     }
   };
+
+  // queue management: enqueue payloads on failure, persist to localStorage, flush later
+  function enqueuePush(item){
+    try{
+      pushQueue.push(item);
+      save(PUSH_QUEUE_KEY, pushQueue);
+      console.info('[PushQueue] enqueued', item);
+    }catch(err){ console.error('[PushQueue] enqueue failed', err); }
+  }
+  async function flushPushQueue() {
+    if(!pushQueue || !pushQueue.length) return;
+    if(!isSupabaseEnabled()){
+      // Try to create client if credentials present
+      ensureSupabaseClientFallback();
+      if(!isSupabaseEnabled()) return;
+    }
+    // process queue in FIFO order, but limit batch size to avoid heavy requests
+    const batch = pushQueue.splice(0, 20);
+    save(PUSH_QUEUE_KEY, pushQueue); // optimistic remove; will re-enqueue on failure
+    for(const item of batch){
+      try{
+        const { data, error } = await supa.insert(T_ATT, item);
+        if(error){
+          console.warn('[PushQueue] item failed to insert, re-enqueueing', error);
+          // re-enqueue at front to preserve order
+          pushQueue.unshift(item);
+          save(PUSH_QUEUE_KEY, pushQueue);
+          // if error indicates auth/permission, break to avoid infinite loops
+          if(error.status === 401 || error.status === 403 || (error.message && error.message.toLowerCase().includes('permission'))){
+            console.error('[PushQueue] permission error while flushing queue:', error);
+            toast('Gagal menyinkronkan antrean kehadiran: izin ditolak. Periksa konfigurasi Supabase.');
+            break;
+          }
+          // network error: stop processing now (will retry next interval)
+          break;
+        } else {
+          console.info('[PushQueue] flushed item ok', data);
+          // optionally update remote ID mapping if needed
+        }
+      }catch(err){
+        console.error('[PushQueue] exception while flushing, re-enqueueing', err);
+        pushQueue.unshift(item);
+        save(PUSH_QUEUE_KEY, pushQueue);
+        break;
+      }
+    }
+  }
+
+  // schedule periodic flush + on online
+  const PUSH_FLUSH_INTERVAL = 10 * 1000; // every 10s
+  setInterval(flushPushQueue, PUSH_FLUSH_INTERVAL);
+  window.addEventListener('online', () => { ensureSupabaseClientFallback(); flushPushQueue(); });
+
+  // --- Table names ---
+  const T_EMP='employees';
+  const T_ATT='attendance';
+  const T_NEWS='news';
+  const T_SHIFTS='shifts_cfg';
+  const T_SCHED='shift_monthly';
 
   // --- Merge helpers (last-write-wins) ---
   const parseIso = s => {
@@ -197,7 +298,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
   // --- Pushers ---
   async function pushEmployee(emp){
-    if(!isSupabaseEnabled()) { console.warn('[pushEmployee] supabase offline'); return; }
+    if(!isSupabaseEnabled()) { console.warn('[pushEmployee] supabase offline'); return {error:{message:'OFFLINE'}}; }
     try{
       const payload = Array.isArray(emp) ? emp.map(e=>({...e, updated_at: e.updated_at || new Date().toISOString()})) : {...emp, updated_at: emp.updated_at || new Date().toISOString()};
       const { data, error } = await supa.upsert(T_EMP, payload, 'nid');
@@ -211,24 +312,45 @@ window.addEventListener('DOMContentLoaded', () => {
     if (error) console.warn('[deleteEmployeeRemote] error:', error);
     return { data, error };
   }
+
+  // Updated pushAttendance: tries immediate push, on error enqueues and retries later
   async function pushAttendance(rec){
-    if(!isSupabaseEnabled()) { console.warn('[pushAttendance] supabase offline'); return; }
     // ensure ts number & late boolean
     const payload = { ...rec, ts: Number(rec.ts), late: !!rec.late, created_at: rec.created_at || new Date().toISOString() };
+    // If supabase not ready, enqueue and return
+    if(!isSupabaseEnabled()){
+      console.warn('[pushAttendance] supabase offline or not initialized. Enqueueing payload.');
+      enqueuePush(payload);
+      toast('Kehadiran disimpan lokal (antrian) — akan disinkron saat online.');
+      return { data: null, error: { message: 'OFFLINE' } };
+    }
     try{
       const res = await supa.insert(T_ATT, payload);
-      if(res?.error){ console.warn('[pushAttendance] error:', res.error); toast('Gagal menyimpan kehadiran ke server (cek console).'); }
-      else { console.log('[pushAttendance] inserted:', res.data); }
+      if(res?.error){
+        console.warn('[pushAttendance] error from supabase insert:', res.error);
+        // If specific permission/auth error, surface to console & enqueue to avoid losing data
+        enqueuePush(payload);
+        toast('Gagal menyimpan ke server — disimpan dalam antrean (cek console).');
+      } else {
+        console.log('[pushAttendance] inserted:', res.data);
+      }
       return res;
-    }catch(err){ console.error('[pushAttendance] ex', err); toast('Error saat sinkron kehadiran.'); return {data:null,error:err}; }
+    }catch(err){
+      console.error('[pushAttendance] ex', err);
+      // network or runtime error -> enqueue for retry
+      enqueuePush(payload);
+      toast('Error jaringan saat sinkron. Kehadiran disimpan di antrean.');
+      return { data:null, error:err };
+    }
   }
+
   async function deleteAttendanceRemote(ts){
     const { data, error } = await supa.del(T_ATT, q=>q.eq('ts', ts));
     if (error) console.warn('[deleteAttendanceRemote] error:', error);
     return { data, error };
   }
   async function pushNews(item){
-    if(!isSupabaseEnabled()) { console.warn('[pushNews] supabase offline'); return; }
+    if(!isSupabaseEnabled()) { console.warn('[pushNews] supabase offline'); return {error:{message:'OFFLINE'}}; }
     const { data, error } = await supa.upsert(T_NEWS, item, 'ts');
     if (error) console.warn('[pushNews] error:', error);
     return { data, error };
@@ -239,13 +361,13 @@ window.addEventListener('DOMContentLoaded', () => {
     return { data, error };
   }
   async function pushShiftsCfg(){
-    if(!isSupabaseEnabled()) { console.warn('[pushShiftsCfg] supabase offline'); return; }
+    if(!isSupabaseEnabled()) { console.warn('[pushShiftsCfg] supabase offline'); return {error:{message:'OFFLINE'}}; }
     const { data, error } = await supa.upsert(T_SHIFTS, { id: 'global', data: shifts, updated_at: new Date().toISOString() }, 'id');
     if (error) console.warn('[pushShiftsCfg] error:', error);
     return { data, error };
   }
   async function pushSchedMonth(id){
-    if(!isSupabaseEnabled()) { console.warn('[pushSchedMonth] supabase offline'); return; }
+    if(!isSupabaseEnabled()) { console.warn('[pushSchedMonth] supabase offline'); return {error:{message:'OFFLINE'}}; }
     const { data, error } = await supa.upsert(T_SCHED, { id, data: sched[id]||{}, updated_at: new Date().toISOString() }, 'id');
     if (error) console.warn('[pushSchedMonth] error:', error);
     return { data, error };
@@ -258,7 +380,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
   // helper: push all local employees to supabase (batch)
   async function syncAllLocalEmployeesToSupabase(){
-    if(!isSupabaseEnabled()){ console.warn('Supabase not enabled'); return; }
+    if(!isSupabaseEnabled()){ console.warn('Supabase not enabled'); return {error:{message:'OFFLINE'}}; }
     if(!employees || !employees.length){ console.warn('No local employees to sync'); return; }
     const payload = employees.map(e => ({ ...e, updated_at: e.updated_at || new Date().toISOString() }));
     try{
@@ -277,10 +399,16 @@ window.addEventListener('DOMContentLoaded', () => {
   window.pushAttendance = pushAttendance;
   window.deleteAttendanceRemote = deleteAttendanceRemote;
   window.syncAllLocalEmployeesToSupabase = syncAllLocalEmployeesToSupabase;
+  window._SA_flushPushQueue = flushPushQueue;
+  window._SA_getPushQueue = () => load(PUSH_QUEUE_KEY, []);
 
   // --- Bootstrap/periodic sync ---
   async function supaBootstrap(){
-    if(!isSupabaseEnabled()) return;
+    if(!isSupabaseEnabled()){
+      // try fallback once more
+      ensureSupabaseClientFallback();
+      if(!isSupabaseEnabled()) return;
+    }
     try{
       await Promise.all([
         pullEmployees(),
@@ -290,6 +418,8 @@ window.addEventListener('DOMContentLoaded', () => {
       ]);
       const mp=$('#schedMonth'); const id = (mp?.value) || monthKey(new Date());
       pullSched(id);
+      // flush any queued pushes now that we're online
+      flushPushQueue();
     }catch(err){ console.warn('[supaBootstrap] failed', err); }
   }
   if(isSupabaseEnabled()){
@@ -302,12 +432,16 @@ window.addEventListener('DOMContentLoaded', () => {
         clearInterval(watcher);
         supaBootstrap();
         window.addEventListener('online', supaBootstrap);
+      } else {
+        // attempt fallback creation periodically
+        ensureSupabaseClientFallback();
       }
     }, 800);
   }
-  // =========================================================
-  // === / Supabase Integration ==============================
-  // =========================================================
+
+  // -----------------------------------------------------------------------
+  // End supabase / queue code
+  // -----------------------------------------------------------------------
 
   // Router
   $$('.navlink').forEach(btn=>btn.addEventListener('click',()=>{ 
@@ -588,11 +722,23 @@ window.addEventListener('DOMContentLoaded', () => {
     $('#scanCompany')&&($('#scanCompany').textContent=emp?.company||'—');
     const shiftLabel = rec ? (CODE_TO_LABEL[rec.shift] || rec.shift) : (emp?.shift ? `Grup ${emp.shift}` : '—');
     $('#scanShift')&&($('#scanShift').textContent=shiftLabel);
-    $('#scanPhoto')&&($('#scanPhoto').style && ($('#scanPhoto').style.backgroundImage=emp?.photo?`url(${emp.photo})`:''  ));
+
+    const sp = $('#scanPhoto');
+    if(sp && sp.style){
+      if(emp && emp.photo){
+        // use quoted url to be safe
+        sp.style.backgroundImage = `url("${emp.photo}")`;
+        sp.style.backgroundSize = 'cover';
+        sp.style.backgroundPosition = 'center';
+      } else {
+        sp.style.backgroundImage = 'none';
+      }
+    }
+
     const pill=$('#scanShiftCheck');
     if(pill){
       if(rec){ pill.textContent=rec.note; pill.className='pill light '+(rec.okShift?(rec.late?'warn':''):'danger'); $('#scanTs')&&($('#scanTs').textContent=fmtTs(rec.ts)); }
-      else{ pill.textContent='—'; $('#scanTs')&&($('#scanTs').textContent='—'); }
+      else{ pill.textContent='—'; pill.className='pill light'; $('#scanTs')&&($('#scanTs').textContent='—'); }
     }
   }
   function nextStatusFor(nid){ const sod=new Date(todayISO()+'T00:00:00').getTime(); const cnt=attendance.filter(a=>a.nid===nid && a.ts>=sod).length; return (cnt%2===0)?'datang':'pulang'; }
@@ -603,7 +749,7 @@ window.addEventListener('DOMContentLoaded', () => {
   const SCAN_DEBOUNCE=150, SCAN_WINDOW=500; let scanTimer=null, lastScan={v:'',t:0};
   function clearScanInputNow(){
     const inp=$('#scanInput'); if(!inp) return;
-    inp.value=''; inp.blur(); setTimeout(()=>inp.focus(), 30);
+    try{ inp.value=''; inp.blur(); setTimeout(()=>inp.focus(), 30); }catch(e){}
   }
   function tryScan(v){
     const t=Date.now();
@@ -664,13 +810,11 @@ window.addEventListener('DOMContentLoaded', () => {
     window.dispatchEvent(new Event('attendance:update'));
     renderScanStats();
 
-    // Supabase push
-    if(isSupabaseEnabled()){
-      pushAttendance({
-        ...rec,
-        created_at: new Date().toISOString()
-      });
-    }
+    // Supabase push (uses queued mechanism on failure)
+    pushAttendance({
+      ...rec,
+      created_at: new Date().toISOString()
+    });
   }
 
   // ===== Employees =====
@@ -720,7 +864,7 @@ window.addEventListener('DOMContentLoaded', () => {
     const base = { width:{ideal:1280}, height:{ideal:720}, facingMode:{ideal:facing} };
     try{ camStream = await navigator.mediaDevices.getUserMedia({video:{...base, facingMode:{exact:facing}}, audio:false}); }
     catch{ camStream = await navigator.mediaDevices.getUserMedia({video:base, audio:false}); }
-    const v = $('#camVideo'); v.srcObject = camStream; await v.play();
+    const v = $('#camVideo'); if(v){ v.srcObject = camStream; await v.play(); }
   }
   function ensureCamDialog(){
     let dlg = $('#camDialog');
@@ -749,7 +893,7 @@ window.addEventListener('DOMContentLoaded', () => {
     dlg.querySelector('#camRetry').onclick  = ()=>startCam(camFacing).catch(()=>toast('Gagal memulai kamera.'));
     dlg.querySelector('#camSwitch').onclick = ()=>startCam(camFacing==='user'?'environment':'user').catch(()=>toast('Tidak bisa beralih kamera.'));
     dlg.querySelector('#camCapture').onclick = ()=>{
-      const v=$('#camVideo'); if(!v.videoWidth){ toast('Video belum siap.'); return; }
+      const v=$('#camVideo'); if(!v || !v.videoWidth){ toast('Video belum siap.'); return; }
       const c=document.createElement('canvas'); c.width=v.videoWidth; c.height=v.videoHeight;
       const ctx=c.getContext('2d'); ctx.drawImage(v,0,0,c.width,c.height);
       camDataUrl = c.toDataURL('image/jpeg',0.92);
@@ -1300,5 +1444,76 @@ window.addEventListener('DOMContentLoaded', () => {
   // periodic
   window.addEventListener('attendance:update', renderLiveCompanyStats);
   setInterval(() => { updateScanLiveCircle(false); renderScanStats(); }, 15000);
+
+
+  // -----------------------------
+  // DEVELOPER: Clear Local Data helper + UI button
+  // -----------------------------
+  function clearLocalData(opts = {}) {
+    const defaults = {
+      confirm: true,
+      reload: true,
+      keys: [
+        'SA_EMPLOYEES','SA_ATTENDANCE','SA_SHIFTS','SA_NEWS','SA_SHIFT_MONTHLY',
+        'SA_AUTH','SA_EDUCATION','SA_ALLOW_SEED','SA_CONFIG', PUSH_QUEUE_KEY
+      ]
+    };
+    const o = Object.assign({}, defaults, opts || {});
+    if(o.confirm){
+      const proceed = confirm(
+        'Reset Data Lokal (Developer)\n\n' +
+        'Ini akan menghapus data lokal penting (karyawan, absensi, shift, news, sched, dll).\n' +
+        'Sebaiknya ekspor data terlebih dahulu jika diperlukan.\n\n' +
+        'Lanjutkan?'
+      );
+      if(!proceed) return false;
+    }
+    try{
+      for(const k of o.keys){
+        localStorage.removeItem(k);
+      }
+      if(o.removeAllSA){
+        Object.keys(localStorage).forEach(k=>{ if(k && k.startsWith('SA_')) localStorage.removeItem(k); });
+      }
+      employees = []; attendance = []; shifts = {}; news = []; sched = {}; pushQueue = [];
+      save(PUSH_QUEUE_KEY, pushQueue);
+      syncGlobals();
+      renderEmployees(); renderDashboard(); renderScanPage(); renderLatest();
+      toast('Data lokal telah dihapus.');
+      if(o.reload) {
+        setTimeout(()=>{ location.reload(); }, 600);
+      }
+      return true;
+    }catch(err){
+      console.error('clearLocalData failed', err);
+      alert('Gagal menghapus data lokal. Periksa console.');
+      return false;
+    }
+  }
+  window.clearLocalData = clearLocalData;
+
+  // inject small button in sidebar-footer for devs
+  (function injectResetButton(){
+    try{
+      const footer = document.querySelector('.sidebar-footer');
+      if(!footer) return;
+      if(document.getElementById('btnResetLocal')) return;
+      const btn = document.createElement('button');
+      btn.id = 'btnResetLocal';
+      btn.className = 'btn ghost';
+      btn.type = 'button';
+      btn.title = 'Reset Data Lokal (Developer)';
+      btn.textContent = '🧹 Reset Data Lokal (Dev)';
+      btn.style.gap = '8px';
+      btn.addEventListener('click', ()=> {
+        const ok = confirm('🧹 Reset Data Lokal (Developer)\n\n' +
+                           'Aksi ini akan menghapus data lokal (employees, attendance, shifts, news, schedules, auth, education).\n' +
+                           'Pastikan sudah melakukan backup (Export). Klik OK untuk melanjutkan.');
+        if(!ok) return;
+        clearLocalData({ confirm: false, reload: true, removeAllSA: true });
+      });
+      footer.insertBefore(btn, footer.firstChild || footer.childNodes[0]);
+    }catch(e){ console.warn('injectResetButton failed', e); }
+  })();
 
 }); // end DOMContentLoaded
