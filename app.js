@@ -1,11 +1,5 @@
 // SmartAttend app.js — FINAL v1.4 (polished, Supabase-integrated)
-// - Sinkron dengan HTML terbaru (scan stats pakai script inline -> kita panggil via window.refreshScanStats jika ada)
-// - Perbaikan “late” untuk shift lintas tengah malam menggunakan tanggal basis shift
-// - Hapus duplikasi mini calendar & scan stats internal yang tak terpakai
-// - Event refresh terpadu: scan:saved, attendance:update, attendance:changed
-// - Sync ke window.* agar script lain bisa membaca data langsung
-// - Hapus satu baris attendance saja (bukan semua)
-// - NEW: Supabase Integration (offline-first). Push/pull employees, attendance, news, shifts config, dan jadwal bulanan.
+// See header in your original file for usage notes (must include supabase-js and window.supabase in HTML)
 
 window.addEventListener('DOMContentLoaded', () => {
   const LS_EMP='SA_EMPLOYEES', LS_ATT='SA_ATTENDANCE', LS_SHIFTS='SA_SHIFTS',
@@ -60,49 +54,47 @@ window.addEventListener('DOMContentLoaded', () => {
   // =========================================================
   // === Supabase Integration (SupaSync) =====================
   // =========================================================
-  const SUPA = window.supabase || null;
-  const SUPA_ENABLED = !!SUPA;
+  function isSupabaseEnabled(){ return !!(window && window.supabase); }
 
-  // Nama tabel (ubah sesuai milikmu)
+  // Nama tabel
   const T_EMP='employees';
   const T_ATT='attendance';
   const T_NEWS='news';
-  const T_SHIFTS = 'shifts';     // data json, id='global'
-  const T_SCHED='shift_monthly';   // data json, id='YYYY-MM'
+  const T_SHIFTS='shifts_cfg';
+  const T_SCHED='shift_monthly';
 
   const supa = {
     async select(table, builder){
-      if(!SUPA_ENABLED) return {data:null, error:'OFFLINE'};
+      if(!isSupabaseEnabled()) return {data:null, error:'OFFLINE'};
       try{
-        let q = SUPA.from(table).select('*');
-        if(typeof builder==='function') q = builder(q);
+        let q = window.supabase.from(table).select('*');
+        if(typeof builder==='function'){ const maybe = builder(q); if(maybe) q = maybe; }
         const { data, error } = await q;
         if(error) console.warn('[Supabase select]', table, error);
         return { data, error };
       }catch(err){ console.warn('[Supabase select ex]', err); return {data:null,error:err}; }
     },
     async upsert(table, payload, conflict){
-      if(!SUPA_ENABLED) return {data:null, error:'OFFLINE'};
+      if(!isSupabaseEnabled()) return {data:null, error:'OFFLINE'};
       try{
-        let q = SUPA.from(table).upsert(payload, { onConflict: conflict }).select();
-        const { data, error } = await q;
+        const { data, error } = await window.supabase.from(table).upsert(payload, { onConflict: conflict }).select();
         if(error) console.warn('[Supabase upsert]', table, error);
         return { data, error };
       }catch(err){ console.warn('[Supabase upsert ex]', err); return {data:null,error:err}; }
     },
     async insert(table, payload){
-      if(!SUPA_ENABLED) return {data:null, error:'OFFLINE'};
+      if(!isSupabaseEnabled()) return {data:null, error:'OFFLINE'};
       try{
-        const { data, error } = await SUPA.from(table).insert(payload).select();
+        const { data, error } = await window.supabase.from(table).insert(payload).select();
         if(error) console.warn('[Supabase insert]', table, error);
         return { data, error };
       }catch(err){ console.warn('[Supabase insert ex]', err); return {data:null,error:err}; }
     },
     async del(table, builder){
-      if(!SUPA_ENABLED) return {data:null, error:'OFFLINE'};
+      if(!isSupabaseEnabled()) return {data:null, error:'OFFLINE'};
       try{
-        let q = SUPA.from(table).delete();
-        if(typeof builder==='function') q = builder(q);
+        let q = window.supabase.from(table).delete();
+        if(typeof builder==='function'){ const maybe = builder(q); if(maybe) q = maybe; }
         const { data, error } = await q;
         if(error) console.warn('[Supabase delete]', table, error);
         return { data, error };
@@ -111,7 +103,12 @@ window.addEventListener('DOMContentLoaded', () => {
   };
 
   // --- Merge helpers (last-write-wins) ---
-  const parseIso = s => (s ? Date.parse(s) || 0 : 0);
+  const parseIso = s => {
+    if(!s) return 0;
+    if(typeof s === 'number') return s;
+    const p = Date.parse(s);
+    return isNaN(p) ? 0 : p;
+  };
 
   function mergeEmployees(remote=[]){
     let changed=false;
@@ -127,13 +124,12 @@ window.addEventListener('DOMContentLoaded', () => {
     if(changed){ save(LS_EMP,employees); syncGlobals(); renderEmployees(); renderDashboard(); initMonthlyScheduler(); }
   }
   function mergeNews(remote=[]){
-    const map = new Map(news.map(n=>[+n.ts, n]));
+    const map = new Map(news.map(n=>[Number(n.ts), n]));
     let changed=false;
     remote.forEach(n=>{
       const ts = Number(n.ts||0); if(!ts) return;
       if(!map.has(ts)){ map.set(ts, { ts, title:n.title, body:n.body||'', link:n.link||'' }); changed=true; }
       else{
-        // prefer remote if text differs
         const cur = map.get(ts);
         if(cur.title!==n.title || (cur.body||'')!==(n.body||'') || (cur.link||'')!==(n.link||'')){
           map.set(ts,{ ts, title:n.title, body:n.body||'', link:n.link||'' }); changed=true;
@@ -174,82 +170,147 @@ window.addEventListener('DOMContentLoaded', () => {
 
   // --- Pullers ---
   async function pullEmployees(){ 
-    const {data} = await supa.select(T_EMP, q=>q.order('updated_at', {ascending:false}));
+    const { data, error } = await supa.select(T_EMP, q=>q.order('updated_at', {ascending:false}));
+    if(error) { /* ignore offline */ }
     if(data) mergeEmployees(data);
   }
   async function pullNews(){
-    const {data} = await supa.select(T_NEWS, q=>q.order('ts', {ascending:false}).limit(100));
+    const { data, error } = await supa.select(T_NEWS, q=>q.order('ts', {ascending:false}).limit(100));
+    if(error) { /* ignore offline */ }
     if(data) mergeNews(data);
   }
   async function pullRecentAttendance(days=3){
     const since = Date.now() - days*24*3600*1000;
-    const {data} = await supa.select(T_ATT, q=>q.gte('ts', since).order('ts', {ascending:true}).limit(5000));
+    const { data, error } = await supa.select(T_ATT, q=>q.gte('ts', since).order('ts', {ascending:true}).limit(5000));
+    if(error) { /* ignore offline */ }
     if(data) mergeAttendance(data);
   }
   async function pullShifts(){
-    const {data} = await supa.select(T_SHIFTS, q=>q.eq('id','global').single());
+    const { data, error } = await supa.select(T_SHIFTS, q=>q.eq('id','global').single());
     if(data) applyRemoteShiftsRow(data);
   }
   async function pullSched(monthId){
     if(!monthId) return;
-    const {data} = await supa.select(T_SCHED, q=>q.eq('id', monthId).single());
+    const { data, error } = await supa.select(T_SCHED, q=>q.eq('id', monthId).single());
     if(data) applyRemoteSchedRow(data);
   }
 
   // --- Pushers ---
   async function pushEmployee(emp){
-    const payload = {...emp, updated_at: new Date().toISOString()};
-    await supa.upsert(T_EMP, payload, 'nid');
+    if(!isSupabaseEnabled()) { console.warn('[pushEmployee] supabase offline'); return; }
+    try{
+      const payload = Array.isArray(emp) ? emp.map(e=>({...e, updated_at: e.updated_at || new Date().toISOString()})) : {...emp, updated_at: emp.updated_at || new Date().toISOString()};
+      const { data, error } = await supa.upsert(T_EMP, payload, 'nid');
+      if (error) console.warn('[pushEmployee] error:', error);
+      else console.log('[pushEmployee] ok:', data);
+      return { data, error };
+    }catch(err){ console.warn('[pushEmployee] ex', err); return { data:null, error:err }; }
   }
   async function deleteEmployeeRemote(nid){
-    await supa.del(T_EMP, q=>q.eq('nid', nid));
+    const { data, error } = await supa.del(T_EMP, q=>q.eq('nid', nid));
+    if (error) console.warn('[deleteEmployeeRemote] error:', error);
+    return { data, error };
   }
   async function pushAttendance(rec){
-    await supa.insert(T_ATT, rec);
+    if(!isSupabaseEnabled()) { console.warn('[pushAttendance] supabase offline'); return; }
+    // ensure ts number & late boolean
+    const payload = { ...rec, ts: Number(rec.ts), late: !!rec.late, created_at: rec.created_at || new Date().toISOString() };
+    try{
+      const res = await supa.insert(T_ATT, payload);
+      if(res?.error){ console.warn('[pushAttendance] error:', res.error); toast('Gagal menyimpan kehadiran ke server (cek console).'); }
+      else { console.log('[pushAttendance] inserted:', res.data); }
+      return res;
+    }catch(err){ console.error('[pushAttendance] ex', err); toast('Error saat sinkron kehadiran.'); return {data:null,error:err}; }
   }
   async function deleteAttendanceRemote(ts){
-    await supa.del(T_ATT, q=>q.eq('ts', ts));
+    const { data, error } = await supa.del(T_ATT, q=>q.eq('ts', ts));
+    if (error) console.warn('[deleteAttendanceRemote] error:', error);
+    return { data, error };
   }
   async function pushNews(item){
-    await supa.upsert(T_NEWS, item, 'ts');
+    if(!isSupabaseEnabled()) { console.warn('[pushNews] supabase offline'); return; }
+    const { data, error } = await supa.upsert(T_NEWS, item, 'ts');
+    if (error) console.warn('[pushNews] error:', error);
+    return { data, error };
   }
   async function deleteNewsRemote(ts){
-    await supa.del(T_NEWS, q=>q.eq('ts', ts));
+    const { data, error } = await supa.del(T_NEWS, q=>q.eq('ts', ts));
+    if (error) console.warn('[deleteNewsRemote] error:', error);
+    return { data, error };
   }
   async function pushShiftsCfg(){
-    await supa.upsert(T_SHIFTS, { id: 'global', data: shifts, updated_at: new Date().toISOString() }, 'id');
+    if(!isSupabaseEnabled()) { console.warn('[pushShiftsCfg] supabase offline'); return; }
+    const { data, error } = await supa.upsert(T_SHIFTS, { id: 'global', data: shifts, updated_at: new Date().toISOString() }, 'id');
+    if (error) console.warn('[pushShiftsCfg] error:', error);
+    return { data, error };
   }
   async function pushSchedMonth(id){
-    await supa.upsert(T_SCHED, { id, data: sched[id]||{}, updated_at: new Date().toISOString() }, 'id');
+    if(!isSupabaseEnabled()) { console.warn('[pushSchedMonth] supabase offline'); return; }
+    const { data, error } = await supa.upsert(T_SCHED, { id, data: sched[id]||{}, updated_at: new Date().toISOString() }, 'id');
+    if (error) console.warn('[pushSchedMonth] error:', error);
+    return { data, error };
   }
   async function deleteSchedMonthRemote(id){
-    await supa.del(T_SCHED, q=>q.eq('id', id));
+    const { data, error } = await supa.del(T_SCHED, q=>q.eq('id', id));
+    if (error) console.warn('[deleteSchedMonthRemote] error:', error);
+    return { data, error };
   }
+
+  // helper: push all local employees to supabase (batch)
+  async function syncAllLocalEmployeesToSupabase(){
+    if(!isSupabaseEnabled()){ console.warn('Supabase not enabled'); return; }
+    if(!employees || !employees.length){ console.warn('No local employees to sync'); return; }
+    const payload = employees.map(e => ({ ...e, updated_at: e.updated_at || new Date().toISOString() }));
+    try{
+      const res = await supa.upsert(T_EMP, payload, 'nid');
+      if(res.error) console.warn('[syncAllLocalEmployeesToSupabase] error', res.error);
+      else console.log('[syncAllLocalEmployeesToSupabase] ok rows', (res.data||[]).length);
+      return res;
+    }catch(err){ console.warn('[syncAllLocalEmployeesToSupabase] ex', err); return {error:err}; }
+  }
+
+  // Expose key functions to window for debugging/console use
+  window.pullEmployees = pullEmployees;
+  window.pullRecentAttendance = pullRecentAttendance;
+  window.pullNews = pullNews;
+  window.pushEmployee = pushEmployee;
+  window.pushAttendance = pushAttendance;
+  window.deleteAttendanceRemote = deleteAttendanceRemote;
+  window.syncAllLocalEmployeesToSupabase = syncAllLocalEmployeesToSupabase;
 
   // --- Bootstrap/periodic sync ---
   async function supaBootstrap(){
-    if(!SUPA_ENABLED) return;
-    await Promise.all([
-      pullEmployees(),
-      pullNews(),
-      pullShifts(),
-      pullRecentAttendance(3)
-    ]);
-    // tarik jadwal bulan aktif (jika ada)
-    const mp=$('#schedMonth'); const id = (mp?.value) || monthKey(new Date());
-    pullSched(id);
+    if(!isSupabaseEnabled()) return;
+    try{
+      await Promise.all([
+        pullEmployees(),
+        pullNews(),
+        pullShifts(),
+        pullRecentAttendance(3)
+      ]);
+      const mp=$('#schedMonth'); const id = (mp?.value) || monthKey(new Date());
+      pullSched(id);
+    }catch(err){ console.warn('[supaBootstrap] failed', err); }
   }
-  if(SUPA_ENABLED){
+  if(isSupabaseEnabled()){
     supaBootstrap();
     window.addEventListener('online', supaBootstrap);
-    setInterval(()=>{ pullRecentAttendance(1); pullNews(); }, 60000); // 60s refresh ringan
+    setInterval(()=>{ pullRecentAttendance(1); pullNews(); }, 60000); // refresh ringan
+  } else {
+    const watcher = setInterval(()=>{
+      if(isSupabaseEnabled()){
+        clearInterval(watcher);
+        supaBootstrap();
+        window.addEventListener('online', supaBootstrap);
+      }
+    }, 800);
   }
   // =========================================================
   // === / Supabase Integration ==============================
   // =========================================================
 
   // Router
-  $$('.navlink').forEach(btn=>btn.addEventListener('click',()=>{
+  $$('.navlink').forEach(btn=>btn.addEventListener('click',()=>{ 
     $$('.navlink').forEach(b=>b.classList.remove('active')); btn.classList.add('active');
     const route=btn.dataset.route; $$('.route').forEach(s=>s.classList.add('hidden'));
     $('#route-'+route)?.classList.remove('hidden');
@@ -259,7 +320,7 @@ window.addEventListener('DOMContentLoaded', () => {
     if(route==='scan'){ renderScanPage(); $('#scanInput')?.focus(); }
     if(route==='latest') renderLatest();
     if(route==='shifts'){ renderShiftForm(); initMonthlyScheduler(); }
-    if(route==='education'){ /* UI education ada di HTML inline */ }
+    if(route==='education'){ /* static */ }
   }));
 
   // Clock
@@ -287,7 +348,7 @@ window.addEventListener('DOMContentLoaded', () => {
   }
   const hmToMin = (hm) => { hm=normalizeTime(hm); if (!hm || !hm.includes(':')) return 0; let [h, m] = hm.split(':').map(Number); if (h === 24) return 24 * 60 + m; return h * 60 + m; };
   const monthKey=d=>d.toISOString().slice(0,7);
-  const minutesOf=d=>d.getHours()*60+d.getMinutes();
+  const minutesOf=d=>{ const D=new Date(d); return D.getHours()*60+D.getMinutes(); };
   const shiftWindow=(code)=>{ const s=shifts[code]; if(!s) return null; return {start:hmToMin(s.start), end:hmToMin(s.end)}; };
   const isInWindow=(min,win)=> win.end>win.start ? (min>=win.start && min<win.end) : (min>=win.start || min<win.end);
 
@@ -298,15 +359,17 @@ window.addEventListener('DOMContentLoaded', () => {
     return (sched[id]?.[group]?.[day]) || 'OFF';
   }
   function scheduleDateFor(code, dt){
-    const win = shiftWindow(code); if(!win) return dt;
-    if(win.end>win.start) return dt;
-    const m=minutesOf(dt);
-    if(m<win.end){ const y=new Date(dt); y.setDate(dt.getDate()-1); return y; }
-    return dt;
+    const D = new Date(dt);
+    const win = shiftWindow(code); if(!win) return D;
+    if(win.end>win.start) return D;
+    const m=minutesOf(D);
+    if(m<win.end){ const y=new Date(D); y.setDate(D.getDate()-1); return y; }
+    return D;
   }
   function toDateFromHM(baseDate, hm){
     const d = new Date(baseDate); d.setHours(0,0,0,0);
-    const [hRaw,mRaw] = normalizeTime(hm).split(':').map(Number);
+    const nt = normalizeTime(hm) || '00:00';
+    const [hRaw,mRaw] = nt.split(':').map(Number);
     let h=hRaw, m=mRaw||0;
     if(h>=24){ d.setDate(d.getDate()+1); h=h-24; }
     d.setHours(h,m,0,0);
@@ -525,7 +588,7 @@ window.addEventListener('DOMContentLoaded', () => {
     $('#scanCompany')&&($('#scanCompany').textContent=emp?.company||'—');
     const shiftLabel = rec ? (CODE_TO_LABEL[rec.shift] || rec.shift) : (emp?.shift ? `Grup ${emp.shift}` : '—');
     $('#scanShift')&&($('#scanShift').textContent=shiftLabel);
-    $('#scanPhoto')&&($('#scanPhoto').style && ($('#scanPhoto').style.backgroundImage=emp?.photo?`url(${emp.photo})`:'' ));
+    $('#scanPhoto')&&($('#scanPhoto').style && ($('#scanPhoto').style.backgroundImage=emp?.photo?`url(${emp.photo})`:''  ));
     const pill=$('#scanShiftCheck');
     if(pill){
       if(rec){ pill.textContent=rec.note; pill.className='pill light '+(rec.okShift?(rec.late?'warn':''):'danger'); $('#scanTs')&&($('#scanTs').textContent=fmtTs(rec.ts)); }
@@ -580,7 +643,7 @@ window.addEventListener('DOMContentLoaded', () => {
     const sWin = effShift==='OFF' ? null : shiftWindow(effShift);
     const inWin = sWin ? isInWindow(minutesOf(ts), sWin) : false;
 
-    // === Late calc yang akurat (berdasarkan tanggal basis shift) ===
+    // === Late calc akurat (tanggal basis shift) ===
     let late=false;
     if(effShift!=='OFF' && status==='datang' && sWin){
       const baseDay = scheduleDateFor(effShift, ts);
@@ -602,7 +665,7 @@ window.addEventListener('DOMContentLoaded', () => {
     renderScanStats();
 
     // Supabase push
-    if(SUPA_ENABLED){
+    if(isSupabaseEnabled()){
       pushAttendance({
         ...rec,
         created_at: new Date().toISOString()
@@ -735,7 +798,7 @@ window.addEventListener('DOMContentLoaded', () => {
         const removed = employees[idx];
         employees.splice(idx,1); save(LS_EMP,employees); syncGlobals();
         renderEmployees(); renderDashboard(); toast('Data karyawan dihapus.'); initMonthlyScheduler();
-        if(SUPA_ENABLED) deleteEmployeeRemote(removed.nid);
+        if(isSupabaseEnabled()) deleteEmployeeRemote(removed.nid);
       }
     }
     else if(b.dataset.act==='barcode'){ dlBarcode(employees[idx]); }
@@ -781,7 +844,7 @@ window.addEventListener('DOMContentLoaded', () => {
     renderEmployees(); renderDashboard(); $('#empModal')?.close(); toast('Data karyawan disimpan.');
     initMonthlyScheduler();
 
-    if(SUPA_ENABLED) pushEmployee(emp);
+    if(isSupabaseEnabled()) pushEmployee(emp);
   });
 
   // Import/Export employees
@@ -802,7 +865,9 @@ window.addEventListener('DOMContentLoaded', () => {
     });
     save(LS_EMP,employees); syncGlobals(); renderEmployees(); renderDashboard(); initMonthlyScheduler();
     toast(`Import selesai. Tambah ${add}, Update ${up}.`); ev.target.value='';
-    if(SUPA_ENABLED && toPush.length){ Promise.all(toPush.map(pushEmployee)); }
+    if(isSupabaseEnabled() && toPush.length){ 
+      pushEmployee(toPush).then(res=>{ if(res?.error) console.warn('Import push error', res.error); });
+    }
   });
   $('#btnExportEmp')?.addEventListener('click',()=>{
     const rows=employees.map(e=>({NID:e.nid,Nama:e.name,Jabatan:e.title,Perusahaan:e.company,Grup:e.shift,FotoURL:e.photo}));
@@ -926,7 +991,7 @@ window.addEventListener('DOMContentLoaded', () => {
     toast('Pengaturan shift disimpan.');
     renderDashboard(); renderCurrentShiftPanel();
 
-    if(SUPA_ENABLED) pushShiftsCfg();
+    if(isSupabaseEnabled()) pushShiftsCfg();
   });
 
   // ===== Attendance (laporan) =====
@@ -959,7 +1024,7 @@ window.addEventListener('DOMContentLoaded', () => {
       if(idx>=0){ 
         attendance.splice(idx,1); save(LS_ATT,attendance); syncGlobals();
         filterAttendance(); renderDashboard(); renderScanTable(); renderScanStats(); toast('Baris dihapus.');
-        if(SUPA_ENABLED) deleteAttendanceRemote(ts);
+        if(isSupabaseEnabled()) deleteAttendanceRemote(ts);
       }
     }
   });
@@ -1005,7 +1070,7 @@ window.addEventListener('DOMContentLoaded', () => {
     if(idx>=0){ news[idx]=item; } else { news.push(item); }
     save(LS_NEWS,news); renderLatest(); renderNewsWidgets(); toast('Info tersimpan.');
 
-    if(SUPA_ENABLED) pushNews(item);
+    if(isSupabaseEnabled()) pushNews(item);
   });
   $('#tableNews')?.addEventListener('click',e=>{
     const b=e.target.closest('button'); if(!b) return; const ts=Number(b.dataset.ts||'0'); if(!ts) return;
@@ -1014,7 +1079,7 @@ window.addEventListener('DOMContentLoaded', () => {
     if(b.dataset.act==='del-news'){
       if(confirm('Hapus info ini?')){ 
         news.splice(idx,1); save(LS_NEWS,news); renderLatest(); renderNewsWidgets(); toast('Info dihapus.');
-        if(SUPA_ENABLED) deleteNewsRemote(ts);
+        if(isSupabaseEnabled()) deleteNewsRemote(ts);
       }
     }
   });
@@ -1023,57 +1088,71 @@ window.addEventListener('DOMContentLoaded', () => {
   function daysIn(y,m0){ return new Date(y,m0+1,0).getDate(); }
   function ensureMonth(id){ if(!sched[id]) sched[id]={}; }
   function renderSchedTable(){
-    const host=$('#tableSched'); if(!host) return;
-    host.classList.add('compact');
-    const mp=$('#schedMonth'); if(!mp.value) mp.value = monthKey(new Date());
-    const id = mp.value;
-    const [yy,mm]=id.split('-').map(Number); const dim=daysIn(yy,mm-1);
-    ensureMonth(id);
-    const head=[...Array(dim)].map((_,i)=>{const d=new Date(yy,mm-1,i+1); const wd=d.toLocaleDateString('id-ID',{weekday:'short'}); return `<th>${i+1}<br><small>${wd}</small></th>`;}).join('');
-    host.innerHTML=`<thead><tr><th style="min-width:80px">Shift</th>${head}</tr></thead><tbody></tbody>`;
-    const tb=host.querySelector('tbody');
-    const opts=Object.entries(CODE_TO_LABEL).map(([code,label])=>`<option value="${code}">${label}</option>`).join('');
-    const optsHtml = `<option value="">—</option>${opts}`;
-    SHIFT_KEYS.forEach(groupName => {
-      const tr=document.createElement('tr');
-      let cells=`<td><b>${esc(groupName)}</b></td>`;
-      for(let d=1; d<=dim; d++){
-        cells+=`<td><select class="sched" data-group="${groupName}" data-day="${d}" title="Jadwal Grup ${groupName} tgl ${d}">${optsHtml}</select></td>`;
-      }
-      tr.innerHTML=cells; tb.appendChild(tr);
-      tr.querySelectorAll('select.sched').forEach(sel => {
-        const day = sel.dataset.day; const curValue = sched[id]?.[groupName]?.[day] || ''; sel.value = curValue;
-      });
-    });
-    tb.querySelectorAll('select.sched').forEach(sel=>{
-      sel.addEventListener('change',e=>{
-        const group=e.target.dataset.group, day=+e.target.dataset.day, val=e.target.value;
-        const monthId = $('#schedMonth').value;
-        ensureMonth(monthId);
-        if(!sched[monthId][group]) sched[monthId][group]={};
-        if(val) sched[monthId][group][day]=val; else delete sched[monthId][group][day];
-      });
-    });
+  const host=$('#tableSched'); if(!host) return;
+  host.classList.add('compact');
+  const mp=$('#schedMonth'); if(!mp.value) mp.value = monthKey(new Date());
+  const id = mp.value;
+  const [yy,mm]=id.split('-').map(Number); const dim=daysIn(yy,mm-1);
+  ensureMonth(id);
+
+  let headCells = '';
+  for(let i=0; i<dim; i++){
+    const day = i+1;
+    const d = new Date(yy, mm-1, day);
+    const wd = d.toLocaleDateString('id-ID', { weekday: 'short' });
+    headCells += '<th>' + day + '<br><small>' + esc(wd) + '</small></th>';
   }
+
+  host.innerHTML = '<thead><tr><th style="min-width:80px">Shift</th>' + headCells + '</tr></thead><tbody></tbody>';
+  const tb=host.querySelector('tbody');
+  const opts=Object.entries(CODE_TO_LABEL).map(([code,label])=>`<option value="${code}">${label}</option>`).join('');
+  const optsHtml = `<option value="">—</option>${opts}`;
+
+  tb.innerHTML = '';
+  SHIFT_KEYS.forEach(groupName => {
+    const tr=document.createElement('tr');
+    let cells = '<td><b>' + esc(groupName) + '</b></td>';
+    for(let d=1; d<=dim; d++){
+      cells += `<td><select class="sched" data-group="${esc(groupName)}" data-day="${d}" title="Jadwal Grup ${esc(groupName)} tgl ${d}">${optsHtml}</select></td>`;
+    }
+    tr.innerHTML = cells;
+    tb.appendChild(tr);
+    tr.querySelectorAll('select.sched').forEach(sel => {
+      const day = sel.dataset.day;
+      const curValue = sched[id]?.[groupName]?.[day] || '';
+      sel.value = curValue;
+    });
+  });
+
+  tb.querySelectorAll('select.sched').forEach(sel=>{
+    sel.addEventListener('change',e=>{
+      const group=e.target.dataset.group, day=+e.target.dataset.day, val=e.target.value;
+      const monthId = $('#schedMonth').value;
+      ensureMonth(monthId);
+      if(!sched[monthId][group]) sched[monthId][group]={};
+      if(val) sched[monthId][group][day]=val; else delete sched[monthId][group][day];
+    });
+  });
+}
+
   function initMonthlyScheduler(){ 
     if(!$('#schedMonth')) return; 
     if(!$('#schedMonth').value) $('#schedMonth').value=monthKey(new Date()); 
     ensureMonth($('#schedMonth').value); 
     renderSchedTable(); 
-    // pull dari Supabase untuk bulan ini, jika tersedia
-    if(SUPA_ENABLED){ pullSched($('#schedMonth').value).then(()=>renderSchedTable()); }
+    if(isSupabaseEnabled()){ pullSched($('#schedMonth').value).then(()=>renderSchedTable()); }
   }
-  $('#schedMonth')?.addEventListener('change',()=>{ renderSchedTable(); if(SUPA_ENABLED) pullSched($('#schedMonth').value).then(()=>renderSchedTable()); });
+  $('#schedMonth')?.addEventListener('change',()=>{ renderSchedTable(); if(isSupabaseEnabled) pullSched($('#schedMonth').value).then(()=>renderSchedTable()); });
   $('#btnSchedSave')?.addEventListener('click',()=>{ 
     const id=$('#schedMonth').value || monthKey(new Date());
     save(LS_SCHED,sched); syncGlobals(); toast('Jadwal bulan ini disimpan.'); renderCurrentShiftPanel(); 
-    if(SUPA_ENABLED) pushSchedMonth(id);
+    if(isSupabaseEnabled()) pushSchedMonth(id);
   });
   $('#btnSchedReset')?.addEventListener('click',()=>{
     const id=$('#schedMonth').value; if(!id) return;
     if(confirm('Kosongkan jadwal untuk bulan ini?')){ 
       sched[id]={}; save(LS_SCHED,sched); syncGlobals(); renderSchedTable(); toast('Bulan dikosongkan.'); renderCurrentShiftPanel();
-      if(SUPA_ENABLED) deleteSchedMonthRemote(id);
+      if(isSupabaseEnabled()) deleteSchedMonthRemote(id);
     }
   });
   $('#btnSchedDownload')?.addEventListener('click',()=>{
@@ -1108,27 +1187,16 @@ window.addEventListener('DOMContentLoaded', () => {
       }
     });
     save(LS_SCHED,sched); syncGlobals(); renderSchedTable(); toast(`Import jadwal: ${applied} sel terisi.`); ev.target.value=''; renderCurrentShiftPanel();
-    if(SUPA_ENABLED) pushSchedMonth(id);
+    if(isSupabaseEnabled()) pushSchedMonth(id);
   });
 
-  // ===== Seeds =====
-  if(employees.length===0){
-    employees=[
-      {nid:'EMP001',name:'Chris Jonathan',title:'General Manager',company:'PT PLN NPS',shift:'A',photo:'https://images.unsplash.com/photo-1544723795-3fb6469f5b39?q=80&w=300&auto=format&fit=crop'},
-      {nid:'EMP002',name:'Syafranah San',title:'Designer',company:'PT PLN NPS',shift:'A',photo:'https://images.unsplash.com/photo-1547425260-76bcadfb4f2c?q=80&w=300&auto=format&fit=crop'},
-      {nid:'EMP003',name:'Devon Lane',title:'Developer',company:'PT PLN NPS',shift:'B',photo:'https://images.unsplash.com/photo-1544005313-94ddf0286df2?q=80&w=300&auto=format&fit=crop'}
-    ];
-    save(LS_EMP,employees); syncGlobals();
-  }
-  if(news.length===0){
-    news=[
-      {ts:Date.now()-2*60*60*1000, title:'Sosialisasi K3', body:'Briefing K3 pukul 08:30 di ruang meeting.'},
-      {ts:Date.now()-1*60*60*1000, title:'Maintenance', body:'Pemeliharaan unit 2 (shift malam).'}
-    ];
-    save(LS_NEWS,news);
-  }
+  // ===== Seeds (DISABLED) =====
+  // NOTE: seeding demo employees is disabled in production build to prevent phantom rows.
+  // If you need local demo data, set localStorage.setItem('SA_ALLOW_SEED','1') in console and
+  // re-enable a small seed block here OR call a helper that inserts demo rows.
+  // (No automatic seed performed.)
 
-  // ===== Scan stats proxy (pakai script inline yang sudah ada) =====
+  // ===== Scan stats proxy (pakai script inline) =====
   function renderScanStats(){
     if (typeof window.refreshScanStats === 'function') {
       try { window.refreshScanStats(); } catch {}
@@ -1148,8 +1216,7 @@ window.addEventListener('DOMContentLoaded', () => {
       #scanLiveCircle .big{font:700 28px/1 Inter,system-ui,Arial; fill:var(--text,#0b2545)}
       #scanLiveCircle .sub{font:500 12px/1 Inter,system-ui,Arial; fill:#64748b}
       #scanLiveCircle.pulse{animation:sl_pulse .8s ease}
-      @keyframes sl_pulse{0%{transform:scale(1)}50%{transform:scale(1.04)}100%{transform:scale(1)}
-      }
+      @keyframes sl_pulse{0%{transform:scale(1)}50%{transform:scale(1.04)}100%{transform:scale(1)}}
       .scan-hero-right .circle-wrap{display:flex;flex-direction:column;align-items:center;gap:6px}
       .circle-legend{font:600 12px Inter,system-ui,Arial;color:#334155}
     `;
@@ -1168,39 +1235,70 @@ window.addEventListener('DOMContentLoaded', () => {
       <div class="circle-legend"><span id="lcLabel">0 / 0</span></div>`;
     right.prepend(wrap);
   }
+
   function updateScanLiveCircle(pulse=false){
     ensureScanLiveCircle();
-    const node=document.getElementById('scanLiveCircle'); if(!node) return;
-    const fg=node.querySelector('.fg'); const big=node.querySelector('.big'); const lab=$('#lcLabel');
-    const {counts, totals}=presentMapToday();
-    const present=Object.values(counts).reduce((a,b)=>a+b,0);
-    const total=Object.values(totals).reduce((a,b)=>a+b,0);
-    const r=52, circ=2*Math.PI*r;
-    const pct= total? present/total : 0;
-    fg.setAttribute('stroke-dasharray', `${circ*pct} ${circ*(1-pct)}`);
-    big.textContent=present;
-    if(lab) lab.textContent=`${present} / ${total}`;
-    if(pulse){ node.classList.remove('pulse'); void node.offsetWidth; node.classList.add('pulse'); }
+    const node = document.getElementById('scanLiveCircle');
+    if(!node) return;
+    const fg = node.querySelector('.fg');
+    const big = node.querySelector('.big');
+    const lab = $('#lcLabel');
+
+    const pm = presentMapToday();
+    const counts = pm.counts || {};
+    const totals = pm.totals || {};
+
+    const present = Object.values(counts).reduce((a,b)=>a+(b||0),0);
+    const total = Object.values(totals).reduce((a,b)=>a+(b||0),0);
+
+    const r = 52;
+    const circ = 2 * Math.PI * r;
+    const pct = total ? (present / total) : 0;
+
+    if(fg) fg.setAttribute('stroke-dasharray', `${circ * pct} ${circ * (1 - pct)}`);
+    if(big) big.textContent = String(present);
+    if(lab) lab.textContent = `${present} / ${total}`;
+
+    if(pulse){
+      node.classList.remove('pulse');
+      void node.offsetWidth;
+      node.classList.add('pulse');
+    }
   }
-  window.addEventListener('attendance:update', ()=>{ updateScanLiveCircle(true); renderScanStats(); });
+
+  // update scan live circle when attendance changes
+  window.addEventListener('attendance:update', () => { updateScanLiveCircle(true); renderScanStats(); });
 
   // ===== Init page sections =====
-  function renderScanPage(){ renderScanTable(); renderScanPreview(null,null); renderNewsWidgets(); ensureScanLiveCircle(); updateScanLiveCircle(false); renderScanStats(); }
-  renderEmployees(); renderDashboard(); renderScanPage(); renderLatest();
+  function renderScanPage(){
+    renderScanTable();
+    renderScanPreview(null,null);
+    renderNewsWidgets();
+    ensureScanLiveCircle();
+    updateScanLiveCircle(false);
+    renderScanStats();
+  }
+
+  renderEmployees();
+  renderDashboard();
+  renderScanPage();
+  renderLatest();
 
   const routeShifts = $('#route-shifts');
   if(routeShifts && !routeShifts.classList.contains('hidden')){
-    renderShiftForm(); initMonthlyScheduler();
+    renderShiftForm();
+    initMonthlyScheduler();
   }
 
   // Compact stat cards
   (function injectCompactCards(){
-    const st=document.createElement('style');
-    st.textContent=`.grid-3 .card.stat{padding:12px 14px;border-radius:16px}.card.stat .stat-value{font-size:28px}.card.stat .progress-bar{height:10px}`;
+    const st = document.createElement('style');
+    st.textContent = `.grid-3 .card.stat{padding:12px 14px;border-radius:16px}.card.stat .stat-value{font-size:28px}.card.stat .progress-bar{height:10px}`;
     document.head.appendChild(st);
   })();
 
   // periodic
   window.addEventListener('attendance:update', renderLiveCompanyStats);
-  setInterval(()=>{ updateScanLiveCircle(false); renderScanStats(); }, 15000);
-});
+  setInterval(() => { updateScanLiveCircle(false); renderScanStats(); }, 15000);
+
+}); // end DOMContentLoaded
