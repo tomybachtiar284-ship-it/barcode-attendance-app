@@ -818,7 +818,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
     const rec={ ts:ts.getTime(), status,
       nid:emp.nid, name:emp.name, title:emp.title, company:emp.company,
-      shift:effShift, okShift:inWin,
+      shift:effShift, okshift:inWin,
       note: noteOverride || (status==='datang'?(late?'Terlambat':'On-time'):'—') + (inWin?'':' • Di luar jam shift'),
       late:!!late
     };
