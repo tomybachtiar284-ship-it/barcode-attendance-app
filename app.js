@@ -28,7 +28,7 @@ window.addEventListener('DOMContentLoaded', () => {
       }),
       news=load(LS_NEWS,[]),
       sched=load(LS_SCHED,{}),
-      pushQueue=load(PUSH_QUEUE_KEY,[]); // persisted queue of attendance payloads to push
+      pushQueue=load(PUSH_QUEUE_KEY,[]); // persisted queue of payloads to push (attendance/employees/etc)
 
   // expose ke window agar script lain dapat ikut pakai
   function syncGlobals(){
@@ -156,13 +156,24 @@ window.addEventListener('DOMContentLoaded', () => {
   };
 
   // queue management: enqueue payloads on failure, persist to localStorage, flush later
+  // Enhanced: items should include __table to identify destination (T_ATT, T_EMP, T_NEWS, etc)
   function enqueuePush(item){
     try{
+      if(!item || typeof item !== 'object') {
+        console.warn('[PushQueue] cannot enqueue non-object item', item);
+        return;
+      }
+      // set heuristics default if missing
+      if(!item.__table){
+        if(item.status || item.ts) item.__table = 'attendance';
+        else item.__table = 'employees';
+      }
       pushQueue.push(item);
       save(PUSH_QUEUE_KEY, pushQueue);
-      console.info('[PushQueue] enqueued', item);
+      console.info('[PushQueue] enqueued', { table: item.__table, sample: item });
     }catch(err){ console.error('[PushQueue] enqueue failed', err); }
   }
+
   async function flushPushQueue() {
     console.info('[PushQueue] flush start, queue len:', pushQueue.length);
     if(!pushQueue || !pushQueue.length) { console.info('[PushQueue] queue empty'); return; }
@@ -171,30 +182,52 @@ window.addEventListener('DOMContentLoaded', () => {
       ensureSupabaseClientFallback();
       if(!isSupabaseEnabled()){ console.warn('[PushQueue] supabase not available, abort flush'); return; }
     }
-    // process queue in FIFO order, but limit batch size to avoid heavy requests
+
+    // process queue in FIFO order, small batch
     const batch = pushQueue.splice(0, 20);
     save(PUSH_QUEUE_KEY, pushQueue); // optimistic remove; will re-enqueue on failure
+
     for(const item of batch){
       try{
-        const { data, error } = await supa.insert(T_ATT, item);
-        if(error){
-          console.warn('[PushQueue] item failed to insert, re-enqueueing', error);
-          // re-enqueue at front to preserve order
+        const table = item.__table || 'attendance';
+        const payload = Object.assign({}, item);
+        delete payload.__table;
+
+        let res = null;
+        if(table === T_ATT || table === 'attendance'){
+          res = await supa.insert(T_ATT, payload);
+        } else if(table === T_EMP || table === 'employees') {
+          const p = Array.isArray(payload) ? payload : [payload];
+          res = await supa.upsert(T_EMP, p, 'nid');
+        } else if(table === T_NEWS || table === 'news'){
+          const p = Array.isArray(payload) ? payload : [payload];
+          res = await supa.upsert(T_NEWS, p, 'ts');
+        } else if(table === T_SHIFTS || table === 'shifts_cfg'){
+          res = await supa.upsert(T_SHIFTS, payload, 'id');
+        } else if(table === T_SCHED || table === 'shift_monthly'){
+          res = await supa.upsert(T_SCHED, payload, 'id');
+        } else {
+          // fallback generic insert
+          res = await supa.insert(table, payload);
+        }
+
+        if(res && res.error){
+          console.warn('[PushQueue] item failed to push', table, res.error);
           pushQueue.unshift(item);
           save(PUSH_QUEUE_KEY, pushQueue);
-          // if error indicates auth/permission, break to avoid infinite loops
-          const emsg = String((error && (error.message || error.details || error.msg)) || '');
-          if(error.status === 401 || error.status === 403 || /permission|r.l.s|row-level|forbidden|unauthorized/i.test(emsg)){
-            console.error('[PushQueue] permission error while flushing queue:', error);
-            toast('Gagal menyinkronkan antrean kehadiran: izin ditolak. Periksa konfigurasi Supabase (RLS/policy).');
-            console.info('Hint: untuk debugging sementara, jalankan policy allow_insert di SQL editor Supabase (dev only).');
-            break;
+          const emsg = String((res.error && (res.error.message || res.error.details || res.error.msg)) || '');
+          if(res.error.status === 401 || res.error.status === 403 || /permission|r.l.s|row-level|forbidden|unauthorized/i.test(emsg)){
+            console.error('[PushQueue] permission error while flushing queue:', res.error);
+            toast('Gagal menyinkronkan antrean: izin ditolak. Periksa konfigurasi Supabase (RLS/policy).');
+            break; // stop to avoid infinite loop on permission errors
           }
-          // network error: stop processing now (will retry next interval)
+          // transient error: break to retry later
           break;
         } else {
-          console.info('[PushQueue] flushed item ok', data);
-          // optionally update remote ID mapping if needed
+          console.info('[PushQueue] item flushed ok', table, res?.data || '(ok)');
+          if(table === T_EMP && res && res.data){
+            try{ mergeEmployees(res.data); }catch(e){/* ignore */ }
+          }
         }
       }catch(err){
         console.error('[PushQueue] exception while flushing, re-enqueueing', err);
@@ -312,14 +345,30 @@ window.addEventListener('DOMContentLoaded', () => {
 
   // --- Pushers ---
   async function pushEmployee(emp){
-    if(!isSupabaseEnabled()) { console.warn('[pushEmployee] supabase offline'); return {error:{message:'OFFLINE'}}; }
+    // emp can be single object or array
+    const payload = Array.isArray(emp) ? emp.map(e=>({...e, updated_at: e.updated_at || new Date().toISOString(), __table: T_EMP})) : {...emp, updated_at: emp.updated_at || new Date().toISOString(), __table: T_EMP};
+    if(!isSupabaseEnabled()){
+      console.warn('[pushEmployee] supabase offline. Enqueueing employee sync.', payload);
+      enqueuePush(payload);
+      toast('Data karyawan disimpan lokal (antrian). Akan disinkron saat online.');
+      return { data:null, error:{ message:'OFFLINE' } };
+    }
     try{
-      const payload = Array.isArray(emp) ? emp.map(e=>({...e, updated_at: e.updated_at || new Date().toISOString()})) : {...emp, updated_at: emp.updated_at || new Date().toISOString()};
-      const { data, error } = await supa.upsert(T_EMP, payload, 'nid');
-      if (error) console.warn('[pushEmployee] error:', error);
-      else console.log('[pushEmployee] ok:', data);
-      return { data, error };
-    }catch(err){ console.warn('[pushEmployee] ex', err); return { data:null, error:err }; }
+      const res = await supa.upsert(T_EMP, Array.isArray(emp)? emp.map(e=>({...e, updated_at: e.updated_at || new Date().toISOString()})) : {...emp, updated_at: emp.updated_at || new Date().toISOString()}, 'nid');
+      if(res && res.error){
+        console.warn('[pushEmployee] error:', res.error);
+        enqueuePush(payload);
+        return { data: null, error: res.error };
+      } else {
+        console.log('[pushEmployee] ok:', res.data);
+        if(res && res.data) mergeEmployees(res.data);
+        return res;
+      }
+    }catch(err){
+      console.warn('[pushEmployee] ex', err);
+      enqueuePush(payload);
+      return { data:null, error:err };
+    }
   }
   async function deleteEmployeeRemote(nid){
     const { data, error } = await supa.del(T_EMP, q=>q.eq('nid', nid));
@@ -334,7 +383,7 @@ window.addEventListener('DOMContentLoaded', () => {
     // If supabase not ready, enqueue and return
     if(!isSupabaseEnabled()){
       console.warn('[pushAttendance] supabase offline or not initialized. Enqueueing payload.', payload);
-      enqueuePush(payload);
+      enqueuePush(Object.assign({ __table: T_ATT }, payload));
       toast('Kehadiran disimpan lokal (antrian) — akan disinkron saat online.');
       return { data: null, error: { message: 'OFFLINE' } };
     }
@@ -342,11 +391,8 @@ window.addEventListener('DOMContentLoaded', () => {
       const res = await supa.insert(T_ATT, payload);
       if(res && res.error){
         console.warn('[pushAttendance] error from supabase insert:', res.error, 'payload:', payload);
+        enqueuePush(Object.assign({ __table: T_ATT }, payload));
         const emsg = String((res.error && (res.error.message || res.error.details || res.error.msg)) || '');
-        // enqueue to avoid data loss
-        enqueuePush(payload);
-
-        // If permission/auth error -> show actionable message
         if(res.error.status === 401 || res.error.status === 403 || /permission|r.l.s|row-level|forbidden|unauthorized/i.test(emsg)){
           console.error('[pushAttendance] Permission error inserting to Supabase:', res.error);
           toast('Gagal menyimpan ke server — disimpan dalam antrean. Periksa policy RLS/permissions (cek console).');
@@ -354,8 +400,6 @@ window.addEventListener('DOMContentLoaded', () => {
           console.info("ALTER TABLE public.attendance ENABLE ROW LEVEL SECURITY; CREATE POLICY allow_insert_on_attendance ON public.attendance FOR INSERT USING (true) WITH CHECK (true);");
           return res;
         }
-
-        // Generic error (e.g. validation) -> notify
         toast('Gagal menyimpan ke server — disimpan dalam antrean (cek console).');
         return res;
       } else {
@@ -365,7 +409,7 @@ window.addEventListener('DOMContentLoaded', () => {
     }catch(err){
       console.error('[pushAttendance] ex', err, 'payload:', payload);
       // network or runtime error -> enqueue for retry
-      enqueuePush(payload);
+      enqueuePush(Object.assign({ __table: T_ATT }, payload));
       toast('Error jaringan saat sinkron. Kehadiran disimpan di antrean.');
       return { data:null, error:err };
     }
@@ -377,7 +421,11 @@ window.addEventListener('DOMContentLoaded', () => {
     return { data, error };
   }
   async function pushNews(item){
-    if(!isSupabaseEnabled()) { console.warn('[pushNews] supabase offline'); return {error:{message:'OFFLINE'}}; }
+    if(!isSupabaseEnabled()) { 
+      enqueuePush(Object.assign({ __table: T_NEWS }, item));
+      console.warn('[pushNews] supabase offline'); 
+      return {error:{message:'OFFLINE'}}; 
+    }
     const { data, error } = await supa.upsert(T_NEWS, item, 'ts');
     if (error) console.warn('[pushNews] error:', error);
     return { data, error };
@@ -388,13 +436,21 @@ window.addEventListener('DOMContentLoaded', () => {
     return { data, error };
   }
   async function pushShiftsCfg(){
-    if(!isSupabaseEnabled()) { console.warn('[pushShiftsCfg] supabase offline'); return {error:{message:'OFFLINE'}}; }
+    if(!isSupabaseEnabled()) { 
+      enqueuePush({ __table: T_SHIFTS, id: 'global', data: shifts, updated_at: new Date().toISOString() });
+      console.warn('[pushShiftsCfg] supabase offline'); 
+      return {error:{message:'OFFLINE'}}; 
+    }
     const { data, error } = await supa.upsert(T_SHIFTS, { id: 'global', data: shifts, updated_at: new Date().toISOString() }, 'id');
     if (error) console.warn('[pushShiftsCfg] error:', error);
     return { data, error };
   }
   async function pushSchedMonth(id){
-    if(!isSupabaseEnabled()) { console.warn('[pushSchedMonth] supabase offline'); return {error:{message:'OFFLINE'}}; }
+    if(!isSupabaseEnabled()) { 
+      enqueuePush({ __table: T_SCHED, id, data: sched[id]||{}, updated_at: new Date().toISOString() });
+      console.warn('[pushSchedMonth] supabase offline'); 
+      return {error:{message:'OFFLINE'}}; 
+    }
     const { data, error } = await supa.upsert(T_SCHED, { id, data: sched[id]||{}, updated_at: new Date().toISOString() }, 'id');
     if (error) console.warn('[pushSchedMonth] error:', error);
     return { data, error };
@@ -407,7 +463,10 @@ window.addEventListener('DOMContentLoaded', () => {
 
   // helper: push all local employees to supabase (batch)
   async function syncAllLocalEmployeesToSupabase(){
-    if(!isSupabaseEnabled()){ console.warn('Supabase not enabled'); return {error:{message:'OFFLINE'}}; }
+    if(!isSupabaseEnabled()){ 
+      enqueuePush({ __table: T_EMP, payload: employees });
+      console.warn('Supabase not enabled'); return {error:{message:'OFFLINE'}}; 
+    }
     if(!employees || !employees.length){ console.warn('No local employees to sync'); return; }
     const payload = employees.map(e => ({ ...e, updated_at: e.updated_at || new Date().toISOString() }));
     try{
@@ -1014,22 +1073,41 @@ window.addEventListener('DOMContentLoaded', () => {
   $('#btnImportEmp')?.addEventListener('click',()=>$('#fileImportEmp').click());
   $('#fileImportEmp')?.addEventListener('change',async ev=>{
     const file=ev.target.files[0]; if(!file) return;
-    const data=await file.arrayBuffer(); const wb=XLSX.read(data);
-    const ws=wb.Sheets[wb.SheetNames[0]]; const rows=XLSX.utils.sheet_to_json(ws);
-    let up=0, add=0;
-    const toPush=[];
-    rows.forEach(r=>{
-      const emp={ nid:String(r.NID??r.nid??'').trim(), name:String(r.Nama??r.name??'').trim(), title:String(r.Jabatan??r.title??''), company:String(r.Perusahaan??r.company??''),
-                  shift:String(r.Grup??r.Shift??'A'), photo:String(r.FotoURL??r.photo??'') };
-      if(!emp.nid||!emp.name) return;
-      const i=employees.findIndex(e=>e.nid==emp.nid);
-      if(i>=0){employees[i]=emp; up++;} else {employees.push(emp); add++;}
-      toPush.push(emp);
-    });
-    save(LS_EMP,employees); syncGlobals(); renderEmployees(); renderDashboard(); initMonthlyScheduler();
-    toast(`Import selesai. Tambah ${add}, Update ${up}.`); ev.target.value='';
-    if(isSupabaseEnabled() && toPush.length){ 
-      pushEmployee(toPush).then(res=>{ if(res?.error) console.warn('Import push error', res.error); });
+    try{
+      const data=await file.arrayBuffer(); const wb=XLSX.read(data);
+      const ws=wb.Sheets[wb.SheetNames[0]]; const rows=XLSX.utils.sheet_to_json(ws, { defval: '' });
+      let up=0, add=0;
+      const toPush=[];
+      rows.forEach(r=>{
+        const emp={ 
+          nid:String(r.NID??r.nid??'').trim(), 
+          name:String(r.Nama??r.name??'').trim(), 
+          title:String(r.Jabatan??r.title??''), 
+          company:String(r.Perusahaan??r.company??''), 
+          shift:String(r.Grup??r.Shift??'A'), 
+          photo:String(r.FotoURL??r.photo??''),
+          updated_at: new Date().toISOString()
+        };
+        if(!emp.nid||!emp.name) return;
+        const i=employees.findIndex(e=>e.nid==emp.nid);
+        if(i>=0){employees[i]=emp; up++;} else {employees.push(emp); add++;}
+        toPush.push(emp);
+      });
+      save(LS_EMP,employees); syncGlobals(); renderEmployees(); renderDashboard(); initMonthlyScheduler();
+      toast(`Import selesai. Tambah ${add}, Update ${up}.`); ev.target.value='';
+
+      // ALWAYS try to push to supabase via pushEmployee which will enqueue if offline
+      if(toPush.length){
+        const CHUNK = 300;
+        for(let i=0;i<toPush.length;i+=CHUNK){
+          const chunk = toPush.slice(i,i+CHUNK);
+          pushEmployee(chunk).then(res=>{ if(res?.error) console.warn('Import chunk push error', res.error); });
+        }
+      }
+    }catch(err){
+      console.error('Import employees failed', err);
+      toast('Import gagal. Lihat console untuk detail.');
+      ev.target.value='';
     }
   });
   $('#btnExportEmp')?.addEventListener('click',()=>{
