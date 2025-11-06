@@ -779,175 +779,284 @@
   </script>
 
   <!-- BARU: LOGIKA EDUCATION -->
-  <script>
-  (()=> {
-    const LS_KEY = 'SA_EDUCATION';
-    const $  = (s,el=document)=>el.querySelector(s);
-    const $$ = (s,el=document)=>[...el.querySelectorAll(s)];
-    const load = () => { try { return JSON.parse(localStorage.getItem(LS_KEY) || '[]'); } catch { return []; } };
-    const save = (arr) => localStorage.setItem(LS_KEY, JSON.stringify(arr));
-    const fmt  = (ts)=> new Date(ts).toLocaleString('id-ID');
-    const makeId = ()=> 'e_'+Date.now().toString(36)+Math.random().toString(36).slice(2,7);
-    const esc = (s)=> (s||'').replace(/[&<>"']/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[m]));
+<script>
+(()=> {
+  const LS_KEY = 'SA_EDUCATION';
+  const $  = (s,el=document)=>el.querySelector(s);
+  const $$ = (s,el=document)=>[...el.querySelectorAll(s)];
+  const load = () => { try { return JSON.parse(localStorage.getItem(LS_KEY) || '[]'); } catch { return []; } };
+  const save = (arr) => localStorage.setItem(LS_KEY, JSON.stringify(arr));
+  const fmt  = (ts)=> new Date(ts).toLocaleString('id-ID');
+  const makeId = ()=> 'e_'+Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+  const esc = (s)=> (s||'').replace(/[&<>"']/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[m]));
 
-    function compressImage(file, maxW=1200, maxH=1200, quality=0.82){
-      return new Promise((resolve,reject)=>{
-        const fr = new FileReader();
-        fr.onload = ev => {
-          const img = new Image();
-          img.onload = ()=>{
-            let width = img.width, height = img.height;
-            const scale = Math.min(maxW/width, maxH/height, 1);
-            width = Math.round(width*scale);
-            height = Math.round(height*scale);
-            const canvas = document.createElement('canvas');
-            canvas.width = width; canvas.height = height;
-            const ctx = canvas.getContext('2d');
-            ctx.drawImage(img,0,0,width,height);
-            try{ resolve(canvas.toDataURL('image/jpeg', quality)); }
-            catch(err){ reject(err); }
-          };
-          img.onerror = reject;
-          img.src = ev.target.result;
-        };
-        fr.onerror = reject;
-        fr.readAsDataURL(file);
-      });
-    }
+  // [BARU] Fungsi untuk pull dan merge data dari Supabase
+  async function pullAndMergeEducation() {
+      if (!window.supabase) {
+          console.warn('Supabase client not found, skipping pull for Education.');
+          return load(); // Kembalikan data lokal saja
+      }
 
-    let editingId = null;
-    let currentImg = null;
+      console.log('[Education] Pulling data from Supabase...');
+      const { data: remoteData, error } = await window.supabase.from('education').select('*');
+      
+      if (error) {
+          console.warn('[Supabase Education Pull Error]', error);
+          return load(); // Gagal pull, kembalikan data lokal
+      }
 
-    function renderEduTable(){
-      const tbody = document.querySelector('#tableEdu tbody'); if(!tbody) return;
-      const rows = load().sort((a,b)=>b.ts-a.ts);
-      tbody.innerHTML = rows.map(r => 
-        `<tr data-id="${r.id}">
-          <td>${fmt(r.ts)}</td>
-          <td><b>${esc(r.title)}</b></td>
-          <td>${esc(r.body).replace(/\n/g,'<br>')}</td>
-          <td>${r.img ? `<img src="${r.img}" alt="img" class="edu-thumb" onclick="window.open(this.src,'_blank')">` : '—'}</td>
-          <td>
-            <button class="btn ghost btn-edu-edit">Edit</button>
-            <button class="btn danger btn-edu-del">Hapus</button>
-          </td>
-        </tr>`
-      ).join('');
+      if (!remoteData) {
+          return load(); // Tidak ada data, kembalikan data lokal
+      }
 
-      document.querySelectorAll('.btn-edu-del').forEach(btn=>{
-        btn.addEventListener('click', ()=>{
-          const id = btn.closest('tr')?.dataset.id; if(!id) return;
-          const next = load().filter(x=>x.id!==id);
-          save(next); renderEduTable(); renderHighlights();
-          window.dispatchEvent(new CustomEvent('education:changed'));
-        });
-      });
-      document.querySelectorAll('.btn-edu-edit').forEach(btn=>{
-        btn.addEventListener('click', ()=>{
-          const id = btn.closest('tr')?.dataset.id; if(!id) return;
-          const item = load().find(x=>x.id===id); if(!item) return;
-          editingId = id;
-          currentImg = item.img || null;
-          document.querySelector('#eduModalTitle').textContent = 'Ubah Education';
-          document.querySelector('#eTitle').value = item.title || '';
-          document.querySelector('#eBody').value  = item.body  || '';
-          document.querySelector('#eImage').value = '';
-          updatePreview();
-          document.querySelector('#eduModal').showModal();
-        });
-      });
-    }
+      // --- Logika Merge (Penggabungan Data) ---
+      const localData = load();
+      // Buat 'Map' dari data lokal untuk cek duplikat (berdasarkan 'ts')
+      const localMap = new Map(localData.map(item => [Number(item.ts), item]));
+      let changed = false;
 
-    function updatePreview(){
-      const wrap = document.querySelector('#eImgWrap'), img = document.querySelector('#ePreview');
-      if(!wrap || !img) return;
-      if(currentImg){ img.src=currentImg; wrap.classList.remove('hidden'); }
-      else { img.removeAttribute('src'); wrap.classList.add('hidden'); }
-    }
-    function resetForm(){
-      editingId=null; currentImg=null;
-      document.querySelector('#eduModalTitle').textContent='Tambah Education';
-      document.querySelector('#eTitle').value=''; 
-      document.querySelector('#eBody').value=''; 
-      document.querySelector('#eImage').value='';
-      updatePreview();
-    }
+      // Loop data dari server
+      for (const remoteItem of remoteData) {
+          const ts = Number(remoteItem.ts);
+          if (!localMap.has(ts)) {
+              // Jika data server tidak ada di lokal, tambahkan
+              // Kita perlu buat 'id' lokal (e_...) agar tombol Hapus/Edit tetap berfungsi
+              const localId = 'e_' + ts + Math.random().toString(36).slice(2, 7);
+              localMap.set(ts, { ...remoteItem, id: localId });
+              changed = true;
+          }
+          // (Opsional: Anda bisa tambahkan logika 'last-write-wins' di sini jika perlu)
+      }
+      
+      if (changed) {
+          const mergedList = Array.from(localMap.values());
+          save(mergedList); // Simpan hasil gabungan ke LocalStorage
+          console.log('[Education] Merged remote data into local storage.');
+          return mergedList;
+      }
 
-    function recencyPercent(ts){
-      const days = Math.floor((Date.now()-ts)/86400000);
-      return Math.max(35, Math.min(95, 95 - days*6));
-    }
+      return localData; // Tidak ada perubahan
+  }
 
-    /* === Highlights renderer (gabungan) === */
-    function renderHighlights(){
-      const hostStandalone = document.querySelector('#eduList');
-      const hostInRecent   = document.querySelector('#eduListRecent');
-      const rc             = document.getElementById('recentCard');
+  function compressImage(file, maxW=1200, maxH=1200, quality=0.82){
+    return new Promise((resolve,reject)=>{
+      const fr = new FileReader();
+      fr.onload = ev => {
+        const img = new Image();
+        img.onload = ()=>{
+          let width = img.width, height = img.height;
+          const scale = Math.min(maxW/width, maxH/height, 1);
+          width = Math.round(width*scale);
+          height = Math.round(height*scale);
+          const canvas = document.createElement('canvas');
+          canvas.width = width; canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img,0,0,width,height);
+          try{ resolve(canvas.toDataURL('image/jpeg', quality)); }
+          catch(err){ reject(err); }
+        };
+        img.onerror = reject;
+        img.src = ev.target.result;
+      };
+      fr.onerror = reject;
+      fr.readAsDataURL(file);
+    });
+  }
 
-      const items = load().sort((a,b)=>b.ts-a.ts).slice(0,6);
+  let editingId = null;
+  let currentImg = null;
 
-      const html = items.length
-        ? items.map(it=>{
-            const pct = recencyPercent(it.ts);
-            const img = it.img || '';
-            return `
-              <div class="edu-item">
-                <img class="thumb" src="${img}" alt="" onerror="this.style.display='none'">
-                <div>
-                  <div class="t">${esc(it.title)}</div>
-                  <div class="d">${esc(it.body).replace(/\n/g,' ')}</div>
-                  <div class="edu-bar" style="--pct:${pct}%"><i></i></div>
-                  <div class="meta">${fmt(it.ts)}</div>
-                </div>
-              </div>`;
-        }).join('')
-        : `<div class="muted">Belum ada data education.</div>`;
+  function renderEduTable(){
+    const tbody = document.querySelector('#tableEdu tbody'); if(!tbody) return;
+    const rows = load().sort((a,b)=>b.ts-a.ts);
+    tbody.innerHTML = rows.map(r => 
+      `<tr data-id="${r.id}">
+        <td>${fmt(r.ts)}</td>
+        <td><b>${esc(r.title)}</b></td>
+        <td>${esc(r.body).replace(/\n/g,'<br>')}</td>
+        <td>${r.img ? `<img src="${r.img}" alt="img" class="edu-thumb" onclick="window.open(this.src,'_blank')">` : '—'}</td>
+        <td>
+          <button class="btn ghost btn-edu-edit">Edit</button>
+          <button class="btn danger btn-edu-del">Hapus</button>
+        </td>
+      </tr>`
+    ).join('');
 
-      if (hostInRecent) hostInRecent.innerHTML = html;
-      if (hostStandalone) hostStandalone.innerHTML = html;
-      if (rc) rc.setAttribute('data-has-edu', items.length ? '1' : '0');
-    }
+    document.querySelectorAll('.btn-edu-del').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        const id = btn.closest('tr')?.dataset.id; if(!id) return;
+        
+        // [UBAH] Modifikasi untuk Supabase delete
+        const list = load(); // <-- [BARU] Ambil list lengkap
+        const itemToDelete = list.find(x => x.id === id); // <-- [BARU] Cari itemnya
+        const tsToDelete = itemToDelete?.ts; // <-- [BARU] Ambil 'ts' untuk Supabase
 
-    document.addEventListener('DOMContentLoaded', ()=>{
-      document.querySelector('#btnAddEdu')?.addEventListener('click', ()=>{ resetForm(); document.querySelector('#eduModal').showModal(); });
-      document.querySelector('#btnBackEdu')?.addEventListener('click', (e)=>{ e.preventDefault(); document.querySelector('#eduModal').close(); });
-      document.querySelector('#btnCloseEdu')?.addEventListener('click', ()=> document.querySelector('#eduModal').close());
+        // Lanjutkan menghapus dari lokal
+        const next = list.filter(x=>x.id!==id);
+        save(next); renderEduTable(); renderHighlights();
+        window.dispatchEvent(new CustomEvent('education:changed'));
 
-      document.querySelector('#eImage')?.addEventListener('change', async (e)=>{
-        const f = e.target.files?.[0]; if(!f) return;
-        try{ currentImg = await compressImage(f,1200,1200,0.82); updatePreview(); }
-        catch{ alert('Gagal memproses gambar.'); }
-      });
+        // [BARU] Kirim perintah HAPUS ke Supabase
+        if (window.supabase && tsToDelete) {
+            window.supabase.from('education').delete().eq('ts', tsToDelete)
+                .then(({ error }) => {
+                    if (error) {
+                        console.warn('[Supabase Education Delete Error]', error);
+                        alert('Data lokal terhapus, tapi gagal sinkron ke server. Cek console.');
+                    } else {
+                        console.log('[Supabase Education] Data terhapus di server.');
+                    }
+                });
+        }
+        // [SELESAI BARU]
+      });
+    });
+    document.querySelectorAll('.btn-edu-edit').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        const id = btn.closest('tr')?.dataset.id; if(!id) return;
+        const item = load().find(x=>x.id===id); if(!item) return;
+        editingId = id;
+        currentImg = item.img || null;
+        document.querySelector('#eduModalTitle').textContent = 'Ubah Education';
+        document.querySelector('#eTitle').value = item.title || '';
+        document.querySelector('#eBody').value  = item.body  || '';
+        document.querySelector('#eImage').value = '';
+        updatePreview();
+        document.querySelector('#eduModal').showModal();
+      });
+    });
+  }
 
-      document.querySelector('#btnClearImg')?.addEventListener('click', ()=>{ currentImg=null; updatePreview(); });
+  function updatePreview(){
+    const wrap = document.querySelector('#eImgWrap'), img = document.querySelector('#ePreview');
+    if(!wrap || !img) return;
+    if(currentImg){ img.src=currentImg; wrap.classList.remove('hidden'); }
+    else { img.removeAttribute('src'); wrap.classList.add('hidden'); }
+  }
+  function resetForm(){
+    editingId=null; currentImg=null;
+    document.querySelector('#eduModalTitle').textContent='Tambah Education';
+    document.querySelector('#eTitle').value=''; 
+    document.querySelector('#eBody').value=''; 
+    document.querySelector('#eImage').value='';
+    updatePreview();
+  }
 
-      document.querySelector('#btnSaveEdu')?.addEventListener('click', (e)=>{
-        e.preventDefault();
-        const title = (document.querySelector('#eTitle').value||'').trim();
-        const body  = (document.querySelector('#eBody').value ||'').trim();
-        if(!title){ document.querySelector('#eTitle').focus(); return; }
+  function recencyPercent(ts){
+    const days = Math.floor((Date.now()-ts)/86400000);
+    return Math.max(35, Math.min(95, 95 - days*6));
+  }
 
-        const list = load();
-        if(editingId){
-          const i = list.findIndex(x=>x.id===editingId);
-          if(i>-1){ list[i] = {...list[i], title, body, img: currentImg}; }
-        }else{
-          list.push({ id: makeId(), ts: Date.now(), title, body, img: currentImg });
-        }
-        try{ save(list); }
-        catch{ alert('Penyimpanan penuh. Hapus item lama atau kecilkan gambar.'); return; }
+  /* === Highlights renderer (gabungan) === */
+  function renderHighlights(){
+    const hostStandalone = document.querySelector('#eduList');
+    const hostInRecent   = document.querySelector('#eduListRecent');
+    const rc             = document.getElementById('recentCard');
 
-        document.querySelector('#eduModal').close();
-        renderEduTable(); renderHighlights();
-        window.dispatchEvent(new CustomEvent('education:changed'));
-      });
+    const items = load().sort((a,b)=>b.ts-a.ts).slice(0,6);
 
-      renderEduTable(); renderHighlights();
-      window.addEventListener('storage', (e)=>{ if(e.key===LS_KEY){ renderEduTable(); renderHighlights(); } });
-      window.addEventListener('education:changed', ()=>{ renderEduTable(); renderHighlights(); });
-    });
-  })();
-  </script>
+    const html = items.length
+      ? items.map(it=>{
+          const pct = recencyPercent(it.ts);
+          const img = it.img || '';
+          return `
+            <div class="edu-item">
+              <img class="thumb" src="${img}" alt="" onerror="this.style.display='none'">
+              <div>
+                <div class="t">${esc(it.title)}</div>
+                <div class="d">${esc(it.body).replace(/\n/g,' ')}</div>
+                <div class="edu-bar" style="--pct:${pct}%"><i></i></div>
+                <div class="meta">${fmt(it.ts)}</div>
+              </div>
+            </div>`;
+      }).join('')
+      : `<div class="muted">Belum ada data education.</div>`;
+
+    if (hostInRecent) hostInRecent.innerHTML = html;
+    if (hostStandalone) hostStandalone.innerHTML = html;
+    if (rc) rc.setAttribute('data-has-edu', items.length ? '1' : '0');
+  }
+
+  document.addEventListener('DOMContentLoaded', async ()=>{ // <-- [UBAH] Tambahkan async
+    document.querySelector('#btnAddEdu')?.addEventListener('click', ()=>{ resetForm(); document.querySelector('#eduModal').showModal(); });
+    document.querySelector('#btnBackEdu')?.addEventListener('click', (e)=>{ e.preventDefault(); document.querySelector('#eduModal').close(); });
+    document.querySelector('#btnCloseEdu')?.addEventListener('click', ()=> document.querySelector('#eduModal').close());
+
+    document.querySelector('#eImage')?.addEventListener('change', async (e)=>{
+      const f = e.target.files?.[0]; if(!f) return;
+      try{ currentImg = await compressImage(f,1200,1200,0.82); updatePreview(); }
+      catch{ alert('Gagal memproses gambar.'); }
+    });
+
+    document.querySelector('#btnClearImg')?.addEventListener('click', ()=>{ currentImg=null; updatePreview(); });
+
+    document.querySelector('#btnSaveEdu')?.addEventListener('click', (e)=>{
+      e.preventDefault();
+      const title = (document.querySelector('#eTitle').value||'').trim();
+      const body  = (document.querySelector('#eBody').value ||'').trim();
+      if(!title){ document.querySelector('#eTitle').focus(); return; }
+
+      // [UBAH] Modifikasi untuk Supabase push
+      const list = load();
+      let itemToPush; // <-- [BARU] Definisikan variabel untuk item
+      
+      if(editingId){
+        const i = list.findIndex(x=>x.id===editingId);
+        if(i>-1){ 
+          // Pastikan 'ts' tidak berubah saat edit (karena ini Primary Key)
+          const originalTs = list[i].ts;
+          list[i] = {...list[i], title, body, img: currentImg, ts: originalTs}; 
+          itemToPush = list[i]; // <-- [BARU] Ambil item yang di-edit
+        }
+      }else{
+        // [BARU] Buat itemnya dulu, baru di-push ke list
+        itemToPush = { id: makeId(), ts: Date.now(), title, body, img: currentImg }; 
+        list.push(itemToPush);
+      }
+      
+      try{ save(list); } // Simpan ke lokal dulu
+      catch{ alert('Penyimpanan penuh. Hapus item lama atau kecilkan gambar.'); return; }
+
+      // [BARU] Kirim (Upsert) data ke Supabase
+      if (window.supabase && itemToPush) {
+        // Buat payload bersih (hanya kolom yang ada di database)
+        const payload = {
+          ts: itemToPush.ts,
+          title: itemToPush.title,
+          body: itemToPush.body,
+          img: itemToPush.img || null
+        };
+
+        // Gunakan .then() agar tidak memblokir UI
+        window.supabase.from('education').upsert(payload, { onConflict: 'ts' })
+            .then(({ error }) => {
+                if (error) {
+                    console.warn('[Supabase Education Upsert Error]', error);
+                    alert('Data lokal tersimpan, tapi gagal sinkron ke server. Cek console.');
+                } else {
+                    console.log('[Supabase Education] Data tersimpan ke server.');
+                }
+            });
+      }
+      // [SELESAI BARU]
+
+      document.querySelector('#eduModal').close();
+      renderEduTable(); renderHighlights();
+      window.dispatchEvent(new CustomEvent('education:changed'));
+    });
+
+    // [UBAH] Tarik data dari Supabase & Lokal sebelum me-render
+    console.log('[Education] Initializing...');
+    await pullAndMergeEducation(); // Tunggu data di-merge
+    console.log('[Education] Ready.');
+
+    renderEduTable(); 
+    renderHighlights();
+    window.addEventListener('storage', (e)=>{ if(e.key===LS_KEY){ renderEduTable(); renderHighlights(); } });
+    window.addEventListener('education:changed', ()=>{ renderEduTable(); renderHighlights(); });
+  });
+})();
+</script>
 
   <!-- App utama -->
   <script defer src="app.js"></script>
