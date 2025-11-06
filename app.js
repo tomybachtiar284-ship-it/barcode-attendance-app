@@ -65,14 +65,17 @@ window.addEventListener('DOMContentLoaded', () => {
         console.info('[Supabase] already initialized');
         return true;
       }
-      const URL = window.SUPABASE_URL || null;
-      // support both names: SUPABASE_ANON_KEY (HTML in your file) or SUPABASE_ANON
-      const ANON = window.SUPABASE_ANON_KEY || window.SUPABASE_ANON || null;
+      // Read many possible names from HTML (some users use SUPABASE_ANON_KEY)
+      const URL = window.SUPABASE_URL || window.SUPABASE_URL === '' ? window.SUPABASE_URL : (window.SUPABASE_URL || null);
+      const ANON = window.SUPABASE_ANON_KEY || window.SUPABASE_ANON || window.SUPABASE_ANON_KEY === '' ? (window.SUPABASE_ANON_KEY || window.SUPABASE_ANON) : null;
+
       if(!URL || !ANON){
         console.warn('[Supabase fallback] missing SUPABASE_URL / SUPABASE_ANON_KEY on window. Skipping fallback.');
+        console.debug('Detected window keys:', { SUPABASE_URL: window.SUPABASE_URL, SUPABASE_ANON_KEY: window.SUPABASE_ANON_KEY, SUPABASE_ANON: window.SUPABASE_ANON });
         return false;
       }
-      // Try known global exports
+
+      // Try common UMD or global names exported by various supabase builds
       if(typeof window.supabase === 'undefined'){
         if(typeof supabase !== 'undefined' && typeof supabase.createClient === 'function'){
           window.supabase = supabase.createClient(URL, ANON);
@@ -83,11 +86,24 @@ window.addEventListener('DOMContentLoaded', () => {
         } else if(window?.Supabase?.createClient){
           window.supabase = window.Supabase.createClient(URL, ANON);
           console.info('[Supabase fallback] created client via window.Supabase.createClient');
+        } else if(window?.supabasejs?.createClient){
+          window.supabase = window.supabasejs.createClient(URL, ANON);
+          console.info('[Supabase fallback] created client via window.supabasejs.createClient');
         } else {
-          // If not found, warn and return false
           console.warn('[Supabase fallback] UMD supabase not found as global; ensure supabase client script (UMD) or module import is loaded before app.js');
           return false;
         }
+      } else {
+        // if window.supabase exists but may be an uninitialized module, just try to use it
+        try{
+          if(typeof window.supabase.from !== 'function'){
+            console.warn('[Supabase fallback] window.supabase exists but does not expose .from() - it may be a module object. Attempting to create client if createClient available.');
+            if(typeof createClient === 'function') {
+              window.supabase = createClient(URL, ANON);
+              console.info('[Supabase fallback] created client via createClient() because existing window.supabase lacked .from()');
+            }
+          }
+        }catch(e){ /* ignore */ }
       }
       return isSupabaseEnabled();
     }catch(err){
@@ -148,11 +164,12 @@ window.addEventListener('DOMContentLoaded', () => {
     }catch(err){ console.error('[PushQueue] enqueue failed', err); }
   }
   async function flushPushQueue() {
-    if(!pushQueue || !pushQueue.length) return;
+    console.info('[PushQueue] flush start, queue len:', pushQueue.length);
+    if(!pushQueue || !pushQueue.length) { console.info('[PushQueue] queue empty'); return; }
     if(!isSupabaseEnabled()){
       // Try to create client if credentials present
       ensureSupabaseClientFallback();
-      if(!isSupabaseEnabled()) return;
+      if(!isSupabaseEnabled()){ console.warn('[PushQueue] supabase not available, abort flush'); return; }
     }
     // process queue in FIFO order, but limit batch size to avoid heavy requests
     const batch = pushQueue.splice(0, 20);
@@ -166,9 +183,11 @@ window.addEventListener('DOMContentLoaded', () => {
           pushQueue.unshift(item);
           save(PUSH_QUEUE_KEY, pushQueue);
           // if error indicates auth/permission, break to avoid infinite loops
-          if(error.status === 401 || error.status === 403 || (error.message && String(error.message).toLowerCase().includes('permission'))){
+          const emsg = String((error && (error.message || error.details || error.msg)) || '');
+          if(error.status === 401 || error.status === 403 || /permission|r.l.s|row-level|forbidden|unauthorized/i.test(emsg)){
             console.error('[PushQueue] permission error while flushing queue:', error);
-            toast('Gagal menyinkronkan antrean kehadiran: izin ditolak. Periksa konfigurasi Supabase.');
+            toast('Gagal menyinkronkan antrean kehadiran: izin ditolak. Periksa konfigurasi Supabase (RLS/policy).');
+            console.info('Hint: untuk debugging sementara, jalankan policy allow_insert di SQL editor Supabase (dev only).');
             break;
           }
           // network error: stop processing now (will retry next interval)
@@ -314,24 +333,37 @@ window.addEventListener('DOMContentLoaded', () => {
     const payload = { ...rec, ts: Number(rec.ts), late: !!rec.late, created_at: rec.created_at || new Date().toISOString() };
     // If supabase not ready, enqueue and return
     if(!isSupabaseEnabled()){
-      console.warn('[pushAttendance] supabase offline or not initialized. Enqueueing payload.');
+      console.warn('[pushAttendance] supabase offline or not initialized. Enqueueing payload.', payload);
       enqueuePush(payload);
       toast('Kehadiran disimpan lokal (antrian) — akan disinkron saat online.');
       return { data: null, error: { message: 'OFFLINE' } };
     }
     try{
       const res = await supa.insert(T_ATT, payload);
-      if(res?.error){
-        console.warn('[pushAttendance] error from supabase insert:', res.error);
-        // If specific permission/auth error, surface to console & enqueue to avoid losing data
+      if(res && res.error){
+        console.warn('[pushAttendance] error from supabase insert:', res.error, 'payload:', payload);
+        const emsg = String((res.error && (res.error.message || res.error.details || res.error.msg)) || '');
+        // enqueue to avoid data loss
         enqueuePush(payload);
+
+        // If permission/auth error -> show actionable message
+        if(res.error.status === 401 || res.error.status === 403 || /permission|r.l.s|row-level|forbidden|unauthorized/i.test(emsg)){
+          console.error('[pushAttendance] Permission error inserting to Supabase:', res.error);
+          toast('Gagal menyimpan ke server — disimpan dalam antrean. Periksa policy RLS/permissions (cek console).');
+          console.info('Hint (dev): untuk debugging sementara, jalankan SQL berikut di Supabase SQL editor (development only):');
+          console.info("ALTER TABLE public.attendance ENABLE ROW LEVEL SECURITY; CREATE POLICY allow_insert_on_attendance ON public.attendance FOR INSERT USING (true) WITH CHECK (true);");
+          return res;
+        }
+
+        // Generic error (e.g. validation) -> notify
         toast('Gagal menyimpan ke server — disimpan dalam antrean (cek console).');
+        return res;
       } else {
-        console.log('[pushAttendance] inserted:', res.data);
+        console.log('[pushAttendance] inserted:', res?.data || res);
+        return res;
       }
-      return res;
     }catch(err){
-      console.error('[pushAttendance] ex', err);
+      console.error('[pushAttendance] ex', err, 'payload:', payload);
       // network or runtime error -> enqueue for retry
       enqueuePush(payload);
       toast('Error jaringan saat sinkron. Kehadiran disimpan di antrean.');
