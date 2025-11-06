@@ -1,7 +1,4 @@
 // SmartAttend app.js — FINAL v1.4 (polished, Supabase-integrated, with robust supabase fallback + queued push/retry)
-// NOTE: put this file after any supabase client script tags. If you use module import for supabase,
-// also set window.SUPABASE_URL and window.SUPABASE_ANON in HTML so fallback can create client synchronously.
-
 window.addEventListener('DOMContentLoaded', () => {
   const LS_EMP='SA_EMPLOYEES', LS_ATT='SA_ATTENDANCE', LS_SHIFTS='SA_SHIFTS',
         LS_NEWS='SA_NEWS', LS_SCHED='SA_SHIFT_MONTHLY', PUSH_QUEUE_KEY='SA_PUSH_QUEUE';
@@ -61,7 +58,7 @@ window.addEventListener('DOMContentLoaded', () => {
   function isSupabaseEnabled(){ return !!(window && window.supabase && typeof window.supabase.from === 'function'); }
 
   // Try to create a fallback window.supabase client synchronously if possible.
-  // Requires window.SUPABASE_URL and window.SUPABASE_ANON to be set in HTML.
+  // Accepts window.SUPABASE_ANON_KEY or window.SUPABASE_ANON for compatibility.
   function ensureSupabaseClientFallback(){
     try{
       if(isSupabaseEnabled()){
@@ -69,13 +66,13 @@ window.addEventListener('DOMContentLoaded', () => {
         return true;
       }
       const URL = window.SUPABASE_URL || null;
-      const ANON = window.SUPABASE_ANON || null;
+      // support both names: SUPABASE_ANON_KEY (HTML in your file) or SUPABASE_ANON
+      const ANON = window.SUPABASE_ANON_KEY || window.SUPABASE_ANON || null;
       if(!URL || !ANON){
-        // No credentials provided — cannot auto-create client.
-        console.warn('[Supabase fallback] missing SUPABASE_URL/SUPABASE_ANON on window. Skipping fallback.');
+        console.warn('[Supabase fallback] missing SUPABASE_URL / SUPABASE_ANON_KEY on window. Skipping fallback.');
         return false;
       }
-      // Many UMD builds expose `supabase` or `createClient`. Try available options.
+      // Try known global exports
       if(typeof window.supabase === 'undefined'){
         if(typeof supabase !== 'undefined' && typeof supabase.createClient === 'function'){
           window.supabase = supabase.createClient(URL, ANON);
@@ -83,15 +80,13 @@ window.addEventListener('DOMContentLoaded', () => {
         } else if(typeof createClient === 'function'){
           window.supabase = createClient(URL, ANON);
           console.info('[Supabase fallback] created client via createClient() global');
+        } else if(window?.Supabase?.createClient){
+          window.supabase = window.Supabase.createClient(URL, ANON);
+          console.info('[Supabase fallback] created client via window.Supabase.createClient');
         } else {
-          // If UMD script loaded but global name differs, try to detect
-          if(window.supabasejs && typeof window.supabasejs.createClient === 'function'){
-            window.supabase = window.supabasejs.createClient(URL, ANON);
-            console.info('[Supabase fallback] created client via supabasejs');
-          } else {
-            console.warn('[Supabase fallback] UMD supabase not found as global; ensure <script src=".../supabase.min.js"> is loaded before app.js');
-            return false;
-          }
+          // If not found, warn and return false
+          console.warn('[Supabase fallback] UMD supabase not found as global; ensure supabase client script (UMD) or module import is loaded before app.js');
+          return false;
         }
       }
       return isSupabaseEnabled();
@@ -171,7 +166,7 @@ window.addEventListener('DOMContentLoaded', () => {
           pushQueue.unshift(item);
           save(PUSH_QUEUE_KEY, pushQueue);
           // if error indicates auth/permission, break to avoid infinite loops
-          if(error.status === 401 || error.status === 403 || (error.message && error.message.toLowerCase().includes('permission'))){
+          if(error.status === 401 || error.status === 403 || (error.message && String(error.message).toLowerCase().includes('permission'))){
             console.error('[PushQueue] permission error while flushing queue:', error);
             toast('Gagal menyinkronkan antrean kehadiran: izin ditolak. Periksa konfigurasi Supabase.');
             break;
@@ -464,14 +459,7 @@ window.addEventListener('DOMContentLoaded', () => {
   // Shift helpers
   const SHIFT_KEYS = ['A','B','C','D','DAYTIME'];
   const CODE_TO_LABEL={A:'P', B:'S', C:'M', D:'D', DAYTIME:'DAY', OFF:'L'};
-  const LABEL_TO_CODE={
-    'a':'A','p':'A','pagi':'A',
-    'b':'B','s':'B','sore':'B',
-    'c':'C','m':'C','malam':'C',
-    'd':'D','shift d':'D',
-    'day':'DAYTIME','daytime':'DAYTIME','siang':'DAYTIME',
-    'off':'OFF','l':'OFF','libur':'OFF'
-  };
+  const LABEL_TO_CODE={ 'a':'A','p':'A','pagi':'A','b':'B','s':'B','sore':'B','c':'C','m':'C','malam':'C','d':'D','shift d':'D','day':'DAYTIME','daytime':'DAYTIME','siang':'DAYTIME','off':'OFF','l':'OFF','libur':'OFF' };
   function normalizeTime(s){
     s=String(s||'').trim(); if(!s) return '';
     s=s.replace(/[.,\-h ]/g,':');
@@ -726,7 +714,6 @@ window.addEventListener('DOMContentLoaded', () => {
     const sp = $('#scanPhoto');
     if(sp && sp.style){
       if(emp && emp.photo){
-        // use quoted url to be safe
         sp.style.backgroundImage = `url("${emp.photo}")`;
         sp.style.backgroundSize = 'cover';
         sp.style.backgroundPosition = 'center';
