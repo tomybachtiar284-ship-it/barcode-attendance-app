@@ -36,8 +36,8 @@
   --app-gradient:linear-gradient(135deg,#16c7c4 0%,#2c7be5 60%,#0e3a66 100%);
   --bg-art-url:url('assets/bg-plant.svg.png');
   --bg-art-opac:.3;
-  --bg-art-pos:bottom right;
-  --bg-art-size:min(1800px,300vw) auto;
+  --bg-art-pos:center;
+  --bg-art-size:cover;
   --bg-art-pos-fs:center;
   --bg-art-size-fs:cover;
 
@@ -745,4 +745,163 @@ dialog.camdlg::backdrop{background:rgba(0,0,0,.85)}
   border-radius: inherit;
   pointer-events:none;
   background: radial-gradient(120% 140% at 10% 0%, rgba(255,255,255,.893), transparent 20%);
+}
+/* ============================================================================
+   AREA 15: DESAIN RESPONSIf (MOBILE)
+   ========================================================================== */
+
+@media (max-width: 900px) {
+
+  /* 1. Sembunyikan Sidebar */
+  .sidebar {
+    display: none;
+  }
+
+  /* 2. Jadikan Konten Utama Full-Width */
+  .main {
+    margin-left: 0;
+    padding: 12px; /* Perkecil padding di HP */
+  }
+
+  /* 3. Paksa semua grid jadi 1 kolom */
+  .grid-2,
+  .grid-3,
+  .grid-5,
+  .dash-trio,
+  .scan-two-col,
+  #route-scan .scan-hero,
+  #route-scan .scan-stats-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  /* 4. Perbaikan khusus halaman Scan */
+  #route-scan .scan-hero-right {
+    grid-template-columns: 1fr;
+    text-align: center;
+  }
+  #route-scan .photo-big {
+    margin: 0 auto; /* Foto scan ke tengah */
+    width: 200px;  /* Perkecil foto di HP */
+    height: 200px;
+    --scan-photo-size: 200px;
+  }
+  #route-scan .info .meta {
+     grid-template-columns: 1fr; /* Meta NID, Jabatan, dll jadi 1 kolom */
+  }
+  #route-scan .scan-title {
+    font-size: 1.2rem; /* Perkecil judul */
+  }
+
+  /* 5. Perbaikan dashboard */
+  .greet {
+    flex-direction: column; /* Tumpuk judul dan jam */
+    gap: 12px;
+  }
+  #liveClock {
+    font-size: 2.5rem;
+  }
+}/* ============================================================================
+   AREA 15: DESAIN RESPONSIf (MOBILE)
+   ========================================================================== */
+
+/* 1. Style untuk Top Bar (tersembunyi di desktop) */
+.topbar {
+  display: none; /* Sembunyi di desktop */
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  height: 56px;
+  background: rgba(255, 255, 255, 0.8);
+  border-bottom: 1px solid var(--line);
+  backdrop-filter: blur(8px);
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 998;
+}
+.topbar-brand {
+  font-weight: 800;
+  font-size: 1.2rem;
+  color: var(--text);
+}
+.btn-menu {
+  font-size: 24px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 8px;
+  color: var(--text);
+}
+
+
+/* 2. Aturan untuk Layar HP (di bawah 900px) */
+@media (max-width: 900px) {
+
+  /* Tampilkan Top Bar */
+  .topbar {
+    display: flex;
+  }
+
+  /* Geser Sidebar ke luar layar, BUKAN display:none 
+  */
+  .sidebar {
+    position: fixed; /* PENTING: agar bisa tampil di atas konten */
+    left: 0;
+    top: 0;
+    height: 100dvh; /* Full tinggi layar */
+    z-index: 9999; /* Paling depan */
+    transform: translateX(-100%); /* Sembunyi ke kiri */
+    transition: transform 0.3s ease-out;
+  }
+
+  /* Style saat sidebar DIBUKA (punya class .is-open) */
+  .sidebar.is-open {
+    transform: translateX(0); /* Tampilkan (geser ke posisi 0) */
+  }
+
+  /* 3. Buat Konten Utama Full-Width */
+  .main {
+    margin-left: 0;
+    padding: 12px;
+    padding-top: 68px; /* Beri jarak agar tidak tertutup topbar */
+  }
+
+  /* 4. Paksa semua grid jadi 1 kolom */
+  .grid-2,
+  .grid-3,
+  .grid-5,
+  .dash-trio,
+  .scan-two-col,
+  #route-scan .scan-hero,
+  #route-scan .scan-stats-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  /* 5. Perbaikan khusus halaman Scan */
+  #route-scan .scan-hero-right {
+    grid-template-columns: 1fr;
+    text-align: center;
+  }
+  #route-scan .photo-big {
+    margin: 0 auto; /* Foto scan ke tengah */
+    width: 200px;  /* Perkecil foto di HP */
+    height: 200px;
+    --scan-photo-size: 200px;
+  }
+  #route-scan .info .meta {
+     grid-template-columns: 1fr; /* Meta NID, Jabatan, dll jadi 1 kolom */
+  }
+  #route-scan .scan-title {
+    font-size: 1.2rem; /* Perkecil judul */
+  }
+
+  /* 6. Perbaikan dashboard */
+  .greet {
+    flex-direction: column; /* Tumpuk judul dan jam */
+    gap: 12px;
+  }
+  #liveClock {
+    font-size: 2.5rem;
+  }
 }
