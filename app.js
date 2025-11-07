@@ -155,6 +155,11 @@ window.addEventListener('DOMContentLoaded', () => {
     }
   };
 
+  // make supa available for console debugging
+  window.supa = supa;
+  // debug flag
+  window._SA_DEBUG_PUSH = window._SA_DEBUG_PUSH || false;
+
   // queue management: enqueue payloads on failure, persist to localStorage, flush later
   // Enhanced: items should include __table to identify destination (T_ATT, T_EMP, T_NEWS, etc)
   function enqueuePush(item){
@@ -806,8 +811,8 @@ window.addEventListener('DOMContentLoaded', () => {
     if(sp && sp.style){
       if(emp && emp.photo){
         sp.style.backgroundImage = `url("${emp.photo}")`;
-        sp.style.backgroundSize = 'cover';
-        sp.style.backgroundPosition = 'center';
+        sp.style.backgroundSize = 'cover !important';
+        sp.style.backgroundPosition = 'center !important';
       } else {
         sp.style.backgroundImage = 'none';
       }
@@ -1002,14 +1007,33 @@ window.addEventListener('DOMContentLoaded', () => {
   $('#btnCamFront')?.addEventListener('click',()=>openCamera('user'));
   $('#btnCamBack') ?.addEventListener('click',()=>openCamera('environment'));
 
-  function readImageFromAny(){
-    return new Promise(res=>{
-      if(camDataUrl) return res(camDataUrl);
-      const f=$('#fPhotoFile')?.files?.[0];
-      if(!f) return res(null);
-      const fr=new FileReader(); fr.onload=()=>res(fr.result); fr.readAsDataURL(f);
-    });
-  }
+  // DIUBAH: Mengembalikan File object mentah (jika dari upload) atau null
+  // Kita tidak lagi memproses camDataUrl di sini
+  function readImageFromAny(){
+    return new Promise(res=>{
+      // Prioritaskan file upload
+      const f=$('#fPhotoFile')?.files?.[0];
+      if(f) {
+        console.log('[Foto] Menggunakan file upload:', f.name);
+        return res(f);
+      }
+      
+      // Logika untuk camDataUrl (jika masih ingin dipakai)
+      if(camDataUrl) {
+        console.log('[Foto] Menggunakan foto dari kamera');
+        // Ubah base64 string menjadi File object
+        fetch(camDataUrl)
+          .then(res => res.blob())
+          .then(blob => {
+            const newFile = new File([blob], `cam_${Date.now()}.jpg`, { type: 'image/jpeg' });
+            return res(newFile);
+          });
+      } else {
+        // Tidak ada gambar baru
+        return res(null);
+      }
+    });
+  }
 
   // Employees open/save/delete
   empTBody?.addEventListener('click',async e=>{
@@ -1045,123 +1069,173 @@ window.addEventListener('DOMContentLoaded', () => {
   $('#btnCloseEmp')?.addEventListener('click', closeEmp);
   $('#btnExitEmp')?.addEventListener('click', closeEmp);
 
-  $('#btnSaveEmp')?.addEventListener('click',async e=>{
-    e.preventDefault();
-    const imgDataUrl = await readImageFromAny();
-    const emp={
-      nid:$('#fNid').value.trim(),
-      name:$('#fName').value.trim(),
-      title:$('#fTitle').value.trim(),
-      company:readCompanyFromUI(),
-      shift:$('#fShift').value,
-      photo: imgDataUrl || $('#fPhoto').value.trim() || ''
-    };
-    if(!emp.nid||!emp.name) return toast('NID & Nama wajib diisi.');
-    if(editIdx>=0){ employees[editIdx]=emp; }
-    else {
-      if(employees.some(e=>e.nid==emp.nid)) return toast('NID sudah ada.');
-      employees.push(emp);
-    }
-    save(LS_EMP,employees); syncGlobals();
-    renderEmployees(); renderDashboard(); $('#empModal')?.close(); toast('Data karyawan disimpan.');
-    initMonthlyScheduler();
+  // DIUBAH: Sekarang menggunakan Supabase Storage untuk upload foto
+  $('#btnSaveEmp')?.addEventListener('click', async e => {
+    e.preventDefault();
+    const btn = e.target;
+    btn.disabled = true; // Nonaktifkan tombol saat proses
+    btn.textContent = 'Menyimpan...';
 
-    if(isSupabaseEnabled()) pushEmployee(emp);
-  });
+    const nid = $('#fNid').value.trim();
+    const name = $('#fName').value.trim();
+    if (!nid || !name) {
+      btn.disabled = false;
+      btn.textContent = 'Simpan';
+      return toast('NID & Nama wajib diisi.');
+    }
+
+    // 1. Ambil file baru (jika ada)
+    const newImageFile = await readImageFromAny();
+    let photoUrl = $('#fPhoto').value.trim() || ''; // Ambil URL foto yang sudah ada
+
+    // 2. Jika ada file baru, upload ke Supabase Storage
+    if (newImageFile && isSupabaseEnabled()) {
+      try {
+        btn.textContent = 'Mengunggah foto...';
+        const fileExt = newImageFile.name.split('.').pop();
+        const filePath = `public/${nid}-${Date.now()}.${fileExt}`; // Path unik di storage
+
+        // Upload file
+        const { data: uploadData, error: uploadError } = await window.supabase.storage
+          .from('foto-karyawan')
+          .upload(filePath, newImageFile, {
+            cacheControl: '3600',
+            upsert: true // Timpa jika ada file lama (jika path-nya sama)
+          });
+
+        if (uploadError) {
+          throw uploadError; // Lemparkan error untuk ditangkap di 'catch'
+        }
+
+        // 3. Dapatkan URL publik dari file yang di-upload
+        const { data: urlData } = window.supabase.storage
+          .from('foto-karyawan')
+          .getPublicUrl(uploadData.path);
+        
+        photoUrl = urlData.publicUrl; // Ganti photoUrl dengan link baru
+        console.log('[Foto] Upload berhasil. URL:', photoUrl);
+
+      // ...
+        } catch (err) {
+        console.error('[Foto] Gagal upload ke Supabase Storage:', err);
+
+        // --- TAMBAHKAN BARIS INI ---
+        alert('UPLOAD FOTO GAGAL! Error: ' + JSON.stringify(err));
+        // --- SELESAI ---
+
+        toast('Gagal mengunggah foto. Data tidak disimpan.');
+        btn.disabled = false;
+        btn.textContent = 'Simpan';
+        return; // Hentikan proses jika upload gagal
+        }
+// ...
+    } else if (newImageFile) {
+      // Jika ada file baru tapi Supabase (jaringan) offline
+      toast('Supabase offline. Foto tidak bisa di-upload, tapi data disimpan lokal.');
+      // (Kita akan tetap pakai URL lama atau kosong)
+    }
+
+    // 4. Susun data karyawan dengan URL foto yang benar
+    const emp = {
+      nid: nid,
+      name: name,
+      title: $('#fTitle').value.trim(),
+      company: readCompanyFromUI(),
+      shift: $('#fShift').value,
+      photo: photoUrl // Simpan URL, BUKAN file-nya
+    };
+
+    // 5. Simpan ke localStorage dan kirim ke Supabase
+    if (editIdx >= 0) {
+      employees[editIdx] = emp;
+    } else {
+      if (employees.some(e => e.nid == emp.nid)) {
+        btn.disabled = false;
+        btn.textContent = 'Simpan';
+        return toast('NID sudah ada.');
+      }
+      employees.push(emp);
+    }
+
+    save(LS_EMP, employees);
+    syncGlobals();
+    renderEmployees();
+    renderDashboard();
+    $('#empModal')?.close();
+    toast('Data karyawan disimpan.');
+    initMonthlyScheduler();
+
+    // Kirim data (termasuk URL foto baru) ke tabel 'employees'
+    if (isSupabaseEnabled()) {
+      pushEmployee(emp);
+    }
+
+    btn.disabled = false;
+    btn.textContent = 'Simpan';
+  });
 
   // Import/Export employees
   $('#btnImportEmp')?.addEventListener('click',()=>$('#fileImportEmp').click());
   // ===== Import/Export employees (patched import handler w/ robust supabase attempt + enqueue) =====
 $('#fileImportEmp')?.addEventListener('change', async ev => {
-  const file = ev.target.files[0];
+  const file = ev.target.files?.[0];
   if (!file) return;
   try {
-    // Read workbook
     const data = await file.arrayBuffer();
     const wb = XLSX.read(data);
     const ws = wb.Sheets[wb.SheetNames[0]];
-    const rows = XLSX.utils.sheet_to_json(ws);
+    const rows = XLSX.utils.sheet_to_json(ws, { defval: '' });
 
-    let up = 0, add = 0;
     const toPush = [];
-
+    let added = 0, updated = 0;
     rows.forEach(r => {
       const emp = {
         nid: String(r.NID ?? r.nid ?? '').trim(),
         name: String(r.Nama ?? r.name ?? '').trim(),
-        title: String(r.Jabatan ?? r.title ?? ''),
-        company: String(r.Perusahaan ?? r.company ?? ''),
-        shift: String(r.Grup ?? r.Shift ?? 'A'),
-        photo: String(r.FotoURL ?? r.photo ?? '')
+        title: String(r.Jabatan ?? r.title ?? '').trim(),
+        company: String(r.Perusahaan ?? r.company ?? '').trim(),
+        shift: String(r.Grup ?? r.Shift ?? r.grup ?? r.shift ?? 'A').trim(),
+        photo: String(r.FotoURL ?? r.photo ?? '').trim()
       };
       if (!emp.nid || !emp.name) return;
-      const i = employees.findIndex(e => e.nid == emp.nid);
-      if (i >= 0) { employees[i] = emp; up++; } else { employees.push(emp); add++; }
       toPush.push(emp);
     });
 
-    // Save locally first
-    save(LS_EMP, employees);
-    syncGlobals(); renderEmployees(); renderDashboard(); initMonthlyScheduler();
-    toast(`Import selesai. Tambah ${add}, Update ${up}.`);
-    ev.target.value = '';
-
-    // Try initialize supabase client if not yet
-    try { ensureSupabaseClientFallback(); } catch (e) { console.warn('ensureSupabaseClientFallback failed', e); }
-
-    // If there's no supabase client, enqueue everything and inform user
-    if (!isSupabaseEnabled()) {
-      // enqueue all rows into pushQueue so they will be flushed later
-      toPush.forEach(t => {
-        const payload = { ...t, updated_at: new Date().toISOString() };
-        enqueuePush(payload);
-      });
-      save(PUSH_QUEUE_KEY, pushQueue);
-      console.info('[ImportEmp] Supabase not available - enqueued', toPush.length, 'employees');
-      toast('Tidak dapat menyinkronkan dengan Supabase sekarang. Data dimasukkan ke antrean dan akan dikirim saat online.');
+    if (!toPush.length) {
+      toast('File tidak berisi data karyawan yang valid.');
+      ev.target.value = '';
       return;
     }
 
-    // Supabase appears ready — attempt upsert via pushEmployee (handles array)
-    try {
-      const res = await pushEmployee(toPush);
-      if (res?.error) {
-        console.warn('[ImportEmp] pushEmployee returned error', res.error);
+    // Bulk push: try to upsert in one call
+    console.info('[Import] sending batch to pushEmployee, rows:', toPush.length);
+    const res = await pushEmployee(toPush);
+    if (res?.error) {
+  console.warn('[Import] pushEmployee returned error, will enqueue locally if needed', res.error);
 
-        // If permission/401/403 then notify user and still enqueue to avoid data loss
-        const emsg = String((res.error && (res.error.message || res.error.details || res.error.msg)) || '');
-        if (res.error.status === 401 || res.error.status === 403 || /permission|r.l.s|row-level|forbidden|unauthorized/i.test(emsg)) {
-          // Enqueue raw payloads individually to flush later (avoid losing local copy)
-          toPush.forEach(t => enqueuePush({ ...t, updated_at: new Date().toISOString() }));
-          save(PUSH_QUEUE_KEY, pushQueue);
-          toast('Supabase menolak izin (RLS/permissions). Data disimpan di antrean. Periksa policy di Supabase (cek console).');
-          console.error('[ImportEmp] Permission error from Supabase:', res.error);
-          return;
-        }
+  // --- TAMBAHKAN BARIS INI ---
+  alert('GAGAL SINKRON! Error dari Supabase: ' + JSON.stringify(res.error));
+  // --- SELESAI ---
 
-        // Other validation/network errors: enqueue too
-        toPush.forEach(t => enqueuePush({ ...t, updated_at: new Date().toISOString() }));
-        save(PUSH_QUEUE_KEY, pushQueue);
-        toast('Gagal sinkron ke Supabase — data disimpan di antrean (cek console).');
-        return;
-      }
-
-      // success
-      console.info('[ImportEmp] pushed to supabase ok, rows:', (res.data || []).length);
-      toast('Import & sinkron selesai ke Supabase.');
-    } catch (err) {
-      console.error('[ImportEmp] exception during pushEmployee', err);
-      // Network or unexpected error -> enqueue everything
-      toPush.forEach(t => enqueuePush({ ...t, updated_at: new Date().toISOString() }));
-      save(PUSH_QUEUE_KEY, pushQueue);
-      toast('Terjadi error saat mengirim ke Supabase. Data disimpan di antrean.');
+  // fallback: store locally (already saved by import?) and enqueue each row
+  toPush.forEach(i => enqueuePush({ ...i, created_at: new Date().toISOString(), ts: Date.now() }));
+  // toast('Import: data disimpan lokal dan dimasukkan ke antrean sinkronisasi.'); // Kita nonaktifkan toast
+} else {
+      console.info('[Import] pushEmployee OK, rows:', (res.data || []).length);
+      toast('Import selesai dan dikirim ke server.');
     }
+
+    // update UI
+    save(LS_EMP, employees); // make sure local employees persistent (if you mutated employees)
+    renderEmployees(); renderDashboard();
+    ev.target.value = '';
   } catch (err) {
-    console.error('[fileImportEmp] failed to parse file', err);
-    toast('Gagal membaca file Excel. Pastikan format sesuai template.');
+    console.error('[Import] exception', err);
+    toast('Gagal mengimpor file: lihat console.');
     ev.target.value = '';
   }
 });
+
 
   $('#btnExportEmp')?.addEventListener('click',()=>{
     const rows=employees.map(e=>({NID:e.nid,Nama:e.name,Jabatan:e.title,Perusahaan:e.company,Grup:e.shift,FotoURL:e.photo}));
