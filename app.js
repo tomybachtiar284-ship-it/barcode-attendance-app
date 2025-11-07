@@ -155,6 +155,11 @@ window.addEventListener('DOMContentLoaded', () => {
     }
   };
 
+  // make supa available for console debugging
+  window.supa = supa;
+  // debug flag
+  window._SA_DEBUG_PUSH = window._SA_DEBUG_PUSH || false;
+
   // queue management: enqueue payloads on failure, persist to localStorage, flush later
   // Enhanced: items should include __table to identify destination (T_ATT, T_EMP, T_NEWS, etc)
   function enqueuePush(item){
@@ -1069,83 +1074,65 @@ window.addEventListener('DOMContentLoaded', () => {
     if(isSupabaseEnabled()) pushEmployee(emp);
   });
 
- // Import/Export employees (improved push + per-row enqueue on failure)
-$('#btnImportEmp')?.addEventListener('click',()=>$('#fileImportEmp').click());
-$('#fileImportEmp')?.addEventListener('change',async ev=>{
+  // Import/Export employees
+  $('#btnImportEmp')?.addEventListener('click',()=>$('#fileImportEmp').click());
+  // ===== Import/Export employees (patched import handler w/ robust supabase attempt + enqueue) =====
+$('#fileImportEmp')?.addEventListener('change', async ev => {
   const file = ev.target.files?.[0];
-  if(!file) return;
-  try{
+  if (!file) return;
+  try {
     const data = await file.arrayBuffer();
     const wb = XLSX.read(data);
     const ws = wb.Sheets[wb.SheetNames[0]];
     const rows = XLSX.utils.sheet_to_json(ws, { defval: '' });
 
-    let up = 0, add = 0;
     const toPush = [];
-
-    rows.forEach(r=>{
+    let added = 0, updated = 0;
+    rows.forEach(r => {
       const emp = {
         nid: String(r.NID ?? r.nid ?? '').trim(),
         name: String(r.Nama ?? r.name ?? '').trim(),
         title: String(r.Jabatan ?? r.title ?? '').trim(),
         company: String(r.Perusahaan ?? r.company ?? '').trim(),
-        shift: String(r.Grup ?? r.Shift ?? 'A').trim() || 'A',
+        shift: String(r.Grup ?? r.Shift ?? r.grup ?? r.shift ?? 'A').trim(),
         photo: String(r.FotoURL ?? r.photo ?? '').trim()
       };
-      if(!emp.nid || !emp.name) return; // skip incomplete rows
-      const i = employees.findIndex(e=>e.nid == emp.nid);
-      if(i >= 0){ employees[i] = emp; up++; } else { employees.push(emp); add++; }
+      if (!emp.nid || !emp.name) return;
       toPush.push(emp);
     });
 
-    // persist locally and update UI
-    save(LS_EMP, employees); syncGlobals(); renderEmployees(); renderDashboard(); initMonthlyScheduler();
-    toast(`Import selesai. Tambah ${add}, Update ${up}.`); ev.target.value='';
-
-    // if supabase available — try to push and handle partial failures
-    if(toPush.length){
-      if(!isSupabaseEnabled()){
-        // supabase offline -> enqueue all rows individually
-        toPush.forEach(t => {
-          enqueuePush({ ...t, updated_at: new Date().toISOString(), _type: 'employee' });
-        });
-        toast('Supabase offline — data karyawan dimasukkan ke antrean sinkronisasi.');
-        console.info('[Import] enqueued', toPush.length, 'employee rows');
-      } else {
-        // try upsert in one batch; catch and fallback to per-row attempts on error
-        try {
-          const res = await pushEmployee(toPush); // pushEmployee uses upsert
-          if(res?.error){
-            console.warn('[Import] batch pushEmployee error', res.error);
-            // fallback: try per-row insert/upsert and enqueue on individual failure
-            for(const row of toPush){
-              try{
-                const rres = await pushEmployee(row);
-                if(rres?.error){
-                  console.warn('[Import] per-row push failed, enqueueing', row, rres.error);
-                  enqueuePush({ ...row, updated_at: new Date().toISOString(), _type: 'employee' });
-                }
-              }catch(er){
-                console.error('[Import] exception per-row, enqueueing', er, row);
-                enqueuePush({ ...row, updated_at: new Date().toISOString(), _type: 'employee' });
-              }
-            }
-            toast('Beberapa baris gagal dikirim ke server — disimpan ke antrean untuk sinkron ulang.');
-          } else {
-            console.info('[Import] batch pushEmployee OK', (res.data||[]).length);
-            toast('Semua data karyawan berhasil dikirim ke Supabase.');
-          }
-        }catch(err){
-          console.error('[Import] batch push exception, enqueueing all', err);
-          toPush.forEach(t=>enqueuePush({ ...t, updated_at: new Date().toISOString(), _type: 'employee' }));
-          toast('Gagal mengirim ke server. Data dimasukkan ke antrean sinkronisasi.');
-        }
-      }
+    if (!toPush.length) {
+      toast('File tidak berisi data karyawan yang valid.');
+      ev.target.value = '';
+      return;
     }
-  }catch(err){
-    console.error('Import error', err);
-    toast('Gagal membaca file Excel. Periksa format dan coba lagi.');
-    ev.target.value='';
+
+    // Bulk push: try to upsert in one call
+    console.info('[Import] sending batch to pushEmployee, rows:', toPush.length);
+    const res = await pushEmployee(toPush);
+    if (res?.error) {
+  console.warn('[Import] pushEmployee returned error, will enqueue locally if needed', res.error);
+
+  // --- TAMBAHKAN BARIS INI ---
+  alert('GAGAL SINKRON! Error dari Supabase: ' + JSON.stringify(res.error));
+  // --- SELESAI ---
+
+  // fallback: store locally (already saved by import?) and enqueue each row
+  toPush.forEach(i => enqueuePush({ ...i, created_at: new Date().toISOString(), ts: Date.now() }));
+  // toast('Import: data disimpan lokal dan dimasukkan ke antrean sinkronisasi.'); // Kita nonaktifkan toast
+} else {
+      console.info('[Import] pushEmployee OK, rows:', (res.data || []).length);
+      toast('Import selesai dan dikirim ke server.');
+    }
+
+    // update UI
+    save(LS_EMP, employees); // make sure local employees persistent (if you mutated employees)
+    renderEmployees(); renderDashboard();
+    ev.target.value = '';
+  } catch (err) {
+    console.error('[Import] exception', err);
+    toast('Gagal mengimpor file: lihat console.');
+    ev.target.value = '';
   }
 });
 
