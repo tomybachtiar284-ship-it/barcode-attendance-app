@@ -811,8 +811,8 @@ window.addEventListener('DOMContentLoaded', () => {
     if(sp && sp.style){
       if(emp && emp.photo){
         sp.style.backgroundImage = `url("${emp.photo}")`;
-        sp.style.backgroundSize = 'cover';
-        sp.style.backgroundPosition = 'center';
+        sp.style.backgroundSize = 'cover !important';
+        sp.style.backgroundPosition = 'center !important';
       } else {
         sp.style.backgroundImage = 'none';
       }
@@ -1007,14 +1007,33 @@ window.addEventListener('DOMContentLoaded', () => {
   $('#btnCamFront')?.addEventListener('click',()=>openCamera('user'));
   $('#btnCamBack') ?.addEventListener('click',()=>openCamera('environment'));
 
-  function readImageFromAny(){
-    return new Promise(res=>{
-      if(camDataUrl) return res(camDataUrl);
-      const f=$('#fPhotoFile')?.files?.[0];
-      if(!f) return res(null);
-      const fr=new FileReader(); fr.onload=()=>res(fr.result); fr.readAsDataURL(f);
-    });
-  }
+  // DIUBAH: Mengembalikan File object mentah (jika dari upload) atau null
+  // Kita tidak lagi memproses camDataUrl di sini
+  function readImageFromAny(){
+    return new Promise(res=>{
+      // Prioritaskan file upload
+      const f=$('#fPhotoFile')?.files?.[0];
+      if(f) {
+        console.log('[Foto] Menggunakan file upload:', f.name);
+        return res(f);
+      }
+      
+      // Logika untuk camDataUrl (jika masih ingin dipakai)
+      if(camDataUrl) {
+        console.log('[Foto] Menggunakan foto dari kamera');
+        // Ubah base64 string menjadi File object
+        fetch(camDataUrl)
+          .then(res => res.blob())
+          .then(blob => {
+            const newFile = new File([blob], `cam_${Date.now()}.jpg`, { type: 'image/jpeg' });
+            return res(newFile);
+          });
+      } else {
+        // Tidak ada gambar baru
+        return res(null);
+      }
+    });
+  }
 
   // Employees open/save/delete
   empTBody?.addEventListener('click',async e=>{
@@ -1050,29 +1069,110 @@ window.addEventListener('DOMContentLoaded', () => {
   $('#btnCloseEmp')?.addEventListener('click', closeEmp);
   $('#btnExitEmp')?.addEventListener('click', closeEmp);
 
-  $('#btnSaveEmp')?.addEventListener('click',async e=>{
-    e.preventDefault();
-    const imgDataUrl = await readImageFromAny();
-    const emp={
-      nid:$('#fNid').value.trim(),
-      name:$('#fName').value.trim(),
-      title:$('#fTitle').value.trim(),
-      company:readCompanyFromUI(),
-      shift:$('#fShift').value,
-      photo: imgDataUrl || $('#fPhoto').value.trim() || ''
-    };
-    if(!emp.nid||!emp.name) return toast('NID & Nama wajib diisi.');
-    if(editIdx>=0){ employees[editIdx]=emp; }
-    else {
-      if(employees.some(e=>e.nid==emp.nid)) return toast('NID sudah ada.');
-      employees.push(emp);
-    }
-    save(LS_EMP,employees); syncGlobals();
-    renderEmployees(); renderDashboard(); $('#empModal')?.close(); toast('Data karyawan disimpan.');
-    initMonthlyScheduler();
+  // DIUBAH: Sekarang menggunakan Supabase Storage untuk upload foto
+  $('#btnSaveEmp')?.addEventListener('click', async e => {
+    e.preventDefault();
+    const btn = e.target;
+    btn.disabled = true; // Nonaktifkan tombol saat proses
+    btn.textContent = 'Menyimpan...';
 
-    if(isSupabaseEnabled()) pushEmployee(emp);
-  });
+    const nid = $('#fNid').value.trim();
+    const name = $('#fName').value.trim();
+    if (!nid || !name) {
+      btn.disabled = false;
+      btn.textContent = 'Simpan';
+      return toast('NID & Nama wajib diisi.');
+    }
+
+    // 1. Ambil file baru (jika ada)
+    const newImageFile = await readImageFromAny();
+    let photoUrl = $('#fPhoto').value.trim() || ''; // Ambil URL foto yang sudah ada
+
+    // 2. Jika ada file baru, upload ke Supabase Storage
+    if (newImageFile && isSupabaseEnabled()) {
+      try {
+        btn.textContent = 'Mengunggah foto...';
+        const fileExt = newImageFile.name.split('.').pop();
+        const filePath = `public/${nid}-${Date.now()}.${fileExt}`; // Path unik di storage
+
+        // Upload file
+        const { data: uploadData, error: uploadError } = await window.supabase.storage
+          .from('foto-karyawan')
+          .upload(filePath, newImageFile, {
+            cacheControl: '3600',
+            upsert: true // Timpa jika ada file lama (jika path-nya sama)
+          });
+
+        if (uploadError) {
+          throw uploadError; // Lemparkan error untuk ditangkap di 'catch'
+        }
+
+        // 3. Dapatkan URL publik dari file yang di-upload
+        const { data: urlData } = window.supabase.storage
+          .from('foto-karyawan')
+          .getPublicUrl(uploadData.path);
+        
+        photoUrl = urlData.publicUrl; // Ganti photoUrl dengan link baru
+        console.log('[Foto] Upload berhasil. URL:', photoUrl);
+
+      // ...
+        } catch (err) {
+        console.error('[Foto] Gagal upload ke Supabase Storage:', err);
+
+        // --- TAMBAHKAN BARIS INI ---
+        alert('UPLOAD FOTO GAGAL! Error: ' + JSON.stringify(err));
+        // --- SELESAI ---
+
+        toast('Gagal mengunggah foto. Data tidak disimpan.');
+        btn.disabled = false;
+        btn.textContent = 'Simpan';
+        return; // Hentikan proses jika upload gagal
+        }
+// ...
+    } else if (newImageFile) {
+      // Jika ada file baru tapi Supabase (jaringan) offline
+      toast('Supabase offline. Foto tidak bisa di-upload, tapi data disimpan lokal.');
+      // (Kita akan tetap pakai URL lama atau kosong)
+    }
+
+    // 4. Susun data karyawan dengan URL foto yang benar
+    const emp = {
+      nid: nid,
+      name: name,
+      title: $('#fTitle').value.trim(),
+      company: readCompanyFromUI(),
+      shift: $('#fShift').value,
+      photo: photoUrl // Simpan URL, BUKAN file-nya
+    };
+
+    // 5. Simpan ke localStorage dan kirim ke Supabase
+    if (editIdx >= 0) {
+      employees[editIdx] = emp;
+    } else {
+      if (employees.some(e => e.nid == emp.nid)) {
+        btn.disabled = false;
+        btn.textContent = 'Simpan';
+        return toast('NID sudah ada.');
+      }
+      employees.push(emp);
+    }
+
+    save(LS_EMP, employees);
+    syncGlobals();
+    renderEmployees();
+    renderDashboard();
+    $('#empModal')?.close();
+    toast('Data karyawan disimpan.');
+    initMonthlyScheduler();
+
+    // Kirim data (termasuk URL foto baru) ke tabel 'employees'
+    if (isSupabaseEnabled()) {
+      pushEmployee(emp);
+    }
+
+    btn.disabled = false;
+    btn.textContent = 'Simpan';
+  });
 
   // Import/Export employees
   $('#btnImportEmp')?.addEventListener('click',()=>$('#fileImportEmp').click());
