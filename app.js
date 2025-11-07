@@ -1,5 +1,29 @@
 // SmartAttend app.js — FINAL v1.4 (polished, Supabase-integrated, with robust supabase fallback + queued push/retry)
 window.addEventListener('DOMContentLoaded', () => {
+  // --- TAMBAHKAN KODE INI ---
+const btnToggle = document.getElementById('btnToggleMenu');
+const sidebar = document.querySelector('.sidebar');
+const main = document.querySelector('.main');
+
+if (btnToggle && sidebar) {
+  // Saat tombol hamburger di-klik
+  btnToggle.addEventListener('click', () => {
+    sidebar.classList.toggle('is-open');
+  });
+
+  // Sembunyikan sidebar jika mengklik di luar sidebar (di area .main)
+  main.addEventListener('click', () => {
+    sidebar.classList.remove('is-open');
+  });
+
+  // Sembunyikan sidebar jika mengklik link navigasi
+  sidebar.querySelectorAll('.navlink').forEach(link => {
+    link.addEventListener('click', () => {
+      sidebar.classList.remove('is-open');
+    });
+  });
+}
+// --- AKHIR KODE TAMBAHAN ---
   const LS_EMP='SA_EMPLOYEES', LS_ATT='SA_ATTENDANCE', LS_SHIFTS='SA_SHIFTS',
         LS_NEWS='SA_NEWS', LS_SCHED='SA_SHIFT_MONTHLY', PUSH_QUEUE_KEY='SA_PUSH_QUEUE';
 
@@ -252,7 +276,7 @@ window.addEventListener('DOMContentLoaded', () => {
   const T_EMP='employees';
   const T_ATT='attendance';
   const T_NEWS='news';
-  const T_SHIFTS='shifts_cfg';
+  const T_SHIFTS='shifts';
   const T_SCHED='shift_monthly';
 
   // --- Merge helpers (last-write-wins) ---
