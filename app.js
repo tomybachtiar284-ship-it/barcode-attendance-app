@@ -986,7 +986,7 @@ window.addEventListener('DOMContentLoaded', () => {
     camDataUrl = null;
     $('#empPhotoPreview')?.remove();
 
-    $('#empModalTitle').textContent = index >= 0 ? 'Edit Karyawan' : 'Tambah Karyawan';
+    $('#empModalTitle').textContent = t(index >= 0 ? 'modal_title_edit_emp' : 'modal_title_add_emp');
     $('#fNid').value = data?.nid || ''; $('#fName').value = data?.name || '';
     $('#fTitle').value = data?.title || '';
     setCompanyUI(data?.company || '');
@@ -1665,7 +1665,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
     let html = `
       <div style="margin-bottom:16px; color:#64748b; font-size:0.85rem; text-align:center;">
-        Atur waktu Masuk dan Pulang untuk setiap Shift.
+        ${t('shift_modal_desc')}
       </div>
     `;
 
@@ -1681,12 +1681,12 @@ window.addEventListener('DOMContentLoaded', () => {
           </div>
           <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px; box-sizing:border-box;">
             <div style="box-sizing:border-box;">
-               <label style="font-size:0.75rem; color:#64748b; font-weight:600; display:block; margin-bottom:4px;">MASUK</label>
+               <label style="font-size:0.75rem; color:#64748b; font-weight:600; display:block; margin-bottom:4px;">${t('shift_label_in')}</label>
                <input type="time" id="shift_start_${key}" value="${s.start}" 
                 style="width:100%; padding:8px; border:1px solid #cbd5e1; border-radius:8px; background:#ffffff; color:#0f172a; font-family:inherit; outline:none; height:42px; box-sizing:border-box;">
             </div>
             <div style="box-sizing:border-box;">
-               <label style="font-size:0.75rem; color:#64748b; font-weight:600; display:block; margin-bottom:4px;">PULANG</label>
+               <label style="font-size:0.75rem; color:#64748b; font-weight:600; display:block; margin-bottom:4px;">${t('shift_label_out')}</label>
                <input type="time" id="shift_end_${key}" value="${s.end}" 
                 style="width:100%; padding:8px; border:1px solid #cbd5e1; border-radius:8px; background:#ffffff; color:#0f172a; font-family:inherit; outline:none; height:42px; box-sizing:border-box;">
             </div>
@@ -1726,7 +1726,9 @@ window.addEventListener('DOMContentLoaded', () => {
       syncGlobals(); // Update window.shifts
       renderCurrentShiftPanel(); // Refresh UI
       // Force reload specific panels if needed
-      toast("Pengaturan Shift berhasil disimpan!");
+      renderCurrentShiftPanel(); // Refresh UI
+      // Force reload specific panels if needed
+      toast(t('msg_saved'));
       closeShiftModal();
     } else {
       closeShiftModal();
@@ -1829,9 +1831,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const btnLogout = document.getElementById('btnLogout');
   if (btnLogout) {
     btnLogout.addEventListener('click', () => {
-      const isId = localStorage.getItem('SA_LANG') === 'id';
-      const msg = isId ? 'Apakah Anda yakin ingin keluar?' : 'Are you sure you want to log out?';
-      if (confirm(msg)) {
+      if (confirm(t('confirm_logout'))) {
         localStorage.removeItem('SA_SESSION');
         window.location.href = 'login.html';
       }

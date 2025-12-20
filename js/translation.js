@@ -14,6 +14,17 @@ const TRANSLATIONS = {
         nav_latest: "📰 Informasi Terbaru",
         nav_education: "🎓 Edukasi",
         nav_logout: "Keluar",
+        footer_version: "v1.4 • Lokal",
+
+        // General Messages
+        confirm_logout: "Apakah Anda yakin ingin keluar?",
+        msg_saved: "Berhasil disimpan!",
+        msg_error: "Terjadi kesalahan.",
+
+        // Pills
+        pill_today: "Hari Ini",
+        pill_active: "Aktif",
+        pill_24h: "24 Jam",
 
         // Dashboard
         dash_welcome_title: "SELAMAT DATANG DI PT PLN NUSANTARA POWER SERVICES LINGKUP PLTU AMPANA ⚡",
@@ -71,6 +82,36 @@ const TRANSLATIONS = {
         shift_col_in: "Datang",
         shift_col_out: "Pulang",
         shift_col_action: "Aksi",
+        shift_modal_desc: "Atur waktu Masuk dan Pulang untuk setiap Shift.",
+        shift_label_in: "MASUK",
+        shift_label_out: "PULANG",
+
+        // Modals (General)
+        modal_title_info: "Info Terbaru",
+        modal_title_edu: "Edukasi",
+        modal_label_title: "Judul",
+        modal_label_link: "Link (opsional)",
+        modal_label_body: "Isi",
+        modal_label_img: "Upload Gambar (opsional)",
+        modal_btn_cancel: "Batal",
+        modal_btn_save: "Simpan",
+        modal_btn_back: "Kembali",
+        modal_btn_remove_img: "Hapus Gambar",
+
+        // Emp Modal
+        modal_title_add_emp: "Tambah Karyawan",
+        modal_title_edit_emp: "Edit Karyawan",
+        modal_label_nid: "NID",
+        modal_label_name: "Nama",
+        modal_label_job: "Jabatan",
+        modal_label_company: "Perusahaan",
+        modal_label_other: "Nama Perusahaan (Other)",
+        modal_label_shift: "Shift",
+        modal_label_photo_url: "Foto (URL)",
+        modal_label_photo_upload: "Foto (Upload)",
+        modal_btn_cam_front: "📸 Kamera Depan",
+        modal_btn_cam_back: "📷 Kamera Belakang",
+        modal_cam_hint: "Jika akses kamera ditolak/tidak tersedia, sistem akan menawarkan unggah file.",
 
         // Login Page
         login_welcome: "Selamat Datang di SmartAttend",
@@ -92,6 +133,17 @@ const TRANSLATIONS = {
         nav_latest: "📰 Latest Info",
         nav_education: "🎓 Education",
         nav_logout: "Log Out",
+        footer_version: "v1.4 • Local-first",
+
+        // General Messages
+        confirm_logout: "Are you sure you want to log out?",
+        msg_saved: "Saved successfully!",
+        msg_error: "An error occurred.",
+
+        // Pills
+        pill_today: "Today",
+        pill_active: "Active",
+        pill_24h: "24 Hours",
 
         // Dashboard
         dash_welcome_title: "WELCOME TO PT PLN NUSANTARA POWER SERVICES PLTU AMPANA AREA ⚡",
@@ -149,6 +201,36 @@ const TRANSLATIONS = {
         shift_col_in: "In",
         shift_col_out: "Out",
         shift_col_action: "Action",
+        shift_modal_desc: "Set Start and End times for each Shift.",
+        shift_label_in: "START",
+        shift_label_out: "END",
+
+        // Modals (General)
+        modal_title_info: "Latest Info",
+        modal_title_edu: "Education",
+        modal_label_title: "Title",
+        modal_label_link: "Link (optional)",
+        modal_label_body: "Content",
+        modal_label_img: "Upload Image (optional)",
+        modal_btn_cancel: "Cancel",
+        modal_btn_save: "Save",
+        modal_btn_back: "Back",
+        modal_btn_remove_img: "Remove Image",
+
+        // Emp Modal
+        modal_title_add_emp: "Add Employee",
+        modal_title_edit_emp: "Edit Employee",
+        modal_label_nid: "NID",
+        modal_label_name: "Name",
+        modal_label_job: "Position",
+        modal_label_company: "Company",
+        modal_label_other: "Company Name (Other)",
+        modal_label_shift: "Shift",
+        modal_label_photo_url: "Photo (URL)",
+        modal_label_photo_upload: "Photo (Upload)",
+        modal_btn_cam_front: "📸 Front Camera",
+        modal_btn_cam_back: "📷 Back Camera",
+        modal_cam_hint: "If camera access is denied, upload file option will appear.",
 
         // Login Page
         login_welcome: "Welcome to SmartAttend",
@@ -262,9 +344,14 @@ class TranslationManager {
             else opt.classList.remove('active');
         });
     }
+
+    getString(key) {
+        return TRANSLATIONS[this.currentLang][key] || key;
+    }
 }
 
 // Initialize
 window.addEventListener('DOMContentLoaded', () => {
     window.translationManager = new TranslationManager();
+    window.t = (key) => window.translationManager.getString(key);
 });

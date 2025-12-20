@@ -520,13 +520,14 @@
     </div>
 
     <nav class="nav">
-      <button class="navlink active" data-route="dashboard">📊 Dasbor</button>
-      <button class="navlink" data-route="scan">🔎 Scan Barcode</button>
-      <button class="navlink" data-route="employees">👥 Database Karyawan</button>
-      <button class="navlink" data-route="shifts">🕘 Shift Setting</button>
-      <button class="navlink" data-route="attendance">📑 Laporan 24 Jam</button>
-      <button class="navlink" data-route="latest">📰 Latest information</button>
-      <button class="navlink" data-route="education">🎓 Education</button>
+      <button class="navlink active" data-route="dashboard">📊 <span data-i18n="nav_dashboard">Dasbor</span></button>
+      <button class="navlink" data-route="scan">🔎 <span data-i18n="nav_scan">Scan Barcode</span></button>
+      <button class="navlink" data-route="employees">👥 <span data-i18n="nav_employees">Database
+          Karyawan</span></button>
+      <button class="navlink" data-route="shifts">🕘 <span data-i18n="nav_shifts">Shift Setting</span></button>
+      <button class="navlink" data-route="attendance">📑 <span data-i18n="nav_report">Laporan 24 Jam</span></button>
+      <button class="navlink" data-route="latest">📰 <span data-i18n="nav_latest">Latest information</span></button>
+      <button class="navlink" data-route="education">🎓 <span data-i18n="nav_education">Education</span></button>
 
       <hr style="border:0; border-top:1px solid var(--line); margin:8px 0;">
 
@@ -535,7 +536,7 @@
       </button>
     </nav>
 
-    <div class="sidebar-footer"><small>v1.4 • Local-first</small></div>
+    <div class="sidebar-footer"><small data-i18n="footer_version">v1.4 • Local-first</small></div>
   </aside>
 
   <!-- MAIN -->
@@ -578,8 +579,8 @@
           data-tooltip="Total semua karyawan yang terdaftar dalam database."
           onclick="$('.navlink[data-route=\'employees\']').click()">
           <div class="pills">
-            <span class="pill">Today</span>
-            <span class="pill">Active</span>
+            <span class="pill" data-i18n="pill_today">Today</span>
+            <span class="pill" data-i18n="pill_active">Active</span>
           </div>
           <div class="lbl" data-i18n="stat_total_emp">Total Karyawan</div>
           <div class="val" id="statTotalEmp">0</div>
@@ -590,7 +591,7 @@
           data-tooltip="Jumlah aktivitas scan (masuk & pulang) dalam 24 jam terakhir."
           onclick="showStatDetail('scan24h')">
           <div class="pills">
-            <span class="pill">24 Hours</span>
+            <span class="pill" data-i18n="pill_24h">24 Hours</span>
           </div>
           <div class="lbl" data-i18n="stat_scan_24h">Scan 24 jam</div>
           <div class="val" id="statScan24h">0</div>
@@ -1116,13 +1117,13 @@
   <dialog id="empModal">
     <form method="dialog" class="modal">
       <button type="button" class="modal-close" id="btnCloseEmp" aria-label="Tutup">×</button>
-      <h3 id="empModalTitle">Tambah Karyawan</h3>
+      <h3 id="empModalTitle" data-i18n="modal_title_add_emp">Tambah Karyawan</h3>
       <div class="grid-2">
-        <label>NID <input id="fNid" required></label>
-        <label>Nama <input id="fName" required></label>
-        <label>Jabatan <input id="fTitle" required></label>
+        <label><span data-i18n="modal_label_nid">NID</span> <input id="fNid" required></label>
+        <label><span data-i18n="modal_label_name">Nama</span> <input id="fName" required></label>
+        <label><span data-i18n="modal_label_job">Jabatan</span> <input id="fTitle" required></label>
 
-        <label>Perusahaan
+        <label><span data-i18n="modal_label_company">Perusahaan</span>
           <select id="fCompanySel" required>
             <option value="">Pilih…</option>
             <option>PT PLN</option>
@@ -1136,11 +1137,11 @@
             <option value="OTHER">OTHER</option>
           </select>
         </label>
-        <label id="wrapCompanyOther" class="hidden">Nama Perusahaan (Other)
+        <label id="wrapCompanyOther" class="hidden"><span data-i18n="modal_label_other">Nama Perusahaan (Other)</span>
           <input id="fCompanyOther" placeholder="Tulis nama perusahaan…">
         </label>
 
-        <label>Shift
+        <label><span data-i18n="modal_label_shift">Shift</span>
           <select id="fShift">
             <option value="A">Pagi (P)</option>
             <option value="B">Sore (S)</option>
@@ -1150,19 +1151,26 @@
           </select>
         </label>
 
-        <label>Foto (URL) <input id="fPhoto" placeholder="https://… atau biarkan kosong"></label>
-        <label>Foto (Upload) <input type="file" id="fPhotoFile" accept="image/*"></label>
+        <label><span data-i18n="modal_label_photo_url">Foto (URL)</span> <input id="fPhoto"
+            placeholder="https://… atau biarkan kosong"></label>
+        <label><span data-i18n="modal_label_photo_upload">Foto (Upload)</span> <input type="file" id="fPhotoFile"
+            accept="image/*"></label>
 
         <div class="camera-actions" style="grid-column:1 / -1; justify-content:flex-end">
-          <button type="button" class="btn" id="btnCamFront">📸 Kamera Depan</button>
-          <button type="button" class="btn" id="btnCamBack">📷 Kamera Belakang</button>
-          <small class="muted">Jika akses kamera ditolak/tidak tersedia, sistem akan menawarkan unggah file.</small>
+          <button type="button" class="btn" id="btnCamFront"><span data-i18n="modal_btn_cam_front">📸 Kamera
+              Depan</span></button>
+          <button type="button" class="btn" id="btnCamBack"><span data-i18n="modal_btn_cam_back">📷 Kamera
+              Belakang</span></button>
+          <small class="muted" data-i18n="modal_cam_hint">Jika akses kamera ditolak/tidak tersedia, sistem akan
+            menawarkan unggah file.</small>
         </div>
       </div>
 
       <div class="modal-actions">
-        <button class="btn ghost" id="btnExitEmp" value="cancel" type="button">Keluar</button>
-        <button class="btn primary" id="btnSaveEmp" value="default" type="button">Simpan</button>
+        <button class="btn ghost" id="btnExitEmp" value="cancel" type="button"><span
+            data-i18n="modal_btn_back">Keluar</span></button>
+        <button class="btn primary" id="btnSaveEmp" value="default" type="button"><span
+            data-i18n="modal_btn_save">Simpan</span></button>
       </div>
     </form>
   </dialog>
@@ -1170,17 +1178,20 @@
   <!-- MODAL: INFO -->
   <dialog id="newsModal">
     <form method="dialog" class="modal">
-      <h3>Info Terbaru</h3>
+      <h3 data-i18n="modal_title_info">Info Terbaru</h3>
       <div class="grid-2">
-        <label>Judul <input id="nTitle" required></label>
-        <label>Link (opsional) <input id="nLink" placeholder="https://…"></label>
-        <label style="grid-column:1 / -1">Isi
+        <label><span data-i18n="modal_label_title">Judul</span> <input id="nTitle" required></label>
+        <label><span data-i18n="modal_label_link">Link (opsional)</span> <input id="nLink"
+            placeholder="https://…"></label>
+        <label style="grid-column:1 / -1"><span data-i18n="modal_label_body">Isi</span>
           <textarea id="nBody" rows="4" style="width:100%"></textarea>
         </label>
       </div>
       <div class="modal-actions">
-        <button class="btn ghost" id="btnBackNews" value="cancel">Kembali</button>
-        <button class="btn primary" id="btnSaveNews" value="default">Simpan</button>
+        <button class="btn ghost" id="btnBackNews" value="cancel"><span
+            data-i18n="modal_btn_back">Kembali</span></button>
+        <button class="btn primary" id="btnSaveNews" value="default"><span
+            data-i18n="modal_btn_save">Simpan</span></button>
       </div>
     </form>
   </dialog>
@@ -1189,18 +1200,20 @@
   <dialog id="eduModal">
     <form method="dialog" class="modal">
       <button type="button" class="modal-close" id="btnCloseEdu" aria-label="Tutup">×</button>
-      <h3 id="eduModalTitle">Education</h3>
+      <h3 id="eduModalTitle" data-i18n="modal_title_edu">Education</h3>
       <div class="grid-2">
-        <label>Judul <input id="eTitle" required></label>
-        <label>Upload Gambar (opsional) <input type="file" id="eImage" accept="image/*"></label>
-        <label style="grid-column:1 / -1">Detail
+        <label><span data-i18n="modal_label_title">Judul</span> <input id="eTitle" required></label>
+        <label><span data-i18n="modal_label_img">Upload Gambar (opsional)</span> <input type="file" id="eImage"
+            accept="image/*"></label>
+        <label style="grid-column:1 / -1"><span data-i18n="modal_label_body">Detail</span>
           <textarea id="eBody" rows="4" style="width:100%"
             placeholder="Ringkasan materi / poin pembelajaran"></textarea>
         </label>
       </div>
       <div class="img-preview hidden" id="eImgWrap">
         <img id="ePreview" alt="Preview">
-        <button type="button" class="btn ghost" id="btnClearImg">Hapus Gambar</button>
+        <button type="button" class="btn ghost" id="btnClearImg"><span data-i18n="modal_btn_remove_img">Hapus
+            Gambar</span></button>
         <small class="muted">Gambar otomatis dikompresi untuk hemat penyimpanan.</small>
       </div>
       <div class="modal-actions">
