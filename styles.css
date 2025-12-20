@@ -1880,8 +1880,10 @@ dialog.camdlg::backdrop {
    ========================================================================== */
 .header-modern {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
+  gap: 16px;
   background: linear-gradient(135deg, rgba(255, 255, 255, 0.9), rgba(240, 249, 255, 0.85));
   backdrop-filter: blur(10px);
   padding: 16px 24px;
@@ -1889,6 +1891,7 @@ dialog.camdlg::backdrop {
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.05);
   margin-bottom: 24px;
   border: 1px solid rgba(255, 255, 255, 0.6);
+  min-height: fit-content;
 }
 
 .header-logo {
@@ -1995,7 +1998,9 @@ dialog.camdlg::backdrop {
 /* Grid 4 Columns */
 .grid-4 {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  /* Fixed grid to ensure row of 4, but switch to wrapping if too small (via media query) 
+     OR use auto-fit for zoom stability. Let's use auto-fit. */
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 16px;
   margin-bottom: 24px;
 }
