@@ -1824,4 +1824,17 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
   });
+
+  // ===== Logout Logic =====
+  const btnLogout = document.getElementById('btnLogout');
+  if (btnLogout) {
+    btnLogout.addEventListener('click', () => {
+      const isId = localStorage.getItem('SA_LANG') === 'id';
+      const msg = isId ? 'Apakah Anda yakin ingin keluar?' : 'Are you sure you want to log out?';
+      if (confirm(msg)) {
+        localStorage.removeItem('SA_SESSION');
+        window.location.href = 'login.html';
+      }
+    });
+  }
 });

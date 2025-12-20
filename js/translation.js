@@ -13,6 +13,7 @@ const TRANSLATIONS = {
         nav_report: "📑 Laporan 24 Jam",
         nav_latest: "📰 Informasi Terbaru",
         nav_education: "🎓 Edukasi",
+        nav_logout: "Keluar",
 
         // Dashboard
         dash_welcome_title: "SELAMAT DATANG DI PT PLN NUSANTARA POWER SERVICES LINGKUP PLTU AMPANA ⚡",
@@ -90,6 +91,7 @@ const TRANSLATIONS = {
         nav_report: "📑 24-Hour Report",
         nav_latest: "📰 Latest Info",
         nav_education: "🎓 Education",
+        nav_logout: "Log Out",
 
         // Dashboard
         dash_welcome_title: "WELCOME TO PT PLN NUSANTARA POWER SERVICES PLTU AMPANA AREA ⚡",
