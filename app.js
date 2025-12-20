@@ -738,57 +738,70 @@ window.addEventListener('DOMContentLoaded', () => {
 
   // ===== Employees =====
   const empTBody = $('#tableEmp tbody'); let editIdx = -1;
-  function renderEmployees() {
+  // ===== Debounce Utility =====
+  function debounce(func, wait) {
+    let timeout;
+    return function (...args) {
+      const context = this;
+      clearTimeout(timeout);
+      timeout = setTimeout(() => func.apply(context, args), wait);
+    };
+  }
+
+  // ===== Pagination State =====
+  let empLimit = 50;
+  const empStep = 50;
+  let currentFilteredEmp = [];
+
+  function renderEmployees(reset = true) {
     const container = document.getElementById('employeeListContainer');
     if (!container) return;
 
-    container.innerHTML = '';
-    const q = $('#searchEmp')?.value?.toLowerCase() || '';
+    if (reset) {
+      container.innerHTML = '';
+      empLimit = empStep;
+      const q = $('#searchEmp')?.value?.toLowerCase() || '';
+      currentFilteredEmp = employees.filter(e => (e.nid + ' ' + e.name + ' ' + (e.company || '')).toLowerCase().includes(q));
+    }
 
-    // 1. Filter
-    const filtered = employees.filter(e => (e.nid + ' ' + e.name + ' ' + (e.company || '')).toLowerCase().includes(q));
-
-    if (filtered.length === 0) {
+    if (currentFilteredEmp.length === 0) {
       container.innerHTML = `<div class="card" style="text-align:center; padding:30px; color:var(--muted)">Tidak ada data karyawan ditemukan.</div>`;
       return;
     }
 
-    // 2. Group by Company
+    // Slice data for this chunk
+    const showing = currentFilteredEmp.slice(0, empLimit);
+    const more = currentFilteredEmp.length > empLimit;
+
+    // Group by Company
     const groups = {};
-    filtered.forEach(e => {
+    showing.forEach(e => {
       const company = e.company || 'Tanpa Perusahaan';
       if (!groups[company]) groups[company] = [];
       groups[company].push(e);
     });
 
-    // 3. Render Cards
-    const companies = Object.keys(groups).sort(); // Sort Company Name
+    // Render Full HTML (Chunked)
+    // To avoid complex DOM Diffing, we just re-render the 'showing' set.
+    // 50-100 items is very fast.
+    let fullHtml = '';
+    const companies = Object.keys(groups).sort();
 
     companies.forEach(comp => {
       const list = groups[comp];
-      // Sort employees by name inside company
       list.sort((a, b) => a.name.localeCompare(b.name));
 
-      const card = document.createElement('div');
-      card.className = 'card';
-      card.style.marginBottom = '24px';
-
-      // Header for Company Card
-      const headerHtml = `
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; border-bottom:1px solid var(--line); padding-bottom:12px;">
-          <div style="display:flex; align-items:center; gap:10px;">
-            <div style="width:40px; height:40px; background:var(--primary-100); border-radius:8px; display:grid; place-items:center; color:var(--primary-600); font-size:1.2rem;">🏢</div>
-            <div>
-              <div style="font-weight:700; font-size:1.1rem; color:var(--text)">${comp}</div>
-              <div style="font-size:0.85rem; color:var(--muted)">${list.length} Karyawan</div>
-            </div>
-          </div>
-          <div style="font-size:1.5rem; color:var(--line); cursor:pointer">…</div>
-        </div>
-      `;
-
-      // Table for this company
       let tableHtml = `
+      <div class="card mb-4 fade-in">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; border-bottom:1px solid var(--line); padding-bottom:12px;">
+           <div style="display:flex; align-items:center; gap:10px;">
+             <div style="width:40px; height:40px; background:var(--primary-100); border-radius:8px; display:grid; place-items:center; color:var(--primary-600); font-size:1.2rem;">🏢</div>
+             <div>
+               <div style="font-weight:700; font-size:1.1rem; color:var(--text)">${comp}</div>
+               <div style="font-size:0.85rem; color:var(--muted)">${list.length} Karyawan (Visible)</div>
+             </div>
+           </div>
+        </div>
         <div class="table-wrap">
           <table class="table">
             <thead>
@@ -820,25 +833,33 @@ window.addEventListener('DOMContentLoaded', () => {
           </tr>
         `;
       });
-
-      tableHtml += `</tbody></table></div>`;
-
-      card.innerHTML = headerHtml + tableHtml;
-
-      // Apply translation to new elements
-      if (window.translationManager) {
-        window.translationManager.applyLanguage(window.translationManager.currentLang);
-      }
-
-      container.appendChild(card);
+      tableHtml += `</tbody></table></div></div>`;
+      fullHtml += tableHtml;
     });
 
-    // Re-apply translations after dynamic render
+    if (more) {
+      fullHtml += `
+      <div style="text-align:center; margin:20px;">
+        <button class="btn primary" id="btnLoadMoreEmp" onclick="loadMoreEmp()">⬇️ Load More (${currentFilteredEmp.length - empLimit} remaining)</button>
+      </div>
+    `;
+    }
+
+    container.innerHTML = fullHtml;
+
     if (window.translationManager) {
       window.translationManager.applyLanguage(window.translationManager.currentLang);
     }
   }
-  $('#searchEmp')?.addEventListener('input', renderEmployees);
+
+  window.loadMoreEmp = function () {
+    empLimit += empStep;
+    renderEmployees(false); // Render false = keep filtering, just expand limit
+  };
+  // Debounce Search
+  $('#searchEmp')?.addEventListener('input', debounce(() => {
+    renderEmployees(true);
+  }, 300));
 
   // === Event Delegation for Employee List Actions ===
   $('#employeeListContainer')?.addEventListener('click', async e => {
