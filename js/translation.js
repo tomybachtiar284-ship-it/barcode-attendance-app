@@ -6,13 +6,13 @@
 const TRANSLATIONS = {
     id: {
         // Sidebar
-        nav_dashboard: "📊 Dasbor",
-        nav_scan: "🔎 Scan Barcode",
-        nav_employees: "👥 Database Karyawan",
-        nav_shifts: "🕘 Pengaturan Shift",
-        nav_report: "📑 Laporan 24 Jam",
-        nav_latest: "📰 Informasi Terbaru",
-        nav_education: "🎓 Edukasi",
+        nav_dashboard: "Dasbor",
+        nav_scan: "Scan Barcode",
+        nav_employees: "Database Karyawan",
+        nav_shifts: "Pengaturan Shift",
+        nav_report: "Laporan 24 Jam",
+        nav_latest: "Informasi Terbaru",
+        nav_education: "Edukasi",
         nav_logout: "Keluar",
         footer_version: "v1.4 • Lokal",
 
@@ -125,13 +125,13 @@ const TRANSLATIONS = {
     },
     en: {
         // Sidebar
-        nav_dashboard: "📊 Dashboard",
-        nav_scan: "🔎 Scan Barcode",
-        nav_employees: "👥 Employee Database",
-        nav_shifts: "🕘 Shift Settings",
-        nav_report: "📑 24-Hour Report",
-        nav_latest: "📰 Latest Info",
-        nav_education: "🎓 Education",
+        nav_dashboard: "Dashboard",
+        nav_scan: "Scan Barcode",
+        nav_employees: "Employee Database",
+        nav_shifts: "Shift Settings",
+        nav_report: "24-Hour Report",
+        nav_latest: "Latest Info",
+        nav_education: "Education",
         nav_logout: "Log Out",
         footer_version: "v1.4 • Local-first",
 
