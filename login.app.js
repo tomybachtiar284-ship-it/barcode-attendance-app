@@ -15,7 +15,7 @@ function showMessage(message, type) {
     } else if (type === 'success') {
         messageBox.classList.add('bg-green-200', 'text-green-800');
     }
-    
+
     // Menampilkan kotak pesan
     messageBox.classList.remove('hidden');
 
@@ -26,7 +26,7 @@ function showMessage(message, type) {
 }
 
 // Menambahkan event listener ke formulir
-loginForm.addEventListener('submit', function(e) {
+loginForm.addEventListener('submit', function (e) {
     // Mencegah formulir dikirim secara default
     e.preventDefault();
 
@@ -44,13 +44,65 @@ loginForm.addEventListener('submit', function(e) {
         return;
     }
 
-    // Jika lolos validasi (simulasi sukses)
-    // Di aplikasi nyata, di sini Anda akan mengirim data ke server (fetch/axios)
+    // Jika lolos validasi
     showMessage('Login berhasil! Mengalihkan...', 'success');
 
-    // (Opsional) Arahkan pengguna setelah sukses
-    // setTimeout(() => {
-    //     window.location.href = '/dashboard'; // Ganti dengan halaman tujuan
-    // }, 1500);
+    // Simpan sesi login
+    localStorage.setItem('SA_SESSION', 'true');
+
+    // Arahkan ke dashboard
+    setTimeout(() => {
+        window.location.href = 'index.html';
+    }, 1000);
 });
+
+// ===== Language Logic =====
+const translations = {
+    en: {
+        login_title: "Login",
+        login_subtitle: "Welcome back! Please enter your details.",
+        label_username: "Username / Email",
+        label_password: "Password",
+        label_remember: "Remember me",
+        label_forgot: "Forgot password?",
+        btn_signin: "Sign In",
+        text_or: "or continue with"
+    },
+    id: {
+        login_title: "Masuk",
+        login_subtitle: "Selamat datang kembali! Silakan masukkan detail Anda.",
+        label_username: "Nama Pengguna / Email",
+        label_password: "Kata Sandi",
+        label_remember: "Ingat saya",
+        label_forgot: "Lupa kata sandi?",
+        btn_signin: "Masuk",
+        text_or: "atau lanjut dengan"
+    }
+};
+
+window.changeLang = function (lang) {
+    // 1. Update Text
+    document.querySelectorAll('[data-i18n]').forEach(el => {
+        const key = el.getAttribute('data-i18n');
+        if (translations[lang][key]) {
+            el.textContent = translations[lang][key];
+        }
+    });
+
+    // 2. Update Flag & Label
+    const flag = lang === 'id' ? '🇮🇩' : '🇺🇸';
+    const label = lang === 'id' ? 'ID' : 'EN';
+
+    const currFlag = document.getElementById('currFlag');
+    const currLang = document.getElementById('currLang');
+    if (currFlag) currFlag.textContent = flag;
+    if (currLang) currLang.textContent = label;
+
+    // 3. Save Preference
+    localStorage.setItem('SA_LANG', lang);
+}
+
+// Init Language
+const savedLang = localStorage.getItem('SA_LANG') || 'en';
+window.changeLang(savedLang);
 

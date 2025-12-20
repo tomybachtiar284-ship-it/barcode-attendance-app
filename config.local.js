@@ -1,0 +1,3 @@
+window.SA_SUPABASE_URL = 'https://eiomyewcihrqzlslplen.supabase.co';
+window.SA_SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVpb215ZXdjaWhycXpsc2xwbGVuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjIxNTIxNjQsImV4cCI6MjA3NzcyODE2NH0.uZJpktYvGUDGjBeK4Ou54Tw9TAQsfrmehYc5Apxi6CE';
+window.SA_REDIRECT_AFTER_LOGIN = 'index.html';

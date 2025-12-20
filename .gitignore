@@ -1,0 +1,4 @@
+*.bak
+temp_*.css
+.DS_Store
+Thumbs.db
