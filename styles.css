@@ -2125,3 +2125,128 @@ dialog.camdlg::backdrop {
   opacity: 1;
   transform: translateY(0);
 }
+
+/* ============================================================================
+   AREA FINAL: COMPREHENSIVE MOBILE RESPONSIVENESS
+   ========================================================================== */
+
+/* 1. Mobile Toggle Button */
+.mobile-nav-toggle {
+  display: none;
+  position: fixed;
+  top: 16px;
+  left: 16px;
+  z-index: 1100;
+  background: white;
+  border: 1px solid var(--line);
+  padding: 8px;
+  border-radius: 8px;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  color: var(--primary-700);
+}
+
+.sidebar-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+  z-index: 1040;
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.3s;
+}
+
+.sidebar-overlay.active {
+  opacity: 1;
+  visibility: visible;
+}
+
+/* 2. Responsive Breakpoints */
+@media (max-width: 1024px) {
+
+  /* Reset Main Layout */
+  .main {
+    margin-left: 0;
+    width: 100%;
+    padding: 16px;
+    padding-top: 80px;
+    /* Space for hamburger */
+  }
+
+  /* Show Toggle */
+  .mobile-nav-toggle {
+    display: flex;
+  }
+
+  /* Off-canvas Sidebar */
+  .sidebar {
+    transform: translateX(-100%);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    z-index: 1050;
+    box-shadow: 4px 0 24px rgba(0, 0, 0, 0.15);
+  }
+
+  .sidebar.active {
+    transform: translateX(0);
+  }
+
+  /* Reset Header Logo logic override */
+  .header-modern {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 16px;
+    padding: 16px;
+  }
+
+  .header-logo {
+    height: auto;
+    max-height: 80px;
+    justify-content: center;
+  }
+
+  .header-content {
+    margin: 0;
+    text-align: center;
+  }
+
+  .header-right {
+    flex-direction: row;
+    justify-content: space-between;
+    width: 100%;
+    margin-top: 8px;
+  }
+}
+
+/* 3. Small Mobile */
+@media (max-width: 480px) {
+
+  .grid-4,
+  .grid-3,
+  .grid-5,
+  .news-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .header-title {
+    font-size: 1.2rem;
+  }
+
+  .header-clock {
+    font-size: 1.4rem;
+  }
+
+  /* Tables */
+  .table-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    border-radius: 12px;
+    border: 1px solid var(--line);
+  }
+
+  th,
+  td {
+    white-space: nowrap;
+    font-size: 0.85rem;
+  }
+}

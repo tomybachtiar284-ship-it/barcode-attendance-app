@@ -1787,3 +1787,41 @@ window.addEventListener('DOMContentLoaded', () => {
     toast("Laporan berhasil didownload!");
   };
 });
+
+// ===== Mobile Sidebar Logic (New Block) =====
+document.addEventListener('DOMContentLoaded', () => {
+  const btn = document.getElementById('btnMobileNav');
+  const overlay = document.getElementById('sidebarOverlay');
+  const sidebar = document.querySelector('.sidebar');
+  const navLinks = document.querySelectorAll('.navlink');
+
+  function toggleSidebar() {
+    if (sidebar) sidebar.classList.toggle('active');
+    if (overlay) overlay.classList.toggle('active');
+  }
+
+  function closeSidebar() {
+    if (sidebar) sidebar.classList.remove('active');
+    if (overlay) overlay.classList.remove('active');
+  }
+
+  if (btn) {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      toggleSidebar();
+    });
+  }
+
+  if (overlay) {
+    overlay.addEventListener('click', closeSidebar);
+  }
+
+  // Close sidebar when a nav link is clicked (mobile UX)
+  navLinks.forEach(link => {
+    link.addEventListener('click', () => {
+      if (window.innerWidth <= 1024) {
+        closeSidebar();
+      }
+    });
+  });
+});
