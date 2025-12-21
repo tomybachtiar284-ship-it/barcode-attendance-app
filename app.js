@@ -793,7 +793,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
   // ===== Pagination State =====
   let empLimit = 50;
-  const empStep = 50;
+  const empStep = 100;
   let currentFilteredEmp = [];
 
   function renderEmployees(reset = true) {
@@ -805,6 +805,7 @@ window.addEventListener('DOMContentLoaded', () => {
       empLimit = empStep;
       const q = $('#searchEmp')?.value?.toLowerCase() || '';
       currentFilteredEmp = employees.filter(e => (e.nid + ' ' + e.name + ' ' + (e.company || '')).toLowerCase().includes(q));
+      currentFilteredEmp.sort((a, b) => a.name.localeCompare(b.name));
     }
 
     if (currentFilteredEmp.length === 0) {
@@ -830,22 +831,29 @@ window.addEventListener('DOMContentLoaded', () => {
     let fullHtml = '';
     const companies = Object.keys(groups).sort();
 
+    // State helper
+    const getCState = (k) => localStorage.getItem('COLLAPSE_' + k) === '1';
+    const setCState = (k, v) => localStorage.setItem('COLLAPSE_' + k, v ? '1' : '0');
+
     companies.forEach(comp => {
       const list = groups[comp];
       list.sort((a, b) => a.name.localeCompare(b.name));
+      const key = 'EMP_' + comp.replace(/\s+/g, '_');
+      const isHidden = getCState(key);
 
       let tableHtml = `
       <div class="card mb-4 fade-in">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; border-bottom:1px solid var(--line); padding-bottom:12px;">
-           <div style="display:flex; align-items:center; gap:10px;">
+           <div style="display:flex; align-items:center; gap:10px; cursor:pointer" onclick="const b=this.closest('.card').querySelector('.company-body'); b.classList.toggle('hidden'); const h=b.classList.contains('hidden'); this.querySelector('.arrow').innerText = h ? '▶' : '▼'; localStorage.setItem('COLLAPSE_${key}', h?'1':'0')">
              <div style="width:40px; height:40px; background:var(--primary-100); border-radius:8px; display:grid; place-items:center; color:var(--primary-600); font-size:1.2rem;">🏢</div>
              <div>
                <div style="font-weight:700; font-size:1.1rem; color:var(--text)">${comp}</div>
                <div style="font-size:0.85rem; color:var(--muted)">${list.length} Karyawan (Visible)</div>
              </div>
+             <div class="arrow" style="margin-left:8px; font-size:0.85rem; color:var(--muted)">${isHidden ? '▶' : '▼'}</div>
            </div>
         </div>
-        <div class="table-wrap">
+        <div class="company-body table-wrap ${isHidden ? 'hidden' : ''}">
           <table class="table">
             <thead>
               <tr>

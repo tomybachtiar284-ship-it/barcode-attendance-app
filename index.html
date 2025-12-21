@@ -980,88 +980,115 @@
     <!-- SHIFTS -->
     <section class="route hidden" id="route-shifts">
       <div class="card">
-        <div class="card-title" data-i18n="shift_title">Pengaturan Jam Shift</div>
-        <div class="table-wrap">
-          <table class="table" id="tableShiftTime">
-            <thead>
-              <tr>
-                <th style="width:220px" data-i18n="shift_col_code">Kode</th>
-                <th data-i18n="shift_col_in">Datang</th>
-                <th data-i18n="shift_col_out">Pulang</th>
-                <th style="width:120px" data-i18n="shift_col_action">Aksi</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td><select disabled>
-                    <option>Pagi (P)</option>
-                  </select></td>
-                <td><input type="time" id="shiftPagiStart" value="08:00"></td>
-                <td><input type="time" id="shiftPagiEnd" value="16:00"></td>
-                <td></td>
-              </tr>
-              <tr>
-                <td><select disabled>
-                    <option>Sore (S)</option>
-                  </select></td>
-                <td><input type="time" id="shiftSoreStart" value="16:00"></td>
-                <td><input type="time" id="shiftSoreEnd" value="24:00"></td>
-                <td></td>
-              </tr>
-              <tr>
-                <td><select disabled>
-                    <option>Malam (M)</option>
-                  </select></td>
-                <td><input type="time" id="shiftMalamStart" value="24:00"></td>
-                <td><input type="time" id="shiftMalamEnd" value="07:00"></td>
-                <td></td>
-              </tr>
-              <!-- Shift D removed -->
-              <tr>
-                <td><select disabled>
-                    <option>Day Time (DAY)</option>
-                  </select></td>
-                <td><input type="time" id="shiftDayStart" value="08:00"></td>
-                <td><input type="time" id="shiftDayEnd" value="16:00"></td>
-                <td></td>
-              </tr>
-              <tr>
-                <td><select disabled>
-                    <option>Libur (L)</option>
-                  </select></td>
-                <td><input type="time" disabled></td>
-                <td><input type="time" disabled></td>
-                <td></td>
-              </tr>
-            </tbody>
-          </table>
+        <div class="card-title" style="display:flex; justify-content:space-between; cursor:pointer"
+          onclick="const c=this.nextElementSibling; c.classList.toggle('hidden'); const h=c.classList.contains('hidden'); this.querySelector('.arrow').textContent = h ? '▶' : '▼'; localStorage.setItem('COLLAPSE_SHIFT_CFG', h?'1':'0')">
+          <span data-i18n="shift_title">Pengaturan Jam Shift</span>
+          <span class="arrow">▼</span>
         </div>
-        <div class="toolbar">
-          <button id="btnSaveShift" class="btn primary">💾 Simpan Pengaturan</button>
-          <span class="muted">Gunakan <b>24:00</b> untuk akhir hari. Sistem otomatis menangani lintas tengah
-            malam.</span>
+        <div class="collapsible-content">
+          <div class="table-wrap">
+            <table class="table" id="tableShiftTime">
+              <thead>
+                <tr>
+                  <th style="width:220px" data-i18n="shift_col_code">Kode</th>
+                  <th data-i18n="shift_col_in">Datang</th>
+                  <th data-i18n="shift_col_out">Pulang</th>
+                  <th style="width:120px" data-i18n="shift_col_action">Aksi</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><select disabled>
+                      <option>Pagi (P)</option>
+                    </select></td>
+                  <td><input type="time" id="shiftPagiStart" value="08:00"></td>
+                  <td><input type="time" id="shiftPagiEnd" value="16:00"></td>
+                  <td></td>
+                </tr>
+                <tr>
+                  <td><select disabled>
+                      <option>Sore (S)</option>
+                    </select></td>
+                  <td><input type="time" id="shiftSoreStart" value="16:00"></td>
+                  <td><input type="time" id="shiftSoreEnd" value="24:00"></td>
+                  <td></td>
+                </tr>
+                <tr>
+                  <td><select disabled>
+                      <option>Malam (M)</option>
+                    </select></td>
+                  <td><input type="time" id="shiftMalamStart" value="24:00"></td>
+                  <td><input type="time" id="shiftMalamEnd" value="07:00"></td>
+                  <td></td>
+                </tr>
+                <!-- Shift D removed -->
+                <tr>
+                  <td><select disabled>
+                      <option>Day Time (DAY)</option>
+                    </select></td>
+                  <td><input type="time" id="shiftDayStart" value="08:00"></td>
+                  <td><input type="time" id="shiftDayEnd" value="16:00"></td>
+                  <td></td>
+                </tr>
+                <tr>
+                  <td><select disabled>
+                      <option>Libur (L)</option>
+                    </select></td>
+                  <td><input type="time" disabled></td>
+                  <td><input type="time" disabled></td>
+                  <td></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="toolbar">
+            <button id="btnSaveShift" class="btn primary">💾 Simpan Pengaturan</button>
+            <span class="muted">Gunakan <b>24:00</b> untuk akhir hari. Sistem otomatis menangani lintas tengah
+              malam.</span>
+          </div>
         </div>
       </div>
 
       <div class="card">
-        <div class="card-title">Jadwal Shift Bulanan</div>
-        <div class="toolbar" style="margin-bottom:8px">
-          <div class="left" style="gap:10px; flex-wrap:wrap">
-            <label>Bulan <input type="month" id="schedMonth" min="2022-01" max="2030-12"></label>
-            <button class="btn" id="btnSchedDownload">📄 Download Template</button>
-            <input type="file" id="fileImportSched" accept=".xlsx,.xls" hidden>
-            <button class="btn" id="btnSchedImport">⬆️ Import Template</button>
-          </div>
-          <div class="right" style="gap:8px; display:flex">
-            <button class="btn primary" id="btnSchedSave">💾 Simpan Jadwal</button>
-            <button class="btn ghost" id="btnSchedReset">🧹 Reset Bulan</button>
-          </div>
+        <div class="card-title" style="display:flex; justify-content:space-between; cursor:pointer"
+          onclick="const c=this.nextElementSibling; c.classList.toggle('hidden'); const h=c.classList.contains('hidden'); this.querySelector('.arrow').textContent = h ? '▶' : '▼'; localStorage.setItem('COLLAPSE_SHIFT_SCHED', h?'1':'0')">
+          <span>Jadwal Shift Bulanan</span>
+          <span class="arrow">▼</span>
         </div>
-        <div class="table-wrap">
-          <table class="table" id="tableSched"></table>
+        <div class="collapsible-content">
+          <div class="toolbar" style="margin-bottom:8px">
+            <div class="left" style="gap:10px; flex-wrap:wrap">
+              <label>Bulan <input type="month" id="schedMonth" min="2022-01" max="2030-12"></label>
+              <button class="btn" id="btnSchedDownload">📄 Download Template</button>
+              <input type="file" id="fileImportSched" accept=".xlsx,.xls" hidden>
+              <button class="btn" id="btnSchedImport">⬆️ Import Template</button>
+            </div>
+            <div class="right" style="gap:8px; display:flex">
+              <button class="btn primary" id="btnSchedSave">💾 Simpan Jadwal</button>
+              <button class="btn ghost" id="btnSchedReset">🧹 Reset Bulan</button>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table class="table" id="tableSched"></table>
+          </div>
+          <small class="muted">Tips: pilih nama pada setiap sel. Data tersimpan per-bulan di perangkat ini.</small>
         </div>
-        <small class="muted">Tips: pilih nama pada setiap sel. Data tersimpan per-bulan di perangkat ini.</small>
       </div>
+      <script>
+        (function () {
+          const cfg = localStorage.getItem('COLLAPSE_SHIFT_CFG') === '1';
+          const sched = localStorage.getItem('COLLAPSE_SHIFT_SCHED') === '1';
+
+          if (cfg) {
+            const el = document.querySelector('#route-shifts .card:nth-child(1) .collapsible-content');
+            if (el) { el.classList.add('hidden'); el.previousElementSibling.querySelector('.arrow').textContent = '▶'; }
+          }
+          if (sched) {
+            const el = document.querySelector('#route-shifts .card:nth-child(2) .collapsible-content');
+            if (el) { el.classList.add('hidden'); el.previousElementSibling.querySelector('.arrow').textContent = '▶'; }
+          }
+        })();
+      </script>
     </section>
 
     <!-- ATTENDANCE -->
