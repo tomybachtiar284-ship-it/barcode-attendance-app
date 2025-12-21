@@ -32,13 +32,12 @@ window.addEventListener('DOMContentLoaded', () => {
       A: { start: '08:00', end: '16:00' },
       B: { start: '16:00', end: '24:00' },
       C: { start: '24:00', end: '07:00' },
-      // D removed
+      /* D removed */
       DAYTIME: { start: '08:00', end: '16:00' }
     }),
     news = load(LS_NEWS, []),
     sched = load(LS_SCHED, {});
-
-  // Force removal of legacy Shift D if exists in LocalStorage
+  /* Cleanup removed */
   if (shifts.D) { delete shifts.D; save(LS_SHIFTS, shifts); }
 
   // expose ke window agar script lain dapat ikut pakai
@@ -200,6 +199,7 @@ window.addEventListener('DOMContentLoaded', () => {
     const { data: sh } = await sb.from('settings').select('*').eq('key', 'shifts').single();
     if (sh && sh.value) {
       shifts = sh.value;
+      if (shifts.D) { delete shifts.D; pushShifts(); } // Auto-clean server
       save(LS_SHIFTS, shifts);
     }
 
@@ -249,13 +249,13 @@ window.addEventListener('DOMContentLoaded', () => {
   setInterval(tick, 1000); tick();
 
   // Shift helpers
-  const SHIFT_KEYS = ['A', 'B', 'C', 'DAYTIME'];
+  const SHIFT_KEYS = ['A', 'B', 'C', 'D', 'DAYTIME'];
   const CODE_TO_LABEL = { A: 'P', B: 'S', C: 'M', DAYTIME: 'DAY', OFF: 'L' };
   const LABEL_TO_CODE = {
     'a': 'A', 'p': 'A', 'pagi': 'A',
     'b': 'B', 's': 'B', 'sore': 'B',
     'c': 'C', 'm': 'C', 'malam': 'C',
-    // D removed
+    /* D removed */
     'day': 'DAYTIME', 'daytime': 'DAYTIME', 'siang': 'DAYTIME',
     'off': 'OFF', 'l': 'OFF', 'libur': 'OFF'
   };
@@ -301,7 +301,7 @@ window.addEventListener('DOMContentLoaded', () => {
   }
   function activeShiftsNow() {
     const n = new Date(); const m = minutesOf(n); const arr = [];
-    ['A', 'B', 'C', 'D', 'DAYTIME'].forEach(code => {
+    ['A', 'B', 'C', 'DAYTIME'].forEach(code => {
       const win = shiftWindow(code); if (!win) return;
       if (isInWindow(m, win)) { const df = scheduleDateFor(code, n); const gs = groupsScheduled(code, df); if (gs.length) arr.push({ code, groups: gs, win }); }
     });
@@ -312,7 +312,13 @@ window.addEventListener('DOMContentLoaded', () => {
     const rows = activeShiftsNow();
     const emptyMsg = `<div class="muted" style="font-size:0.9rem">Tidak ada shift berjalan saat ini.</div>`;
 
-    const CODE_FULL = { A: 'Shift A', B: 'Shift B', C: 'Shift C', D: 'Shift D', DAYTIME: 'Daytime' };
+    const CODE_FULL = {
+      A: 'Shift Pagi (P)',
+      B: 'Shift Sore (S)',
+      C: 'Shift Malam (M)',
+      /* D removed */
+      DAYTIME: 'Day Time'
+    };
 
     const content = rows.length === 0 ? emptyMsg : rows.map(r => {
       const time = `${shifts[r.code].start}–${shifts[r.code].end}`;
@@ -1203,18 +1209,15 @@ window.addEventListener('DOMContentLoaded', () => {
       start: pickVal('#shiftDayStart', '') || '08:00',
       end: pickVal('#shiftDayEnd', '') || '16:00'
     };
-    const shiftd = {
-      start: pickVal('#shiftDStart', '') || '07:00',
-      end: pickVal('#shiftDEnd', '') || '15:00'
-    };
-    return { pagi, sore, malam, day, shiftd };
+    /* shiftd removed */
+    return { pagi, sore, malam, day };
   }
   function renderShiftForm() {
     const pagi = shifts.A || { start: '08:00', end: '16:00' };
     const sore = shifts.B || { start: '16:00', end: '24:00' };
     const malam = shifts.C || { start: '24:00', end: '07:00' };
     const day = shifts.DAYTIME || { start: pagi.start, end: pagi.end };
-    const shiftd = shifts.D || { start: '07:00', end: '15:00' };
+    /* shiftd removed */
 
     $('#shiftPagiStart') && ($('#shiftPagiStart').value = pagi.start);
     $('#shiftPagiEnd') && ($('#shiftPagiEnd').value = pagi.end);
@@ -1224,8 +1227,7 @@ window.addEventListener('DOMContentLoaded', () => {
     $('#shiftMalamEnd') && ($('#shiftMalamEnd').value = malam.end);
     $('#shiftDayStart') && ($('#shiftDayStart').value = day.start);
     $('#shiftDayEnd') && ($('#shiftDayEnd').value = day.end);
-    $('#shiftDStart') && ($('#shiftDStart').value = shiftd.start);
-    $('#shiftDEnd') && ($('#shiftDEnd').value = shiftd.end);
+    /* shiftd inputs removed */
 
     $('#shiftAStart') && ($('#shiftAStart').value = pagi.start);
     $('#shiftAEnd') && ($('#shiftAEnd').value = pagi.end);
@@ -1235,12 +1237,12 @@ window.addEventListener('DOMContentLoaded', () => {
     $('#shiftCEnd') && ($('#shiftCEnd').value = malam.end);
   }
   $('#btnSaveShift')?.addEventListener('click', () => {
-    const { pagi, sore, malam, day, shiftd } = getShiftInputs();
+    const { pagi, sore, malam, day } = getShiftInputs();
     shifts = {
       A: { start: normalizeTime(pagi.start), end: normalizeTime(pagi.end) },
       B: { start: normalizeTime(sore.start), end: normalizeTime(sore.end) },
       C: { start: normalizeTime(malam.start), end: normalizeTime(malam.end) },
-      D: { start: normalizeTime(shiftd.start), end: normalizeTime(shiftd.end) },
+      /* D removed */
       DAYTIME: { start: normalizeTime(day.start), end: normalizeTime(day.end) }
     };
     save(LS_SHIFTS, shifts); syncGlobals();
