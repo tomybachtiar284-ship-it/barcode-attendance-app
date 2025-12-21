@@ -32,11 +32,14 @@ window.addEventListener('DOMContentLoaded', () => {
       A: { start: '08:00', end: '16:00' },
       B: { start: '16:00', end: '24:00' },
       C: { start: '24:00', end: '07:00' },
-      D: { start: '07:00', end: '15:00' },
+      // D removed
       DAYTIME: { start: '08:00', end: '16:00' }
     }),
     news = load(LS_NEWS, []),
     sched = load(LS_SCHED, {});
+
+  // Force removal of legacy Shift D if exists in LocalStorage
+  if (shifts.D) { delete shifts.D; save(LS_SHIFTS, shifts); }
 
   // expose ke window agar script lain dapat ikut pakai
   function syncGlobals() {
@@ -246,13 +249,13 @@ window.addEventListener('DOMContentLoaded', () => {
   setInterval(tick, 1000); tick();
 
   // Shift helpers
-  const SHIFT_KEYS = ['A', 'B', 'C', 'D', 'DAYTIME'];
-  const CODE_TO_LABEL = { A: 'P', B: 'S', C: 'M', D: 'D', DAYTIME: 'DAY', OFF: 'L' };
+  const SHIFT_KEYS = ['A', 'B', 'C', 'DAYTIME'];
+  const CODE_TO_LABEL = { A: 'P', B: 'S', C: 'M', DAYTIME: 'DAY', OFF: 'L' };
   const LABEL_TO_CODE = {
     'a': 'A', 'p': 'A', 'pagi': 'A',
     'b': 'B', 's': 'B', 'sore': 'B',
     'c': 'C', 'm': 'C', 'malam': 'C',
-    'd': 'D', 'shiftd': 'D',
+    // D removed
     'day': 'DAYTIME', 'daytime': 'DAYTIME', 'siang': 'DAYTIME',
     'off': 'OFF', 'l': 'OFF', 'libur': 'OFF'
   };
