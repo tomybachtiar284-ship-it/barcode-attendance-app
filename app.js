@@ -261,24 +261,42 @@ window.addEventListener('DOMContentLoaded', () => {
   };
   function normalizeTime(s) {
     s = String(s || '').trim(); if (!s) return '';
-    s = s.replace(/[.,\\-h ]/g, ':');
-    if (/^\\d{3,4}$/.test(s)) { const t = s.length === 3 ? `0${s}` : s; return `${t.slice(0, 2)}:${t.slice(2)}`; }
-    const m = s.match(/^(\\d{1,2})(?::(\\d{1,2}))?$/); if (!m) return s;
+    s = s.replace(/[.,\-h ]/g, ':');
+    if (/^\d{3,4}$/.test(s)) { const t = s.length === 3 ? `0${s}` : s; return `${t.slice(0, 2)}:${t.slice(2)}`; }
+    const m = s.match(/^(\d{1,2})(?::(\d{1,2}))?$/); if (!m) return s;
     const H = Math.min(24, parseInt(m[1] || '0', 10)), M = Math.min(59, parseInt(m[2] || '0', 10));
     return `${pad(H)}:${pad(M)}`;
   }
-  const hmToMin = (hm) => { hm = normalizeTime(hm); if (!hm || !hm.includes(':')) return 0; let [h, m] = hm.split(':').map(Number); if (h === 24) return 24 * 60 + m; return h * 60 + m; };
-  const monthKey = d => d.toISOString().slice(0, 7);
-  const minutesOf = d => d.getHours() * 60 + d.getMinutes();
-  const shiftWindow = (code) => { const s = shifts[code]; if (!s) return null; return { start: hmToMin(s.start), end: hmToMin(s.end) }; };
-  const isInWindow = (min, win) => win.end > win.start ? (min >= win.start && min < win.end) : (min >= win.start || min < win.end);
+  // Fix: Use local time for month key
+  const monthKey = d => {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    return `${y}-${m}`;
+  };
 
   function effectiveShiftFor(emp, date) {
-    const group = emp.shift;
-    if (!group) return 'OFF';
+    // 1. Check override
+    if (!emp || !emp.shift) return null;
     const id = monthKey(date), day = date.getDate();
-    return (sched[id]?.[group]?.[day]) || 'OFF';
+    const override = sched[id]?.[emp.shift]?.[day];
+    if (override) return override;
+
+    // 2. Default: Map Group Name -> Shift Code? 
+    // Usually Group A works Shift A, Group B works Shift B.
+    // If emp.shift is 'A', default is 'A'.
+    // If emp.shift is 'D', default SHOULD BE 'D' but D is removed.
+    // So if no override, and code D is gone, return null?
+    // CODE_TO_LABEL has no D.
+    // So 'D' logic is only valid if overridden in sched?
+    // Or does Group D have a default? 
+    // The previous logic was: return emp.shift (as Code). 
+    // But Code 'D' is invalid. 
+    // So for Group D, they MUST have a schedule override to work P/S/M.
+    // If not, they have no effective shift (OFF).
+    return (shifts[emp.shift]) ? emp.shift : 'OFF';
   }
+
+  // Helper utils
   function scheduleDateFor(code, dt) {
     const win = shiftWindow(code); if (!win) return dt;
     if (win.end > win.start) return dt;
@@ -286,19 +304,31 @@ window.addEventListener('DOMContentLoaded', () => {
     if (m < win.end) { const y = new Date(dt); y.setDate(dt.getDate() - 1); return y; }
     return dt;
   }
+
   function toDateFromHM(baseDate, hm) {
-    const d = new Date(baseDate); d.setHours(0, 0, 0, 0);
-    const [hRaw, mRaw] = normalizeTime(hm).split(':').map(Number);
-    let h = hRaw, m = mRaw || 0;
-    if (h >= 24) { d.setDate(d.getDate() + 1); h = h - 24; }
-    d.setHours(h, m, 0, 0);
+    const [h, m] = hm.split(':').map(Number);
+    const d = new Date(baseDate); d.setHours(h, m, 0, 0);
     return d;
   }
+
+  function minutesOf(dt) { return dt.getHours() * 60 + dt.getMinutes(); }
+  function shiftWindow(code) {
+    const s = shifts[code]; if (!s) return null;
+    const [h1, m1] = s.start.split(':').map(Number);
+    const [h2, m2] = s.end.split(':').map(Number);
+    return { start: h1 * 60 + m1, end: h2 * 60 + m2, code };
+  }
+  function isInWindow(m, win) {
+    if (win.end > win.start) return m >= win.start && m < win.end;
+    return m >= win.start || m < win.end;
+  }
+
   function groupsScheduled(code, dateFor) {
-    const id = dateFor.toISOString().slice(0, 7); const day = dateFor.getDate(); const out = [];
+    const id = monthKey(dateFor); const day = dateFor.getDate(); const out = [];
     SHIFT_KEYS.forEach(g => { if ((sched[id]?.[g]?.[day] || '') === code) out.push(g); });
     return out;
   }
+
   function activeShiftsNow() {
     const n = new Date(); const m = minutesOf(n); const arr = [];
     ['A', 'B', 'C', 'DAYTIME'].forEach(code => {
