@@ -1034,11 +1034,30 @@
 
     <!-- ATTENDANCE -->
     <section class="route hidden" id="route-attendance">
+      <!-- BARU: Panel Laporan Bulanan -->
+      <div class="card" style="margin-bottom: 20px; border-left: 4px solid var(--primary-500);">
+        <div class="card-title">📊 Laporan Efektifitas & Kinerja Bulanan</div>
+        <div class="toolbar" style="margin-top:10px;">
+          <div class="left" style="align-items: center; gap: 10px;">
+            <label>Pilih Bulan: <input type="month" id="reportMonth"
+                style="padding: 8px; border: 1px solid var(--line); border-radius: 8px;"></label>
+            <button id="btnDownloadMonthlyReport" class="btn primary">⬇️ Download Laporan Kinerja (Excel)</button>
+          </div>
+        </div>
+        <small class="muted">Laporan ini mencakup: Total Hadir, Total Terlambat, dan Hitungan Overtime per
+          Karyawan.</small>
+      </div>
+
       <div class="toolbar">
         <div class="left">
           <label>Dari <input type="date" id="attFrom"></label>
           <label>Sampai <input type="date" id="attTo"></label>
           <button id="btnFilterAtt" class="btn">🔍 Tampilkan</button>
+
+          <!-- Search Filter -->
+          <input type="search" id="attSearch" placeholder="Cari Nama / NID..."
+            style="padding: 8px 12px; border: 1px solid var(--line); border-radius: 8px; width: 200px;">
+
           <button id="btnExportAtt" class="btn ghost">⬇️ Export Excel</button>
         </div>
       </div>

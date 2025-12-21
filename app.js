@@ -72,12 +72,16 @@ window.addEventListener('DOMContentLoaded', () => {
   }
 
   async function pushEmployee(e) {
-    if (!sb) return;
+    if (!sb) return false;
     const { error } = await sb.from('employees').upsert({
       nid: e.nid, name: e.name, title: e.title, company: e.company,
       shift: e.shift, photo: e.photo, updated_at: new Date().toISOString()
     }, { onConflict: 'nid' });
-    if (error) console.error('Push emp error:', error);
+    if (error) {
+      console.error('Push emp error:', error);
+      return false;
+    }
+    return true;
   }
   async function delEmployee(nid) {
     if (!sb) return;
@@ -1020,26 +1024,66 @@ window.addEventListener('DOMContentLoaded', () => {
   $('#btnCloseEmp')?.addEventListener('click', closeEmp);
   $('#btnExitEmp')?.addEventListener('click', closeEmp);
 
+
   $('#btnSaveEmp')?.addEventListener('click', async e => {
     e.preventDefault();
-    const imgDataUrl = await readImageFromAny();
+
+    // Use compressImage for file uploads to ensure they fit in DB and upload faster
+    let imgDataUrl = '';
+    const fileInput = $('#fPhotoFile');
+    if (camDataUrl) {
+      imgDataUrl = camDataUrl;
+    } else if (fileInput && fileInput.files && fileInput.files[0]) {
+      try {
+        // Compress to max 800x800, quality 0.8
+        imgDataUrl = await compressImage(fileInput.files[0], 800, 800, 0.8);
+      } catch (err) {
+        console.error("Compression error", err);
+        return toast('Gagal memproses gambar: ' + err.message);
+      }
+    } else {
+      // Read from URL input or keep existing
+      // If no new file, we don't change anything unless user cleared it
+      // But wait, existing logic used readImageFromAny.
+      // Let's stick to the flow:
+    }
+
+    // Logic to resolve final photo string
+    let finalPhoto = imgDataUrl;
+    if (!finalPhoto) {
+      // If no new file/cam, check if there is a manual URL in text input
+      finalPhoto = $('#fPhoto').value.trim();
+    }
+
     const emp = {
       nid: $('#fNid').value.trim(),
       name: $('#fName').value.trim(),
       title: $('#fTitle').value.trim(),
       company: readCompanyFromUI(),
       shift: $('#fShift').value,
-      photo: imgDataUrl || $('#fPhoto').value.trim() || ''
+      photo: finalPhoto || ''
     };
+
     if (!emp.nid || !emp.name) return toast('NID & Nama wajib diisi.');
+
     if (editIdx >= 0) { employees[editIdx] = emp; }
     else {
       if (employees.some(e => e.nid == emp.nid)) return toast('NID sudah ada.');
       employees.push(emp);
     }
+
     save(LS_EMP, employees); syncGlobals();
-    pushEmployee(emp);
-    renderEmployees(); renderDashboard(); $('#empModal')?.close(); toast('Data karyawan disimpan.');
+
+    // Save locally first
+    renderEmployees(); renderDashboard(); $('#empModal')?.close();
+    toast('Data tersimpan di lokal. Mengirim ke server...');
+
+    // Sync to Supabase
+    pushEmployee(emp).then(success => {
+      if (success) toast('✅ Sinkronisasi server berhasil.');
+      else toast('❌ Gagal sinkronisasi ke server (cek koneksi/size).');
+    });
+
     initMonthlyScheduler();
   });
 
@@ -1211,7 +1255,23 @@ window.addEventListener('DOMContentLoaded', () => {
   function filterAttendance() {
     const tb = $('#tableAtt tbody'); if (!tb) return;
     const from = new Date($('#attFrom').value + 'T00:00:00').getTime(), to = new Date($('#attTo').value + 'T23:59:59').getTime();
-    const rows = attendance.filter(a => a.ts >= from && a.ts <= to).sort((a, b) => b.ts - a.ts); tb.innerHTML = '';
+
+    // Search query
+    const q = ($('#attSearch')?.value || '').toLowerCase().trim();
+
+    const rows = attendance.filter(a => {
+      // 1. Check Date
+      if (a.ts < from || a.ts > to) return false;
+
+      // 2. Check Search (Name or NID)
+      if (q) {
+        const text = (a.name + ' ' + a.nid).toLowerCase();
+        if (!text.includes(q)) return false;
+      }
+      return true;
+    }).sort((a, b) => b.ts - a.ts);
+
+    tb.innerHTML = '';
     rows.forEach(r => {
       const tr = document.createElement('tr');
       tr.dataset.ts = r.ts;
@@ -1219,6 +1279,7 @@ window.addEventListener('DOMContentLoaded', () => {
       const statusClass = r.status === 'datang' ? 'status-masuk' : 'status-pulang';
       const statusLabel = r.status === 'datang' ? 'Masuk' : 'Pulang';
 
+      // Highlight matching text if simple enough, or just render
       tr.innerHTML = `
         <td style="color:#64748b">${fmtTs(r.ts)}</td>
         <td class="${statusClass}">${statusLabel}</td>
@@ -1234,6 +1295,8 @@ window.addEventListener('DOMContentLoaded', () => {
     $('#btnExportAtt').dataset.count = rows.length;
   }
   $('#btnFilterAtt')?.addEventListener('click', filterAttendance);
+  // Realtime search filter
+  $('#attSearch')?.addEventListener('input', filterAttendance);
   $('#tableAtt tbody')?.addEventListener('click', (e) => {
     const btn = e.target.closest('button[data-act="del-att"]'); if (!btn) return;
     const tr = btn.closest('tr'); const ts = Number(tr?.dataset.ts || '0'); if (!ts) return;
@@ -1849,6 +1912,7 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // ===== Logout Logic =====
+  // ===== Logout Logic =====
   const btnLogout = document.getElementById('btnLogout');
   if (btnLogout) {
     btnLogout.addEventListener('click', () => {
@@ -1858,4 +1922,127 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     });
   }
+});
+
+// ===== Laporan Bulanan (Performance Report) =====
+document.addEventListener('DOMContentLoaded', () => {
+  const btn = document.getElementById('btnDownloadMonthlyReport');
+  if (!btn) return;
+
+  const pad = n => n < 10 ? '0' + n : n;
+
+  btn.addEventListener('click', () => {
+    const mInput = document.getElementById('reportMonth');
+    const mStr = mInput ? mInput.value : '';
+
+    if (!mStr) {
+      if (window.toast) toast('Pilih bulan terlebih dahulu.');
+      else alert('Pilih bulan terlebih dahulu.');
+      return;
+    }
+
+    if (typeof XLSX === 'undefined') {
+      if (window.toast) toast("Library Excel belum dimuat.");
+      else alert("Library Excel belum dimuat.");
+      return;
+    }
+
+    try {
+      const [year, month] = mStr.split('-').map(Number);
+      const startTs = new Date(year, month - 1, 1).getTime();
+      // End date: First day of NEXT month
+      const endTs = new Date(year, month, 1).getTime();
+
+      // 1. Init stats
+      const report = {};
+      const emps = window.employees || [];
+      const atts = window.attendance || [];
+
+      if (emps.length === 0) {
+        if (window.toast) toast("Data karyawan kosong.");
+        return;
+      }
+
+      emps.forEach(e => {
+        report[e.nid] = {
+          nid: e.nid,
+          name: e.name,
+          company: e.company || '-',
+          shift: e.shift || '-',
+          presentDates: new Set(),
+          lateCount: 0,
+          overtimeMins: 0
+        };
+      });
+
+      // 2. Process logs
+      atts.forEach(a => {
+        // Ensure TS is valid number
+        const ts = Number(a.ts);
+        if (isNaN(ts)) return;
+
+        if (ts < startTs || ts >= endTs) return;
+
+        const stats = report[a.nid];
+        if (!stats) return;
+
+        const d = new Date(ts);
+        const dateStr = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+
+        if (a.status === 'datang') {
+          stats.presentDates.add(dateStr);
+          if (a.late) stats.lateCount++;
+        } else if (a.status === 'pulang') {
+          // Calculate Overtime
+          const shCode = a.shift;
+          if (window.shifts && window.shifts[shCode]) {
+            const sh = window.shifts[shCode];
+            let [eh, em] = sh.end.split(':').map(Number);
+            if (eh === 24) eh = 0;
+
+            const sched = new Date(ts);
+            sched.setHours(eh, em, 0, 0);
+
+            let diffMs = ts - sched.getTime();
+
+            // Adjust for day boundaries
+            if (diffMs > 12 * 3600 * 1000) diffMs -= 24 * 3600 * 1000;
+            if (diffMs < -12 * 3600 * 1000) diffMs += 24 * 3600 * 1000;
+
+            if (diffMs > 60000) {
+              stats.overtimeMins += Math.floor(diffMs / 60000);
+            }
+          }
+        }
+      });
+
+      // 3. Flatten for Excel
+      const rows = Object.values(report).map(r => {
+        const h = Math.floor(r.overtimeMins / 60);
+        const m = r.overtimeMins % 60;
+        const otStr = r.overtimeMins > 0 ? `${h} Jam ${m} Menit` : '0';
+
+        return {
+          "NID": r.nid,
+          "Nama": r.name,
+          "Perusahaan": r.company,
+          "Group": r.shift,
+          "Total Hadir (Hari)": r.presentDates.size,
+          "Total Terlambat (Kali)": r.lateCount,
+          "Total Overtime": otStr
+        };
+      });
+
+      // 4. Download
+      const ws = XLSX.utils.json_to_sheet(rows);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, `Kinerja ${mStr}`);
+      XLSX.writeFile(wb, `Laporan_Kinerja_${mStr}.xlsx`);
+
+      if (window.toast) toast(`Laporan ${mStr} berhasil didownload.`);
+    } catch (err) {
+      console.error(err);
+      alert('Gagal membuat laporan: ' + err.message);
+    }
+  });
 });
