@@ -14,6 +14,24 @@
 
   <!-- Styles -->
   <link rel="stylesheet" href="styles.css?v=3.1" />
+  <style>
+    /* Styling for Inventory Table Borders */
+    #route-inventory table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    #route-inventory table th,
+    #route-inventory table td {
+      border: 1px solid #ccc;
+      padding: 8px;
+      text-align: left;
+    }
+
+    #route-inventory table th {
+      background: #f3f4f6;
+    }
+  </style>
 
   <!-- Libraries -->
   <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
@@ -21,6 +39,8 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"
     referrerpolicy="no-referrer"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="js/translation.js"></script>
   <script src="config.local.js"></script>
@@ -569,6 +589,7 @@
       <button class="navlink" data-route="attendance">📑 <span data-i18n="nav_report">Laporan 24 Jam</span></button>
       <button class="navlink" data-route="latest">📰 <span data-i18n="nav_latest">Latest information</span></button>
       <button class="navlink" data-route="education">🎓 <span data-i18n="nav_education">Education</span></button>
+      <button class="navlink" data-route="inventory">📦 <span>Keluar Masuk Barang</span></button>
 
       <hr style="border:0; border-top:1px solid var(--line); margin:8px 0;">
 
@@ -1191,6 +1212,60 @@
         </div>
       </div>
     </section>
+
+    <!-- BARU: INVENTORY -->
+    <section class="route hidden" id="route-inventory">
+      <div class="card">
+        <div class="card-title">Keluar Masuk Barang</div>
+        <div class="toolbar" style="flex-wrap: wrap; gap: 10px;">
+          <div class="left" style="display:flex; gap:10px; align-items:center;">
+            <button id="btnOpenInv" class="btn primary">＋ Buat Laporan</button>
+            <div
+              style="display:flex; align-items:center; gap:5px; margin-left:10px; padding-left:10px; border-left:1px solid #ddd;">
+              <small>Periode:</small>
+              <input type="date" id="invDateStart" class="input small">
+              <span>-</span>
+              <input type="date" id="invDateEnd" class="input small">
+              <button id="btnExportInvPDF" class="btn small outline" title="Download PDF"
+                style="display:flex; align-items:center; gap:5px">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                  <path
+                    d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z" />
+                  <path
+                    d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708l3 3z" />
+                </svg> PDF
+              </button>
+            </div>
+          </div>
+          <div class="right">
+            <input type="text" class="search" placeholder="Cari barang...">
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>No</th>
+                <th>Tanggal</th>
+                <th>Jam Masuk</th>
+                <th>Jam Keluar</th>
+                <th>Nama Pembawa</th>
+                <th>Perusahaan / Ekspedisi</th>
+                <th>Jenis Barang & Jumlah</th>
+                <th>Tujuan / Penerima</th>
+                <th>Petugas Sekuriti</th>
+                <th>Aksi</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td colspan="10" class="muted" style="text-align:center; padding: 20px;">Belum ada data log barang.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
   </main>
 
   <!-- MODAL: EMPLOYEES -->
@@ -1459,6 +1534,32 @@
   </script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <script src="app.js"></script>
+
+  <!-- MODAL: INVENTORY -->
+  <dialog id="invModal" class="modal">
+    <div class="modal-head">
+      <h3 id="invModalTitle">Catat Barang</h3>
+    </div>
+    <div class="modal-body">
+      <div class="grid-2">
+        <label>Status <select id="iType">
+            <option value="IN">Masuk</option>
+            <option value="OUT">Keluar</option>
+          </select></label>
+        <label>Waktu <input type="datetime-local" id="iTime"></label>
+        <label>Nama Pembawa <input type="text" id="iCarrier" placeholder="Nama lengkap"></label>
+        <label>Perusahaan / Ekspedisi <input type="text" id="iCompany" placeholder="PT... / JNE / Gojek"></label>
+        <label style="grid-column:1 / -1">Jenis Barang & Jumlah <textarea id="iItem" rows="2"
+            placeholder="Contoh: Laptop Dell (1 unit), Dokumen (1 bundle)"></textarea></label>
+        <label>Tujuan / Penerima <input type="text" id="iDest" placeholder="Divisi IT / Gudang"></label>
+        <label>Petugas Sekuriti <input type="text" id="iOfficer"></label>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button id="btnBackInv" class="btn ghost">Batal</button>
+      <button id="btnSaveInv" class="btn primary">Simpan</button>
+    </div>
+  </dialog>
 </body>
 
 </html>

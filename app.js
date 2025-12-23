@@ -238,6 +238,7 @@ window.addEventListener('DOMContentLoaded', () => {
     if (route === 'scan') { renderScanPage(); $('#scanInput')?.focus(); }
     if (route === 'latest') renderLatest();
     if (route === 'shifts') { renderShiftForm(); initMonthlyScheduler(); }
+    if (route === 'inventory') renderInventory();
   }));
 
   // Clock
@@ -2100,3 +2101,299 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 });
+
+/* =========================================
+   INVENTORY (KELUAR MASUK BARANG) LOGIC
+   ========================================= */
+let inventoryData = getLocal('SA_INVENTORY', []);
+
+function getLocal(key, fallback) {
+  try {
+    const v = localStorage.getItem(key);
+    return v ? JSON.parse(v) : fallback;
+  } catch { return fallback; }
+}
+
+function saveInventory() {
+  localStorage.setItem('SA_INVENTORY', JSON.stringify(inventoryData));
+  renderInventory();
+}
+
+// Action: Checkout (Barang Keluar)
+window.checkoutInventory = function (id) {
+  const item = inventoryData.find(x => x.id === id);
+  if (!item) return;
+
+  if (confirm('Apakah barang ini akan check-out (Keluar) sekarang?')) {
+    const now = new Date();
+    // Adjust to local ISO
+    now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+    item.timeOut = now.toISOString();
+    saveInventory();
+
+    // Feedback
+    alert(`Barang atas nama ${item.carrier} telah berhasil keluar.`);
+  }
+};
+
+function getInventoryFilterDates() {
+  const dStart = document.getElementById('invDateStart')?.value;
+  const dEnd = document.getElementById('invDateEnd')?.value;
+  return {
+    start: dStart ? new Date(dStart) : null,
+    end: dEnd ? new Date(dEnd) : null
+  };
+}
+
+function renderInventory() {
+  const tbody = document.querySelector('#route-inventory tbody');
+  if (!tbody) return;
+
+  const { start, end } = getInventoryFilterDates();
+
+  // Filter logic
+  let filtered = [...inventoryData];
+  if (start || end) {
+    filtered = filtered.filter(item => {
+      const t = item.timeIn || item.time || item.timeOut;
+      if (!t) return false;
+      const d = new Date(t);
+      d.setHours(0, 0, 0, 0); // Normalize to date only
+
+      if (start) {
+        const s = new Date(start); s.setHours(0, 0, 0, 0);
+        if (d < s) return false;
+      }
+      if (end) {
+        const e = new Date(end); e.setHours(0, 0, 0, 0);
+        if (d > e) return false;
+      }
+      return true;
+    });
+  }
+
+  // Sort by timeIn desc
+  const sorted = filtered.sort((a, b) => new Date(b.timeIn || b.time || 0) - new Date(a.timeIn || a.time || 0));
+
+  if (sorted.length === 0) {
+    if (start || end) tbody.innerHTML = '<tr><td colspan="10" class="muted" style="text-align:center; padding: 20px;">Belum ada data pada periode ini.</td></tr>';
+    else tbody.innerHTML = '<tr><td colspan="10" class="muted" style="text-align:center; padding: 20px;">Belum ada data log barang.</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = sorted.map((item, idx) => {
+    // Migration fallback
+    const tIn = item.timeIn || item.time;
+
+    const dIn = tIn ? new Date(tIn) : null;
+    const dateStr = dIn ? dIn.toLocaleDateString('id-ID') : '-';
+    const timeInStr = dIn ? dIn.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : '-';
+
+    let timeOutStr = '-';
+    let actionBtn = `<button class="btn small primary" onclick="checkoutInventory('${item.id}')" style="padding:2px 8px; font-size:12px;">Keluar</button>`;
+
+    if (item.timeOut) {
+      const dOut = new Date(item.timeOut);
+      timeOutStr = dOut.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+      actionBtn = `<span class="badge success" style="background:#e6fffa; color:#047857; padding:2px 8px; border-radius:12px; font-size:11px; font-weight:bold;">Selesai</span>`;
+    }
+    // Fallback for old data with type='OUT'
+    else if (item.type === 'OUT') {
+      timeOutStr = timeInStr;
+      actionBtn = `<span class="badge" style="opacity:0.6; font-size:11px;">Legacy Log</span>`;
+    }
+
+    return `
+        <tr>
+          <td>${sorted.length - idx}</td>
+          <td>${dateStr}</td>
+          <td>${timeInStr}</td>
+          <td>${timeOutStr}</td>
+          <td>${item.carrier || '-'}</td>
+          <td>${item.company || '-'}</td>
+          <td>${item.item || '-'}</td>
+          <td>${item.dest || '-'}</td>
+          <td style="font-family:cursive; opacity:0.7">${item.officer || 'Security'}</td>
+          <td style="text-align:center">${actionBtn}</td>
+        </tr>
+      `;
+  }).join('');
+}
+
+// PDF Export Logic
+window.exportInventoryPDF = function () {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF('l', 'mm', 'a4'); // Landscape
+
+  // Header
+  doc.setFontSize(16);
+  doc.text('Laporan Keluar Masuk Barang', 14, 15);
+  doc.setFontSize(11);
+  doc.text('SmartAttend System', 14, 21);
+
+  doc.setFontSize(10);
+  const { start, end } = getInventoryFilterDates();
+  let periodStr = 'Periode: Semua Data';
+  if (start && end) periodStr = `Periode: ${start.toLocaleDateString('id-ID')} s/d ${end.toLocaleDateString('id-ID')}`;
+  else if (start) periodStr = `Periode: Sejak ${start.toLocaleDateString('id-ID')}`;
+  else if (end) periodStr = `Periode: Sampai ${end.toLocaleDateString('id-ID')}`;
+
+  doc.text(periodStr, 14, 28);
+
+  // Prepare Data
+  const tbody = document.querySelector('#route-inventory tbody');
+  const rows = Array.from(tbody.querySelectorAll('tr'));
+
+  // Check if empty
+  if (rows.length === 1 && rows[0].innerText.includes('Belum ada')) {
+    alert('Tidak ada data yang ditampilkan untuk diekspor.');
+    return;
+  }
+
+  const tableData = rows.map(row => {
+    const cols = row.querySelectorAll('td');
+    // If row has simplified structure (e.g., error msg), skip or handle
+    if (cols.length < 5) return [];
+
+    return [
+      cols[0].innerText, // No
+      cols[1].innerText, // Tanggal
+      cols[2].innerText, // Jam Masuk
+      cols[3].innerText, // Jam Keluar
+      cols[4].innerText, // Nama Pembawa
+      cols[5].innerText, // Perusahaan
+      cols[6].innerText, // Jenis Barang
+      cols[7].innerText, // Tujuan
+      cols[8].innerText, // Petugas
+      cols[9].innerText.replace('Selesai', 'OK').replace('Keluar', '-').replace('Legacy Log', 'Old')  // Status
+    ];
+  });
+
+  doc.autoTable({
+    head: [['No', 'Tanggal', 'Masuk', 'Keluar', 'Pembawa', 'Perusahaan', 'Barang', 'Tujuan', 'Petugas', 'Status']],
+    body: tableData,
+    startY: 32,
+    theme: 'grid',
+    styles: { fontSize: 8, cellPadding: 2 },
+    headStyles: { fillColor: [41, 98, 255], textColor: [255, 255, 255], fontStyle: 'bold' }
+  });
+
+  const nowStr = new Date().toISOString().slice(0, 10);
+  doc.save(`Laporan_Log_Barang_${nowStr}.pdf`);
+};
+
+// Bind Buttons
+document.addEventListener('DOMContentLoaded', () => {
+  const invModal = document.getElementById('invModal');
+  const btnOpenInv = document.getElementById('btnOpenInv');
+  const btnBackInv = document.getElementById('btnBackInv');
+  const btnSaveInv = document.getElementById('btnSaveInv');
+
+  // Filter Inputs
+  const dStart = document.getElementById('invDateStart');
+  const dEnd = document.getElementById('invDateEnd');
+  const btnPDF = document.getElementById('btnExportInvPDF');
+
+  if (dStart) dStart.addEventListener('change', renderInventory);
+  if (dEnd) dEnd.addEventListener('change', renderInventory);
+  if (btnPDF) btnPDF.addEventListener('click', window.exportInventoryPDF);
+
+  // Ensure status dropdown is visible
+  const elType = document.getElementById('iType');
+  if (elType && elType.closest('label')) {
+    elType.closest('label').style.display = 'block';
+  }
+
+  let invTimeInterval;
+
+  function openInvModal() {
+    if (!invModal) { console.error('Inv Modal Missing'); return; }
+
+    const updateTime = () => {
+      const now = new Date();
+      now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+      const elTime = document.getElementById('iTime');
+      if (elTime) elTime.value = now.toISOString().slice(0, 16);
+    };
+
+    // Initial set
+    updateTime();
+
+    // Clear existing interval if any
+    if (invTimeInterval) clearInterval(invTimeInterval);
+
+    // Update every second (1000ms)
+    invTimeInterval = setInterval(updateTime, 1000);
+
+    // Stop auto-update if user manually changes time
+    const elTime = document.getElementById('iTime');
+    if (elTime) {
+      elTime.onfocus = () => clearInterval(invTimeInterval);
+      elTime.onchange = () => clearInterval(invTimeInterval);
+    }
+
+    const elCarrier = document.getElementById('iCarrier');
+    const elCompany = document.getElementById('iCompany');
+    const elItem = document.getElementById('iItem');
+    const elDest = document.getElementById('iDest');
+    const elOfficer = document.getElementById('iOfficer');
+
+    if (elCarrier) elCarrier.value = '';
+    if (elCompany) elCompany.value = '';
+    if (elItem) elItem.value = '';
+    if (elDest) elDest.value = '';
+    if (elOfficer) elOfficer.value = 'Admin/Security'; // Default but editable
+
+    // Reset Dropdown to IN
+    const t = document.getElementById('iType');
+    if (t) t.value = 'IN';
+
+    invModal.showModal();
+  }
+
+  if (btnOpenInv) btnOpenInv.onclick = () => openInvModal();
+
+  if (btnBackInv) btnBackInv.onclick = (e) => {
+    e.preventDefault();
+    if (invTimeInterval) clearInterval(invTimeInterval);
+    invModal.close();
+  };
+
+  if (btnSaveInv) btnSaveInv.onclick = (e) => {
+    e.preventDefault();
+    const type = document.getElementById('iType').value;
+    const timeVal = document.getElementById('iTime').value;
+    const carrier = document.getElementById('iCarrier').value;
+    const company = document.getElementById('iCompany').value;
+    const item = document.getElementById('iItem').value;
+    const dest = document.getElementById('iDest').value;
+    const officer = document.getElementById('iOfficer').value;
+
+    if (!carrier || !item) {
+      alert('Mohon isi Nama Pembawa dan Jenis Barang.');
+      return;
+    }
+
+    const newRec = {
+      id: Date.now().toString(36),
+      carrier, company, item, dest, officer, type
+    };
+
+    if (type === 'IN') {
+      newRec.timeIn = timeVal;
+      newRec.timeOut = null;
+    } else {
+      // Direct outgoing
+      newRec.timeIn = null;
+      newRec.timeOut = timeVal;
+    }
+
+    inventoryData.push(newRec);
+    saveInventory();
+    invModal.close();
+    alert('Laporan berhasil dibuat!');
+  };
+});
+
+// Initial Render if on inventory route
+window.renderInventory = renderInventory;
