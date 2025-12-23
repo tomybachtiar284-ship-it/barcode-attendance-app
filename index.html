@@ -551,10 +551,12 @@
   <!-- SIDEBAR -->
   <aside class="sidebar">
     <div class="brand">
-      <div class="logo">◎</div>
+      <img src="assets/AMAN-S-Logo.jpg" alt="AMAN-S Logo" style="height: 44px; width: auto; border-radius: 8px;">
       <div>
-        <div class="brand-name">SmartAttend</div>
-        <div class="brand-sub">PLTU AMPANA</div>
+        <div class="brand-name">Aman-S</div>
+        <div class="brand-sub" style="font-size: 0.75rem; line-height: 1.2;">Aplikasi Manajemen Pengamanan Aset dan
+          Safety
+        </div>
       </div>
     </div>
 
@@ -981,7 +983,7 @@
     <section class="route hidden" id="route-shifts">
       <div class="card">
         <div class="card-title" style="display:flex; justify-content:space-between; cursor:pointer"
-          onclick="const c=this.nextElementSibling; c.classList.toggle('hidden'); const h=c.classList.contains('hidden'); this.querySelector('.arrow').textContent = h ? '▶' : '▼'; localStorage.setItem('COLLAPSE_SHIFT_CFG', h?'1':'0')">
+          onclick="toggleCollapse(this, 'COLLAPSE_SHIFT_CFG')">
           <span data-i18n="shift_title">Pengaturan Jam Shift</span>
           <span class="arrow">▼</span>
         </div>
@@ -1051,7 +1053,7 @@
 
       <div class="card">
         <div class="card-title" style="display:flex; justify-content:space-between; cursor:pointer"
-          onclick="const c=this.nextElementSibling; c.classList.toggle('hidden'); const h=c.classList.contains('hidden'); this.querySelector('.arrow').textContent = h ? '▶' : '▼'; localStorage.setItem('COLLAPSE_SHIFT_SCHED', h?'1':'0')">
+          onclick="toggleCollapse(this, 'COLLAPSE_SHIFT_SCHED')">
           <span>Jadwal Shift Bulanan</span>
           <span class="arrow">▼</span>
         </div>

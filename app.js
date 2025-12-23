@@ -484,6 +484,17 @@ window.addEventListener('DOMContentLoaded', () => {
     alert(title + "\n\n" + lines.join('\n'));
   };
 
+  // Helper for collapsible sections (fixing inline script lint errors)
+  window.toggleCollapse = function (headerElement, storageKey) {
+    const content = headerElement.nextElementSibling;
+    if (!content) return;
+    content.classList.toggle('hidden');
+    const isHidden = content.classList.contains('hidden');
+    const arrow = headerElement.querySelector('.arrow');
+    if (arrow) arrow.textContent = isHidden ? '▶' : '▼';
+    if (storageKey) localStorage.setItem(storageKey, isHidden ? '1' : '0');
+  };
+
   // Start Loops
   function runLoops() {
     renderCurrentShiftPanel();
