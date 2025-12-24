@@ -51,9 +51,45 @@ window.addEventListener('DOMContentLoaded', () => {
 
   // ===== SUPABASE SYNC =====
   let sb = null;
-  if (window.SA_SUPABASE_URL && window.SA_SUPABASE_ANON && window.supabase) {
-    sb = window.supabase.createClient(window.SA_SUPABASE_URL, window.SA_SUPABASE_ANON);
+
+  function initSupabase() {
+    if (sb) return sb; // Already initialized
+
+    // Check prerequisites
+    if (!window.supabase) { console.warn('Supabase JS library not loaded'); return null; }
+    if (!window.SA_SUPABASE_URL || window.SA_SUPABASE_URL.includes('ISI_SUPABASE')) { console.warn('Supabase URL invalid'); return null; }
+    if (!window.SA_SUPABASE_ANON || window.SA_SUPABASE_ANON.includes('ISI_SUPABASE')) { console.warn('Supabase Key invalid'); return null; }
+
+    try {
+      sb = window.supabase.createClient(window.SA_SUPABASE_URL, window.SA_SUPABASE_ANON);
+      console.log('✅ Supabase Client Initialized!', sb);
+      return sb;
+    } catch (err) {
+      console.error('Supabase init failed:', err);
+      return null;
+    }
   }
+
+  // Attempt init immediately
+  initSupabase();
+
+  // Status Indicator
+  function renderConnectionStatus() {
+    const el = $('#connectionStatus') || document.createElement('div');
+    if (!el.id) {
+      el.id = 'connectionStatus';
+      el.style.cssText = 'position:fixed; bottom:10px; left:10px; padding:6px 12px; border-radius:20px; font-size:12px; font-weight:bold; z-index:9999; box-shadow:0 2px 5px rgba(0,0,0,0.2);';
+      document.body.appendChild(el);
+    }
+    if (sb) {
+      el.textContent = '🟢 Terhubung ke Cloud';
+      el.style.background = '#d1fae5'; el.style.color = '#065f46';
+    } else {
+      el.textContent = '⚪ Mode Lokal (Offline)';
+      el.style.background = '#f3f4f6'; el.style.color = '#4b5563';
+    }
+  }
+  setTimeout(renderConnectionStatus, 1000);
 
   async function compressImage(file, maxW, maxH, q) {
     return new Promise((resolve, reject) => {
@@ -129,6 +165,20 @@ window.addEventListener('DOMContentLoaded', () => {
     await sb.from('education').delete().eq('id', id);
   }
 
+  async function pushInventory(inv) {
+    if (!sb) return;
+    const { error } = await sb.from('inventory').upsert({
+      id: inv.id, carrier: inv.carrier, company: inv.company,
+      item: inv.item, dest: inv.dest, officer: inv.officer, type: inv.type,
+      time_in: inv.timeIn, time_out: inv.timeOut
+    }, { onConflict: 'id' });
+    if (error) console.error('Push inv error:', error);
+  }
+  async function delInventory(id) {
+    if (!sb) return;
+    await sb.from('inventory').delete().eq('id', id);
+  }
+
   async function pushShifts() {
     if (!sb) return;
     await sb.from('settings').upsert({ key: 'shifts', value: shifts }, { onConflict: 'key' });
@@ -195,6 +245,33 @@ window.addEventListener('DOMContentLoaded', () => {
       saveEdu(eduList);
     }
 
+    // Inventory (Bi-directional Sync)
+    const { data: invs } = await sb.from('inventory').select('*');
+    if (invs) {
+      const serverMap = new Map(invs.map(x => [x.id, x]));
+      const localMap = new Map(inventoryData.map(x => [x.id, x]));
+
+      // 1. Apply Server Updates to Local
+      invs.forEach(x => {
+        localMap.set(x.id, {
+          id: x.id, carrier: x.carrier, company: x.company, item: x.item,
+          dest: x.dest, officer: x.officer, type: x.type,
+          timeIn: x.time_in, timeOut: x.time_out
+        });
+      });
+
+      // 2. Identify Pending Local Items -> Push to Server
+      for (const [id, val] of localMap.entries()) {
+        if (!serverMap.has(id)) {
+          await pushInventory(val);
+        }
+      }
+
+      // 3. Finalize
+      inventoryData = Array.from(localMap.values()).sort((a, b) => new Date(b.timeIn || 0) - new Date(a.timeIn || 0));
+      saveInventory();
+    }
+
     // Shifts
     const { data: sh } = await sb.from('settings').select('*').eq('key', 'shifts').single();
     if (sh && sh.value) {
@@ -230,8 +307,14 @@ window.addEventListener('DOMContentLoaded', () => {
   // Router
   $$('.navlink').forEach(btn => btn.addEventListener('click', () => {
     $$('.navlink').forEach(b => b.classList.remove('active')); btn.classList.add('active');
-    const route = btn.dataset.route; $$('.route').forEach(s => s.classList.add('hidden'));
+    const route = btn.dataset.route;
+
+    // NEW: Persist Route
+    localStorage.setItem('SA_CURRENT_ROUTE', route);
+
+    $$('.route').forEach(s => s.classList.add('hidden'));
     $('#route-' + route)?.classList.remove('hidden');
+
     if (route === 'dashboard') { renderDashboard(); }
     if (route === 'employees') renderEmployees();
     if (route === 'attendance') renderAttendance();
@@ -240,6 +323,15 @@ window.addEventListener('DOMContentLoaded', () => {
     if (route === 'shifts') { renderShiftForm(); initMonthlyScheduler(); }
     if (route === 'inventory') renderInventory();
   }));
+
+  // NEW: Restore Last Route (Page Persistence)
+  setTimeout(() => {
+    const lastRoute = localStorage.getItem('SA_CURRENT_ROUTE');
+    if (lastRoute) {
+      const btn = $(`.navlink[data-route="${lastRoute}"]`);
+      if (btn) btn.click();
+    }
+  }, 50); // Small delay to ensure DOM fully ready
 
   // Clock
   function tick() {
@@ -2001,7 +2093,7 @@ document.addEventListener('DOMContentLoaded', () => {
     btnLogout.addEventListener('click', () => {
       if (confirm(t('confirm_logout'))) {
         localStorage.removeItem('SA_SESSION');
-        window.location.href = 'login.html';
+        window.location.replace('login.html');
       }
     });
   }
@@ -2223,6 +2315,7 @@ window.checkoutInventory = function (id) {
     now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
     item.timeOut = now.toISOString();
     saveInventory();
+    pushInventory(item);
 
     // Feedback
     alert(`Barang atas nama ${item.carrier} telah berhasil keluar.`);
@@ -2294,12 +2387,24 @@ function renderInventory() {
     const timeInStr = dIn ? dIn.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : '-';
 
     let timeOutStr = '-';
-    let actionBtn = `<button class="btn small primary" onclick="checkoutInventory('${item.id}')" style="padding:2px 8px; font-size:12px;">Keluar</button>`;
+    let actionBtn = `
+      <div style="display:flex; gap:4px; justify-content:center;">
+        <button class="btn small primary" onclick="checkoutInventory('${item.id}')" title="Barang Keluar" style="padding:2px 6px; font-size:12px;">📤</button>
+        <button class="btn small" onclick="editInventory('${item.id}')" title="Edit Data" style="padding:2px 6px; font-size:12px; background:#f59e0b; border-color:#f59e0b; color:white;">✏️</button>
+        <button class="btn small danger" onclick="deleteInventory('${item.id}')" title="Hapus Data" style="padding:2px 6px; font-size:12px;">🗑️</button>
+      </div>
+    `;
 
     if (item.timeOut) {
       const dOut = new Date(item.timeOut);
       timeOutStr = dOut.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
-      actionBtn = `<span class="badge success" style="background:#e6fffa; color:#047857; padding:2px 8px; border-radius:12px; font-size:11px; font-weight:bold;">Selesai</span>`;
+      actionBtn = `
+        <div style="display:flex; gap:4px; justify-content:center;">
+          <span class="badge success" style="background:#e6fffa; color:#047857; padding:2px 6px; border-radius:12px; font-size:11px; font-weight:bold;">Selesai</span>
+          <button class="btn small" onclick="editInventory('${item.id}')" title="Edit Data" style="padding:2px 6px; font-size:12px; background:#f59e0b; border-color:#f59e0b; color:white;">✏️</button>
+          <button class="btn small danger" onclick="deleteInventory('${item.id}')" title="Hapus Data" style="padding:2px 6px; font-size:12px;">🗑️</button>
+        </div>
+      `;
     }
     // Fallback for old data with type='OUT'
     else if (item.type === 'OUT') {
@@ -2324,6 +2429,64 @@ function renderInventory() {
   }).join('');
 }
 
+// Action: Edit Inventory
+window.editInventory = function (id) {
+  const item = inventoryData.find(x => x.id === id);
+  if (!item) return;
+
+  // Open Modal
+  openInvModal();
+
+  // Populate Fields
+  const elId = document.getElementById('iId');
+  const elTime = document.getElementById('iTime');
+  const elType = document.getElementById('iType'); // Select
+  const elCarrier = document.getElementById('iCarrier');
+  const elCompany = document.getElementById('iCompany');
+  const elItem = document.getElementById('iItem');
+  const elDest = document.getElementById('iDest');
+  const elOfficer = document.getElementById('iOfficer');
+
+  if (elId) elId.value = item.id;
+
+  // Restore Time (IN or OUT based on type)
+  // For simplicity, we load 'timeIn' if IN, 'timeOut' if OUT (direct out)
+  const tVal = item.timeIn || item.timeOut || new Date().toISOString();
+  if (elTime) elTime.value = new Date(tVal).toISOString().slice(0, 16); // Local datetime-local format approx
+
+  if (elType) elType.value = item.type;
+  if (elCarrier) elCarrier.value = item.carrier || '';
+  if (elCompany) elCompany.value = item.company || '';
+  if (elItem) elItem.value = item.item || '';
+  if (elDest) elDest.value = item.dest || '';
+  if (elOfficer) elOfficer.value = item.officer || '';
+
+  // Update Title
+  const title = document.getElementById('invModalTitle');
+  if (title) title.textContent = 'Edit Data Barang';
+}
+
+// Action: Delete Inventory
+window.deleteInventory = async function (id) {
+  if (!confirm('⚠️ YAKIN INGIN MENGHAPUS DATA INI?\nData yang dihapus akan hilang permanen dari server juga.')) return;
+
+  // 1. Remove Local
+  inventoryData = inventoryData.filter(x => x.id !== id);
+  saveInventory(); // Updates UI
+
+  // 2. Remove Cloud
+  if (sb) {
+    try {
+      const { error } = await sb.from('inventory').delete().eq('id', id);
+      if (error) throw error;
+      if (window.toast) toast('Data berhasil dihapus dari Cloud.');
+    } catch (err) {
+      alert('Gagal menghapus dari Cloud: ' + err.message);
+    }
+  }
+}
+
+
 // ... (PDF logic remains) ...
 
 // Bind Buttons
@@ -2336,8 +2499,125 @@ document.addEventListener('DOMContentLoaded', () => {
 
   if (dStart) dStart.addEventListener('change', renderInventory);
   if (dEnd) dEnd.addEventListener('change', renderInventory);
-  if (invSearch) invSearch.addEventListener('input', renderInventory); // NEW
+  if (invSearch) invSearch.addEventListener('input', renderInventory);
   if (btnPDF) btnPDF.addEventListener('click', window.exportInventoryPDF);
+
+  // NEW: Manual Sync Button (Delegated)
+  // NEW: Manual Sync Button (Global Exposure - Fix unresponsive click)
+  // NEW: Manual Sync Button (Global Exposure - Fix unresponsive click)
+  // NEW: Manual Sync Button (Diagnostic Mode)
+  window.forceSyncInventory = async function () {
+    const btnSync = document.getElementById('btnSyncInv');
+    if (btnSync && btnSync.disabled) return;
+
+    // Attempt lazy init if not yet ready
+    if (!sb) { initSupabase(); }
+    if (!sb) { alert('❌ Mode Offline. Pastikan URL & Key Supabase sudah diisi di index.html'); return; }
+
+    // 1. Production Mode Start
+    // const count = inventoryData.length;
+    // if (!confirm(...)) return;
+
+    if (btnSync) {
+      btnSync.textContent = '⏳ Syncing...';
+      btnSync.disabled = true;
+    }
+
+    try {
+      let success = 0, fail = 0;
+      let lastError = null;
+
+      // 1. Push all local items to server
+
+      for (const item of inventoryData) {
+        // Fix Timestamp Format (ensure ISO with Timezone)
+        const tIn = item.timeIn ? new Date(item.timeIn).toISOString() : null;
+        const tOut = item.timeOut ? new Date(item.timeOut).toISOString() : null;
+
+        const { error } = await sb.from('inventory').upsert({
+          id: item.id, carrier: item.carrier, company: item.company,
+          item: item.item, dest: item.dest, officer: item.officer, type: item.type,
+          time_in: tIn, time_out: tOut
+        }, { onConflict: 'id' });
+
+        if (!error) success++;
+        else { fail++; lastError = error; }
+      }
+
+      // 4. Pull
+      const { data: invs } = await sb.from('inventory').select('*');
+      if (invs) {
+        const serverMap = new Map(invs.map(x => [x.id, x]));
+        const localMap = new Map(inventoryData.map(x => [x.id, x]));
+        invs.forEach(x => {
+          if (x.item === 'CONNECTION_TEST') return; // Skip test item if stuck
+          localMap.set(x.id, {
+            id: x.id, carrier: x.carrier, company: x.company, item: x.item,
+            dest: x.dest, officer: x.officer, type: x.type, timeIn: x.time_in, timeOut: x.time_out
+          });
+        });
+        inventoryData = Array.from(localMap.values()).sort((a, b) => new Date(b.timeIn || 0) - new Date(a.timeIn || 0));
+        saveInventory();
+      }
+
+      if (fail > 0) {
+        alert(`⚠️ Sync Selesai dengan beberapa gagal.\nSukses: ${success}\nGagal: ${fail}\nPesan: ${lastError?.message}`);
+      } else {
+        alert(`✅ Sync Selesai!\nData Lokal & Cloud sudah sinkron.`);
+      }
+
+    } catch (err) {
+      alert('❌ Error Sync: ' + err.message);
+      console.error(err);
+    } finally {
+      if (btnSync) {
+        btnSync.innerHTML = '🔄 Sync'; // Reset text
+        btnSync.disabled = false;
+      }
+    }
+  };
+
+  // NEW: Backup to CSV (Manual Fallback)
+  window.backupInventoryCSV = function () {
+    if (!inventoryData || inventoryData.length === 0) {
+      alert('Belum ada data untuk dibackup.');
+      return;
+    }
+
+    // CSV Header (Must match Supabase columns for easy import)
+    const headers = ['id', 'carrier', 'company', 'item', 'dest', 'officer', 'type', 'time_in', 'time_out'];
+    const rows = inventoryData.map(item => {
+      // Escape for CSV
+      const escape = (val) => `"${(val || '').toString().replace(/"/g, '""')}"`;
+
+      const tIn = item.timeIn ? new Date(item.timeIn).toISOString() : '';
+      const tOut = item.timeOut ? new Date(item.timeOut).toISOString() : '';
+
+      return [
+        escape(item.id),
+        escape(item.carrier),
+        escape(item.company),
+        escape(item.item),
+        escape(item.dest),
+        escape(item.officer),
+        escape(item.type),
+        escape(tIn),
+        escape(tOut)
+      ].join(',');
+    });
+
+    const csvContent = [headers.join(','), ...rows].join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+
+    // Trigger Download
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', 'inventory_backup_' + new Date().toISOString().slice(0, 10) + '.csv');
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
 
   // Ensure status dropdown is visible
   const elType = document.getElementById('iType');
@@ -2392,7 +2672,14 @@ document.addEventListener('DOMContentLoaded', () => {
     invModal.showModal();
   }
 
-  if (btnOpenInv) btnOpenInv.onclick = () => openInvModal();
+  if (btnOpenInv) btnOpenInv.onclick = () => {
+    // Reset Title & ID when opening fresh
+    const elId = document.getElementById('iId');
+    const title = document.getElementById('invModalTitle');
+    if (elId) elId.value = '';
+    if (title) title.textContent = 'Input Barang Masuk / Keluar';
+    openInvModal();
+  };
 
   if (btnBackInv) btnBackInv.onclick = (e) => {
     e.preventDefault();
@@ -2402,6 +2689,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   if (btnSaveInv) btnSaveInv.onclick = (e) => {
     e.preventDefault();
+    const idVal = document.getElementById('iId')?.value; // Check hidden ID
     const type = document.getElementById('iType').value;
     const timeVal = document.getElementById('iTime').value;
     const carrier = document.getElementById('iCarrier').value;
@@ -2415,24 +2703,49 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
-    const newRec = {
-      id: Date.now().toString(36),
-      carrier, company, item, dest, officer, type
-    };
+    let rec;
 
-    if (type === 'IN') {
-      newRec.timeIn = timeVal;
-      newRec.timeOut = null;
-    } else {
-      // Direct outgoing
-      newRec.timeIn = null;
-      newRec.timeOut = timeVal;
+    // EDIT MODE
+    if (idVal) {
+      rec = inventoryData.find(x => x.id === idVal);
+      if (rec) {
+        rec.carrier = carrier;
+        rec.company = company;
+        rec.item = item;
+        rec.dest = dest;
+        rec.officer = officer;
+        rec.type = type;
+
+        // Update Time logic
+        if (type === 'IN') {
+          rec.timeIn = timeVal;
+          // Keep timeOut if exists (don't erase checkout time if only editing name)
+        } else {
+          rec.timeIn = null;
+          rec.timeOut = timeVal;
+        }
+      }
+    }
+    // CREATE MODE
+    else {
+      rec = {
+        id: Date.now().toString(36),
+        carrier, company, item, dest, officer, type
+      };
+      if (type === 'IN') {
+        rec.timeIn = timeVal;
+        rec.timeOut = null;
+      } else {
+        rec.timeIn = null;
+        rec.timeOut = timeVal;
+      }
+      inventoryData.push(rec);
     }
 
-    inventoryData.push(newRec);
     saveInventory();
+    pushInventory(rec); // Auto Sync (Upsert handles both)
     invModal.close();
-    alert('Laporan berhasil dibuat!');
+    alert('Data berhasil disimpan!');
   };
 });
 
