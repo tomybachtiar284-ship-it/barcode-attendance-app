@@ -94,7 +94,8 @@ window.addEventListener('DOMContentLoaded', () => {
           await pullAll();
           const n = inventoryData.length;
           const info = news.length;
-          alert(`✅ Manual Sync OK!\n\nInventory: ${n} items\nLatest Info: ${info} items\n\nCek kembali tampilan.`);
+          const emp = employees.length;
+          alert(`✅ Manual Sync OK!\n\nInventory: ${n}\nLatest Info: ${info}\nEmployees: ${emp}\n\nCek data di Supabase.`);
         } catch (e) { alert('Sync Failed: ' + e.message); }
         renderConnectionStatus();
       };
@@ -2108,6 +2109,17 @@ document.addEventListener('DOMContentLoaded', () => {
       if (confirm(t('confirm_logout'))) {
         localStorage.removeItem('SA_SESSION');
         window.location.replace('login.html');
+      }
+    });
+  }
+
+  // FORCE RESET DATA LOGIC
+  const btnResetData = document.getElementById('btnResetData');
+  if (btnResetData) {
+    btnResetData.addEventListener('click', () => {
+      if (confirm('⚠️ HAPUS SEMUA DATA LOKAL?\n\n1. Data di laptop ini akan dihapus.\n2. Aplikasi akan restart.\n3. Data akan diambil ulang dari Cloud (jika ada).\n\nLanjutkan?')) {
+        localStorage.clear();
+        window.location.reload();
       }
     });
   }
