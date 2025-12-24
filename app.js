@@ -71,7 +71,10 @@ window.addEventListener('DOMContentLoaded', () => {
   }
 
   // Attempt init immediately
-  initSupabase();
+  if (initSupabase()) {
+    console.log('🚀 Auto-Starting Data Sync...');
+    pullAll(); // Restore data from Cloud on launch
+  }
 
   // Status Indicator
   function renderConnectionStatus() {
@@ -82,11 +85,23 @@ window.addEventListener('DOMContentLoaded', () => {
       document.body.appendChild(el);
     }
     if (sb) {
-      el.textContent = '🟢 Terhubung ke Cloud';
       el.style.background = '#d1fae5'; el.style.color = '#065f46';
+      el.style.cursor = 'pointer';
+      el.onclick = async () => {
+        if (!confirm('Force Sync & Debug Data?')) return;
+        el.textContent = '⏳ Syncing...';
+        try {
+          await pullAll();
+          const n = inventoryData.length;
+          const info = news.length;
+          alert(`✅ Manual Sync OK!\n\nInventory: ${n} items\nLatest Info: ${info} items\n\nCek kembali tampilan.`);
+        } catch (e) { alert('Sync Failed: ' + e.message); }
+        renderConnectionStatus();
+      };
     } else {
       el.textContent = '⚪ Mode Lokal (Offline)';
       el.style.background = '#f3f4f6'; el.style.color = '#4b5563';
+      el.style.cursor = 'default'; el.onclick = null;
     }
   }
   setTimeout(renderConnectionStatus, 1000);
