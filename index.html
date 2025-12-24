@@ -15,20 +15,36 @@
   <!-- Styles -->
   <link rel="stylesheet" href="styles.css?v=3.1" />
   <style>
-    /* Styling for Inventory Table Borders */
-    #route-inventory table {
+    /* Styling for Inventory, Latest Info, Education, Attendance & Employee Table Borders */
+    #route-inventory table,
+    #route-latest table,
+    #route-education table,
+    #route-attendance table,
+    .emp-table {
       width: 100%;
       border-collapse: collapse;
     }
 
     #route-inventory table th,
-    #route-inventory table td {
+    #route-inventory table td,
+    #route-latest table th,
+    #route-latest table td,
+    #route-education table th,
+    #route-education table td,
+    #route-attendance table th,
+    #route-attendance table td,
+    .emp-table th,
+    .emp-table td {
       border: 1px solid #ccc;
       padding: 8px;
       text-align: left;
     }
 
-    #route-inventory table th {
+    #route-inventory table th,
+    #route-latest table th,
+    #route-education table th,
+    #route-attendance table th,
+    .emp-table th {
       background: #f3f4f6;
     }
   </style>
@@ -1123,7 +1139,7 @@
           <div class="left" style="align-items: center; gap: 10px;">
             <label>Pilih Bulan: <input type="month" id="reportMonth"
                 style="padding: 8px; border: 1px solid var(--line); border-radius: 8px;"></label>
-            <button id="btnDownloadMonthlyReport" class="btn primary">⬇️ Download Laporan Kinerja (Excel)</button>
+            <button id="btnDownloadMonthlyReport" class="btn primary">⬇️ Download Laporan Kinerja (PDF)</button>
           </div>
         </div>
         <small class="muted">Laporan ini mencakup: Total Hadir, Total Terlambat, dan Hitungan Overtime per
@@ -1134,6 +1150,14 @@
         <div class="left">
           <label>Dari <input type="date" id="attFrom"></label>
           <label>Sampai <input type="date" id="attTo"></label>
+          <select id="attGroupFilter" class="input" style="width:auto; padding:8px 10px;">
+            <option value="">Semua Group</option>
+            <option value="A">Group A</option>
+            <option value="B">Group B</option>
+            <option value="C">Group C</option>
+            <option value="D">Group D</option>
+            <option value="DAYTIME">Group DAYTIME</option>
+          </select>
           <button id="btnFilterAtt" class="btn">🔍 Tampilkan</button>
 
           <!-- Search Filter -->
@@ -1146,7 +1170,7 @@
 
       <div class="card">
         <div class="table-wrap">
-          <table class="table table-elegant" id="tableAtt">
+          <table class="table" id="tableAtt">
             <thead>
               <tr>
                 <th style="padding-left:16px">WAKTU</th>
@@ -1173,7 +1197,7 @@
       </div>
       <div class="card">
         <div class="table-wrap">
-          <table class="table-elegant" id="tableNews">
+          <table class="table" id="tableNews">
             <thead>
               <tr>
                 <th>WAKTU</th>
@@ -1197,7 +1221,7 @@
       </div>
       <div class="card">
         <div class="table-wrap">
-          <table class="table-elegant" id="tableEdu">
+          <table class="table" id="tableEdu">
             <thead>
               <tr>
                 <th>Waktu</th>
@@ -1238,7 +1262,7 @@
             </div>
           </div>
           <div class="right">
-            <input type="text" class="search" placeholder="Cari barang...">
+            <input type="text" id="invSearch" class="search" placeholder="Cari barang...">
           </div>
         </div>
         <div class="table-wrap">
@@ -1532,6 +1556,8 @@
       setInterval(setHeader, 15000);
     })();
   </script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <script src="app.js"></script>
 
