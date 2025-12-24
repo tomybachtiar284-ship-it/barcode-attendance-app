@@ -1421,7 +1421,8 @@ window.addEventListener('DOMContentLoaded', () => {
     $('#shiftCStart') && ($('#shiftCStart').value = malam.start);
     $('#shiftCEnd') && ($('#shiftCEnd').value = malam.end);
   }
-  $('#btnSaveShift')?.addEventListener('click', () => {
+  $('#btnSaveShift')?.addEventListener('click', async () => {
+    const btn = $('#btnSaveShift');
     const { pagi, sore, malam, day } = getShiftInputs();
     shifts = {
       A: { start: normalizeTime(pagi.start), end: normalizeTime(pagi.end) },
@@ -1431,9 +1432,22 @@ window.addEventListener('DOMContentLoaded', () => {
       DAYTIME: { start: normalizeTime(day.start), end: normalizeTime(day.end) }
     };
     save(LS_SHIFTS, shifts); syncGlobals();
-    pushShifts();
-    toast('Pengaturan shift disimpan.');
     renderDashboard(); renderCurrentShiftPanel();
+
+    // Sync
+    if (btn) { btn.disabled = true; btn.textContent = 'Syncing...'; }
+    try {
+      if (sb) {
+        await pushShifts();
+        toast('Pengaturan shift disimpan & disinkronkan.');
+      } else {
+        toast('Disimpan lokal (Offline).');
+      }
+    } catch (err) {
+      alert('Gagal sync shift: ' + err.message);
+    } finally {
+      if (btn) { btn.disabled = false; btn.textContent = 'Simpan Perubahan'; }
+    }
   });
 
   // ===== Attendance (laporan) =====
@@ -1649,13 +1663,26 @@ window.addEventListener('DOMContentLoaded', () => {
     renderSchedTable();
   }
   $('#schedMonth')?.addEventListener('change', () => renderSchedTable());
-  $('#btnSchedSave')?.addEventListener('click', () => {
+  $('#btnSchedSave')?.addEventListener('click', async () => {
+    const btn = $('#btnSchedSave');
     save(LS_SCHED, sched);
     syncGlobals();
     const m = $('#schedMonth').value;
-    toast(`Jadwal bulan ${m} disimpan.`); // Specific feedack
     renderCurrentShiftPanel();
-    pushSched(m);
+
+    if (btn) { btn.disabled = true; btn.textContent = 'Syncing...'; }
+    try {
+      if (sb) {
+        await pushSched(m);
+        toast(`Jadwal bulan ${m} disimpan & disinkronkan.`);
+      } else {
+        toast(`Jadwal ${m} disimpan lokal.`);
+      }
+    } catch (err) {
+      alert('Gagal sync jadwal: ' + err.message);
+    } finally {
+      if (btn) { btn.disabled = false; btn.textContent = 'Simpan Jadwal'; }
+    }
   });
   $('#btnSchedReset')?.addEventListener('click', () => {
     const id = $('#schedMonth').value; if (!id) return;
