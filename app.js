@@ -214,27 +214,26 @@ window.addEventListener('DOMContentLoaded', () => {
       save(LS_ATT, attendance);
     }
 
-    // News
+    // News (Bi-directional Sync)
     const { data: nws } = await sb.from('news').select('*');
     if (nws) {
-      // MERGE LOCAL & SERVER: Keep local items (unsynced) + Server items (source of truth)
-      const combined = [...news];
-      nws.forEach(rem => {
-        const idx = combined.findIndex(loc => loc.ts === rem.ts);
-        const cleanRem = { ts: rem.ts, title: rem.title, body: rem.body, link: rem.link };
-        if (idx >= 0) {
-          combined[idx] = cleanRem; // Update existing
-        } else {
-          combined.push(cleanRem); // Add new from server
-        }
+      const serverMap = new Map(nws.map(x => [x.ts, x]));
+      const localMap = new Map((news || []).map(x => [x.ts, x]));
+
+      // 1. Apply Server Updates to Local
+      nws.forEach(x => {
+        localMap.set(x.ts, { ts: x.ts, title: x.title, body: x.body, link: x.link });
       });
-      // Deduplicate by ts just in case
-      const seen = new Set();
-      news = combined.filter(x => {
-        if (seen.has(x.ts)) return false;
-        seen.add(x.ts);
-        return true;
-      }).sort((a, b) => b.ts - a.ts);
+
+      // 2. Identify Pending Local Items -> Push to Server
+      for (const [ts, val] of localMap.entries()) {
+        if (!serverMap.has(Number(ts))) {
+          await pushNews(val);
+        }
+      }
+
+      // 3. Finalize
+      news = Array.from(localMap.values()).sort((a, b) => b.ts - a.ts);
       save(LS_NEWS, news);
     }
 
