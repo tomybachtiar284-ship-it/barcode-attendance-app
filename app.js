@@ -1573,29 +1573,8 @@ window.addEventListener('DOMContentLoaded', () => {
   $('#btnAddNews')?.addEventListener('click', () => openNews(null, null));
   $('#btnBackNews')?.addEventListener('click', (e) => { e.preventDefault(); $('#newsModal')?.close(); });
   $('#newsModal')?.addEventListener('close', () => { const d = $('#newsModal'); if (d) d.dataset.ts = ''; });
-  $('#btnSaveNews')?.addEventListener('click', e => {
-    e.preventDefault();
-    const d = $('#newsModal'); if (!d) return;
-    const tsStr = d.dataset.ts || '';
-
-    // Logic fix: if editing, keep original ts. If new, create new ts.
-    const isEdit = !!tsStr;
-    const tsVal = isEdit ? Number(tsStr) : Date.now();
-
-    const item = { ts: tsVal, title: $('#nTitle').value.trim(), body: $('#nBody').value.trim(), link: $('#nLink').value.trim() };
-    if (!item.title) return toast('Judul wajib diisi.');
-
-    const idx = news.findIndex(n => n.ts === tsVal);
-    if (idx >= 0) {
-      news[idx] = item;
-    } else {
-      news.push(item);
-    }
-
-    save(LS_NEWS, news); renderLatest(); renderNewsWidgets(); toast('Info tersimpan.');
-    pushNews(item);
-    $('#newsModal')?.close();
-  });
+  // Old btnSaveNews listener removed to prefer the async version below
+  // $('#btnSaveNews')?.addEventListener('click', ... );
   $('#tableNews')?.addEventListener('click', e => {
     const b = e.target.closest('button'); if (!b) return;
     // Fix: Ensure we parse the timestamp correctly
@@ -1917,6 +1896,47 @@ window.addEventListener('DOMContentLoaded', () => {
   });
 
   $('#btnClearImg')?.addEventListener('click', () => { eduCurrentImg = null; updateEduPreview(); });
+
+  $('#btnSaveNews')?.addEventListener('click', async () => {
+    const btn = $('#btnSaveNews');
+    const title = $('#nTitle').value.trim();
+    const body = $('#nBody').value.trim();
+    if (!title) return toast('Judul wajib diisi.');
+
+    const item = {
+      id: newsEditingId || Date.now().toString(36),
+      ts: newsEditingId ? (news.find(x => x.id === newsEditingId)?.ts || Date.now()) : Date.now(),
+      title,
+      body,
+      link: $('#nLink').value.trim()
+    };
+
+    if (newsEditingId) {
+      const i = news.findIndex(x => x.id === newsEditingId);
+      if (i >= 0) news[i] = item;
+    } else {
+      news.unshift(item);
+    }
+    save(LS_NEWS, news); syncGlobals();
+    renderNews(); renderDashboard();
+
+    // Sync
+    if (btn) { btn.disabled = true; btn.textContent = 'Syncing...'; }
+    try {
+      if (sb) {
+        await pushNews(item);
+        toast('Info berhasil disimpan & disinkronkan.');
+      } else {
+        toast('Info disimpan lokal.');
+      }
+      $('#newsModal').close();
+    } catch (err) {
+      alert('Gagal sync info: ' + err.message);
+      $('#newsModal').close(); // Close anyway or let user retry? User wants fast.
+    } finally {
+      if (btn) { btn.disabled = false; btn.textContent = 'Simpan'; }
+    }
+  });
 
   $('#btnSaveEdu')?.addEventListener('click', async (e) => {
     e.preventDefault();
@@ -2243,36 +2263,29 @@ document.addEventListener('DOMContentLoaded', () => {
       const startTs = new Date(year, month - 1, 1).getTime();
       const endTs = new Date(year, month, 1).getTime();
 
-      // 1. Init stats
+      // 1. Init stats object
       const report = {};
-      const emps = window.employees || [];
       const atts = window.attendance || [];
 
-      if (emps.length === 0) {
-        if (window.toast) toast("Data karyawan kosong.");
-        return;
-      }
-
-      emps.forEach(e => {
-        report[e.nid] = {
-          nid: e.nid,
-          name: e.name,
-          company: e.company || '-',
-          shift: e.shift || '-',
-          presentDates: new Set(),
-          lateCount: 0,
-          overtimeMins: 0
-        };
-      });
-
-      // 2. Process logs
+      // 2. Process logs (Build report dynamically from logs)
       atts.forEach(a => {
         const ts = Number(a.ts);
         if (isNaN(ts)) return;
         if (ts < startTs || ts >= endTs) return;
 
+        // Init user in report if not exists
+        if (!report[a.nid]) {
+          report[a.nid] = {
+            nid: a.nid,
+            name: a.name || '(Unknown)',
+            company: a.company || '-',
+            shift: a.shift || '-',
+            presentDates: new Set(),
+            lateCount: 0,
+            overtimeMins: 0
+          };
+        }
         const stats = report[a.nid];
-        if (!stats) return;
 
         const d = new Date(ts);
         const dateStr = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
@@ -2281,6 +2294,7 @@ document.addEventListener('DOMContentLoaded', () => {
           stats.presentDates.add(dateStr);
           if (a.late) stats.lateCount++;
         } else if (a.status === 'pulang') {
+          // Calculate Overtime
           const shCode = a.shift;
           if (window.shifts && window.shifts[shCode]) {
             const sh = window.shifts[shCode];
@@ -2291,6 +2305,7 @@ document.addEventListener('DOMContentLoaded', () => {
             sched.setHours(eh, em, 0, 0);
 
             let diffMs = ts - sched.getTime();
+            // Handle cross-midnight adjustments if needed (simple logic)
             if (diffMs > 12 * 3600 * 1000) diffMs -= 24 * 3600 * 1000;
             if (diffMs < -12 * 3600 * 1000) diffMs += 24 * 3600 * 1000;
 
