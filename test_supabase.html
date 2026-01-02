@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Supabase Connection Test</title>
+    <style>
+        body {
+            font-family: monospace;
+            padding: 20px;
+            background: #f0f0f0;
+        }
+
+        .log {
+            background: #fff;
+            padding: 10px;
+            border: 1px solid #ccc;
+            margin-bottom: 5px;
+            border-radius: 4px;
+        }
+
+        .success {
+            border-left: 5px solid green;
+            color: green;
+        }
+
+        .error {
+            border-left: 5px solid red;
+            color: red;
+        }
+
+        .info {
+            border-left: 5px solid blue;
+        }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="config.local.js"></script>
+</head>
+
+<body>
+    <h2>🔍 Diagnosa Koneksi Supabase</h2>
+    <div id="logs"></div>
+
+    <script>
+        function log(msg, type = 'info') {
+            const el = document.createElement('div');
+            el.className = 'log ' + type;
+            el.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+            document.getElementById('logs').appendChild(el);
+        }
+
+        async function testConnection() {
+            log('1. Memuat konfigurasi...', 'info');
+
+            if (!window.SA_SUPABASE_URL) {
+                log('GAGAL: SA_SUPABASE_URL tidak ditemukan di config.local.js', 'error');
+                return;
+            }
+            log(`URL: ${window.SA_SUPABASE_URL}`, 'info');
+
+            log('2. Mengecek akses langsung ke URL...', 'info');
+            try {
+                const resp = await fetch(window.SA_SUPABASE_URL, { method: 'HEAD' });
+                // Supabase root usually returns 200 or 404 with specific headers, but fetch might block CORS if simple GET/HEAD.
+                // Actually supabase REST API root doesn't support CORS for GET often, but let's try.
+                // Better trigger a simple js client call.
+                log('Akses URL (Network Level): Terjangkau.', 'success');
+            } catch (e) {
+                log(`GAGAL: Browser tidak bisa mencapai server. Error: ${e.message}`, 'error');
+                log('Kemungkinan Penyebab: Pemblokiran Internet Kantor (Firewall) atau DNS Block.', 'error');
+            }
+
+            log('3. Mencoba inisialisasi Client Supabase...', 'info');
+            try {
+                const sb = window.supabase.createClient(window.SA_SUPABASE_URL, window.SA_SUPABASE_ANON);
+
+                log('4. Mencoba ambil data (Select)...', 'info');
+                const { data, error } = await sb.from('news').select('count', { count: 'exact', head: true });
+
+                if (error) {
+                    log(`GAGAL API: ${error.message} (Code: ${error.code})`, 'error');
+                    if (error.message.includes('fetch')) {
+                        log('Ini adalah masalah KONEKSI INTERNET, bukan kode program.', 'error');
+                    }
+                } else {
+                    log('✅ SUKSES! Koneksi Supabase Berhasil sepenuhnya.', 'success');
+                }
+
+            } catch (err) {
+                log(`CRITICAL ERROR: ${err.message}`, 'error');
+            }
+        }
+
+        setTimeout(testConnection, 1000);
+    </script>
+</body>
+
+</html>

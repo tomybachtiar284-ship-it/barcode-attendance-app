@@ -142,6 +142,9 @@ window.addEventListener('DOMContentLoaded', () => {
       alert('Gagal Push News: ' + error.message);
     }
   }
+
+  let newsEditingId = null; // Fix: Declare global variable
+
   async function delNews(ts) {
     if (!sb) return;
     const { error } = await sb.from('news').delete().eq('ts', ts);
@@ -1564,9 +1567,10 @@ window.addEventListener('DOMContentLoaded', () => {
       tb.appendChild(tr);
     });
   }
-  function openNews(data = null, ts = null) {
+  function openNews(data = null, id = null) {
     const d = $('#newsModal'); if (!d) return;
-    d.dataset.ts = ts ? String(ts) : '';
+    newsEditingId = id; // Set global
+
     $('#nTitle').value = data?.title || '';
     $('#nBody').value = data?.body || '';
     $('#nLink').value = data?.link || '';
@@ -1899,7 +1903,8 @@ window.addEventListener('DOMContentLoaded', () => {
 
   $('#btnClearImg')?.addEventListener('click', () => { eduCurrentImg = null; updateEduPreview(); });
 
-  $('#btnSaveNews')?.addEventListener('click', async () => {
+  $('#btnSaveNews')?.addEventListener('click', async (e) => {
+    e.preventDefault();
     const btn = $('#btnSaveNews');
     const title = $('#nTitle').value.trim();
     const body = $('#nBody').value.trim();
@@ -1920,7 +1925,7 @@ window.addEventListener('DOMContentLoaded', () => {
       news.unshift(item);
     }
     save(LS_NEWS, news); syncGlobals();
-    renderNews(); renderDashboard();
+    renderLatest(); renderDashboard();
 
     // Sync
     if (btn) { btn.disabled = true; btn.textContent = 'Syncing...'; }

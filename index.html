@@ -306,10 +306,20 @@
         position: relative;
         left: auto;
         top: auto;
-        margin-bottom: 4px;
-        /* Keep logo reasonably sized */
-        width: 80px;
-        height: 80px;
+        margin-bottom: 8px;
+        /* Allow wider logo on mobile */
+        width: auto;
+        height: auto;
+        max-width: 280px;
+        max-height: 100px;
+      }
+
+      .header-logo img {
+        width: auto;
+        height: auto;
+        max-width: 100%;
+        max-height: 100%;
+        object-fit: contain;
       }
 
       .brand-corner {
@@ -1503,30 +1513,7 @@
     });
   </script>
 
-  <!-- MODAL INFO / NEWS -->
-  <dialog id="newsModal" class="modal">
-    <div class="modal-head">
-      <h3>Info / Pengumuman</h3>
-    </div>
-    <div class="modal-body">
-      <div class="field">
-        <label>Judul</label>
-        <input type="text" id="nTitle" class="input" placeholder="Contoh: Briefing Pagi">
-      </div>
-      <div class="field">
-        <label>Isi Pesan</label>
-        <textarea id="nBody" class="input" rows="3" placeholder="Deskripsi singkat..."></textarea>
-      </div>
-      <div class="field">
-        <label>Link (Opsional)</label>
-        <input type="text" id="nLink" class="input" placeholder="https://...">
-      </div>
-    </div>
-    <div class="modal-actions">
-      <button id="btnBackNews" class="btn ghost">Batal</button>
-      <button id="btnSaveNews" class="btn primary">Simpan Info</button>
-    </div>
-  </dialog>
+
 
   <!-- App utama -->
   <!-- App utama (Removed duplicate) -->

@@ -16,6 +16,11 @@
             background-repeat: no-repeat;
         }
 
+        /* Safe Area Support for Notch */
+        .pt-safe {
+            padding-top: max(1.5rem, env(safe-area-inset-top));
+        }
+
         .glass {
             background: rgba(255, 255, 255, 0.1);
             backdrop-filter: blur(10px);
@@ -47,50 +52,61 @@
     <!-- Optional: Overlay to darken BG slightly -->
     <div class="absolute inset-0 bg-black/30 z-0"></div>
 
-    <!-- Navbar / Header (Simple) -->
-    <div class="absolute top-0 left-0 w-full p-6 flex justify-between items-center z-10 text-white">
-        <div class="flex items-center gap-3">
-            <img src="assets/AMAN-S-Logo.jpg" alt="AMAN-S Logo" class="h-12 w-auto rounded-lg shadow-md">
-            <div class="leading-tight text-white">
-                <div class="font-bold text-xl tracking-tight">Aman-S</div>
-                <div class="text-xs font-light opacity-90">Aplikasi Manajemen<br>Pengamanan Aset dan Safety</div>
-            </div>
+    <!-- Header with Safe Area & Gradient for Mobile Visibility -->
+    <div class="absolute top-0 left-0 w-full z-20 pointer-events-none">
+        <!-- Gradient Overlay -->
+        <div
+            class="absolute inset-0 bg-gradient-to-b from-black/80 via-black/40 to-transparent h-32 md:h-24 pointer-events-none">
         </div>
 
-        <div class="hidden md:flex items-center gap-4">
-            <!-- Search Icon (Mock) -->
-            <button class="p-2 rounded-full hover:bg-white/10 transition">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
-                </svg>
-            </button>
+        <!-- Navbar Content -->
+        <div class="relative p-6 pt-safe flex justify-between items-center text-white pointer-events-auto">
+            <div class="flex items-center gap-3">
+                <img src="assets/AMAN-S-Logo.jpg" alt="AMAN-S Logo"
+                    class="h-12 w-auto md:h-14 rounded-lg shadow-lg border border-white/20">
+                <div class="leading-tight text-white drop-shadow-md">
+                    <div class="font-bold text-xl md:text-2xl tracking-tight">Aman-S</div>
+                    <div class="text-xs md:text-sm font-light opacity-95">Aplikasi Manajemen<br>Pengamanan Aset dan
+                        Safety</div>
+                </div>
+            </div>
 
-            <!-- Lang Switcher -->
-            <div class="relative group">
-                <button id="langBtn"
-                    class="flex items-center gap-2 py-1 px-3 rounded-lg border border-white/30 hover:bg-white/10 transition">
-                    <span id="currFlag">🇺🇸</span>
-                    <span id="currLang" class="font-semibold text-sm">EN</span>
-                    <svg class="w-3 h-3 opacity-70" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+            <div class="hidden md:flex items-center gap-4">
+                <!-- Search Icon (Mock) -->
+                <button class="p-2 rounded-full hover:bg-white/10 transition">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
                     </svg>
                 </button>
 
-                <!-- Bridge to prevent closing on gap -->
-                <div class="absolute top-full h-3 w-full bg-transparent"></div>
+                <!-- Lang Switcher -->
+                <div class="relative group">
+                    <button id="langBtn"
+                        class="flex items-center gap-2 py-1 px-3 rounded-lg border border-white/30 hover:bg-white/10 transition backdrop-blur-sm">
+                        <span id="currFlag">🇺🇸</span>
+                        <span id="currLang" class="font-semibold text-sm">EN</span>
+                        <svg class="w-3 h-3 opacity-70" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7">
+                            </path>
+                        </svg>
+                    </button>
 
-                <!-- Dropdown Menu -->
-                <div
-                    class="absolute right-0 top-full mt-2 w-32 glass rounded-lg overflow-hidden shadow-lg transform scale-95 opacity-0 invisible group-hover:scale-100 group-hover:opacity-100 group-hover:visible transition duration-200 origin-top-right">
-                    <button onclick="changeLang('en')"
-                        class="flex items-center gap-3 w-full px-4 py-2 text-sm text-left hover:bg-white/20 text-white transition">
-                        <span>🇺🇸</span> English
-                    </button>
-                    <button onclick="changeLang('id')"
-                        class="flex items-center gap-3 w-full px-4 py-2 text-sm text-left hover:bg-white/20 text-white transition">
-                        <span>🇮🇩</span> Indonesia
-                    </button>
+                    <!-- Bridge to prevent closing on gap -->
+                    <div class="absolute top-full h-3 w-full bg-transparent"></div>
+
+                    <!-- Dropdown Menu -->
+                    <div
+                        class="absolute right-0 top-full mt-2 w-32 glass rounded-lg overflow-hidden shadow-lg transform scale-95 opacity-0 invisible group-hover:scale-100 group-hover:opacity-100 group-hover:visible transition duration-200 origin-top-right">
+                        <button onclick="changeLang('en')"
+                            class="flex items-center gap-3 w-full px-4 py-2 text-sm text-left hover:bg-white/20 text-white transition">
+                            <span>🇺🇸</span> English
+                        </button>
+                        <button onclick="changeLang('id')"
+                            class="flex items-center gap-3 w-full px-4 py-2 text-sm text-left hover:bg-white/20 text-white transition">
+                            <span>🇮🇩</span> Indonesia
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -100,34 +116,37 @@
     <div class="relative z-10 w-full max-w-md p-8 glass rounded-2xl mx-4 animate-fade-in-up">
 
         <div class="text-center mb-8">
-            <h1 class="text-3xl font-bold text-white mb-2" data-i18n="login_title">Login</h1>
-            <p class="text-blue-200 text-sm" data-i18n="login_subtitle">Welcome back! Please enter your details.</p>
+            <h1 class="text-2xl md:text-3xl font-extrabold text-white mb-2 drop-shadow-md" data-i18n="login_title">Login
+            </h1>
+            <p class="text-white/90 text-sm font-medium drop-shadow-sm" data-i18n="login_subtitle">Welcome back! Please
+                enter your details.</p>
         </div>
 
         <div id="messageBox" class="hidden p-3 rounded-lg mb-4 text-center text-sm font-medium"></div>
 
         <form id="loginForm" class="space-y-6">
             <div>
-                <label for="username" class="block text-sm font-medium text-blue-100 mb-1"
+                <label for="username" class="block text-sm font-semibold text-white mb-1 drop-shadow-md"
                     data-i18n="label_username">Username / Email</label>
                 <input type="text" id="username" placeholder="Enter your username"
                     class="w-full p-3 rounded-xl input-glass transition">
             </div>
 
             <div>
-                <label for="password" class="block text-sm font-medium text-blue-100 mb-1"
+                <label for="password" class="block text-sm font-semibold text-white mb-1 drop-shadow-md"
                     data-i18n="label_password">Password</label>
                 <input type="password" id="password" placeholder="••••••••"
                     class="w-full p-3 rounded-xl input-glass transition">
             </div>
 
-            <div class="flex items-center justify-between text-sm">
-                <label class="flex items-center text-blue-200 hover:text-white cursor-pointer select-none">
+            <div class="flex items-center justify-between text-sm text-white/90">
+                <label class="flex items-center hover:text-white cursor-pointer select-none">
                     <input type="checkbox"
                         class="form-checkbox h-4 w-4 bg-transparent border-white/50 rounded mr-2 text-blue-500 focus:ring-0 focus:ring-offset-0">
-                    <span data-i18n="label_remember">Remember me</span>
+                    <span data-i18n="label_remember" class="font-medium">Remember me</span>
                 </label>
-                <a href="#" class="text-blue-300 hover:text-white transition" data-i18n="label_forgot">Forgot
+                <a href="#" class="text-white hover:underline transition font-medium drop-shadow-sm"
+                    data-i18n="label_forgot">Forgot
                     password?</a>
             </div>
 
@@ -138,8 +157,9 @@
         </form>
 
         <div class="mt-8 relative flex items-center justify-center">
-            <div class="absolute inset-x-0 top-1/2 h-px bg-white/20"></div>
-            <span class="relative z-10 bg-transparent px-4 text-xs text-blue-200 uppercase tracking-widest bg-opacity-0"
+            <div class="absolute inset-x-0 top-1/2 h-px bg-white/30"></div>
+            <span
+                class="relative z-10 bg-transparent px-4 text-xs text-white font-medium uppercase tracking-widest bg-opacity-0 drop-shadow-sm"
                 data-i18n="text_or">or
                 continue with</span>
         </div>
