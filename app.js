@@ -53,6 +53,7 @@ window.addEventListener('DOMContentLoaded', () => {
   let sb = null;
 
   function initSupabase() {
+    window.initSupabase = initSupabase; // Expose global
     if (sb) return sb; // Already initialized
 
     // Check prerequisites
@@ -74,6 +75,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
     try {
       sb = window.supabase.createClient(window.SA_SUPABASE_URL, window.SA_SUPABASE_ANON);
+      window.sb = sb; // Expose global
       // Simple functional check
       sb.from('news').select('count', { count: 'exact', head: true }).then(({ error }) => {
         if (error) alert('Supabase Connect Error: ' + error.message);
@@ -2611,11 +2613,11 @@ window.deleteInventory = async function (id) {
   if (!confirm('⚠️ YAKIN INGIN MENGHAPUS DATA INI?\nData yang dihapus akan hilang permanen dari server juga.')) return;
 
   // 1. Remove Cloud First (Verify it works)
-  if (sb) {
+  if (window.sb) {
     try {
       // Show loading indicator implicitly by freezing UI or just notify?
       // Since it's row action, we just await.
-      const { error } = await sb.from('inventory').delete().eq('id', id);
+      const { error } = await window.sb.from('inventory').delete().eq('id', id);
       if (error) {
         throw error;
       }
@@ -2629,7 +2631,7 @@ window.deleteInventory = async function (id) {
   inventoryData = inventoryData.filter(x => x.id !== id);
   saveInventory(); // Updates UI
 
-  if (sb) if (window.toast) toast('Data berhasil dihapus dari Cloud.');
+  if (window.sb) if (window.toast) toast('Data berhasil dihapus dari Cloud.');
 };
 
 
@@ -2657,8 +2659,8 @@ document.addEventListener('DOMContentLoaded', () => {
     if (btnSync && btnSync.disabled) return;
 
     // Attempt lazy init if not yet ready
-    if (!sb) { initSupabase(); }
-    if (!sb) { alert('❌ Mode Offline. Pastikan URL & Key Supabase sudah diisi di index.html'); return; }
+    if (!window.sb) { if (window.initSupabase) window.initSupabase(); }
+    if (!window.sb) { alert('❌ Mode Offline. Pastikan URL & Key Supabase sudah diisi di index.html'); return; }
 
     // 1. Production Mode Start
     // const count = inventoryData.length;
@@ -2680,7 +2682,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const tIn = item.timeIn ? new Date(item.timeIn).toISOString() : null;
         const tOut = item.timeOut ? new Date(item.timeOut).toISOString() : null;
 
-        const { error } = await sb.from('inventory').upsert({
+        const { error } = await window.sb.from('inventory').upsert({
           id: item.id, carrier: item.carrier, company: item.company,
           item: item.item, dest: item.dest, officer: item.officer, type: item.type,
           time_in: tIn, time_out: tOut
@@ -2691,7 +2693,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       // 4. Pull
-      const { data: invs } = await sb.from('inventory').select('*');
+      const { data: invs } = await window.sb.from('inventory').select('*');
       if (invs) {
         const serverMap = new Map(invs.map(x => [x.id, x]));
         const localMap = new Map(inventoryData.map(x => [x.id, x]));
