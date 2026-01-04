@@ -1470,6 +1470,9 @@ window.addEventListener('DOMContentLoaded', () => {
     // Group filter
     const gr = $('#attGroupFilter')?.value || '';
 
+    // Status filter
+    const st = $('#attStatusFilter')?.value || '';
+
     const rows = attendance.filter(a => {
       // 1. Check Date
       if (a.ts < from || a.ts > to) return false;
@@ -1483,9 +1486,37 @@ window.addEventListener('DOMContentLoaded', () => {
       // 3. Check Group
       if (gr) {
         const emp = employees.find(e => e.nid === a.nid);
-        // If employee not found (deleted), maybe exclude? or include if we can guess?
-        // Safest is to exclude if we can't match group
         if (!emp || emp.shift !== gr) return false;
+      }
+
+      // 4. Check Status (Late/Ontime)
+      if (st) {
+        if (st === 'LATE' && !a.late) return false;
+        if (st === 'ONTIME' && a.late) return false;
+        // UNKNOWN = jika status bukan 'datang' (misal pulang) atau datang tapi field late undefined? 
+        // Asumsi: 'late' flag ada di record 'datang'. 
+        // Jika user filter LATE, kita cari a.late == true.
+        // Jika filter ONTIME, kita cari a.late == false (tapi hanya yg 'datang'?). 
+        // Sederhananya: 
+        // LATE -> a.late === true
+        // ONTIME -> a.late === false (atau falsy) DAN status === 'datang' (opsional, tergantung definisi user)
+        // Kita pakai logika simple:
+        if (st === 'ONTIME' && (a.late || a.status !== 'datang')) return false;
+        // ^ Note: 'On-time' biasanya refer ke Datang Tepat Waktu. Pulang tidak ada on-time/late di logic ini (kecuali overtime).
+        // Tapi row 'Pulang' tidak punya flag 'late' biasanya. Jadi kalau pilih ONTIME, row Pulang hilang?
+        // Mari kita buat lebih longgar:
+        // Jika st === 'ONTIME' -> !a.late (berarti tidak terlambat).
+
+        // REVISI LOGIC FILTER:
+        if (st === 'LATE') {
+          if (!a.late) return false;
+        } else if (st === 'ONTIME') {
+          // Hanya tampilkan yang STATUS='datang' DAN TIDAK LATE
+          if (a.status !== 'datang' || a.late) return false;
+        } else if (st === 'UNKNOWN') {
+          // Opsional: tampilkan yg tidak punya flag late (misal data lama / pulang)
+          if (a.status === 'datang' && typeof a.late === 'boolean') return false;
+        }
       }
 
       return true;
@@ -1518,6 +1549,7 @@ window.addEventListener('DOMContentLoaded', () => {
   // Realtime search & group filter
   $('#attSearch')?.addEventListener('input', filterAttendance);
   $('#attGroupFilter')?.addEventListener('change', filterAttendance);
+  $('#attStatusFilter')?.addEventListener('change', filterAttendance);
 
   $('#tableAtt tbody')?.addEventListener('click', (e) => {
     const btn = e.target.closest('button[data-act="del-att"]'); if (!btn) return;
