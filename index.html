@@ -616,6 +616,8 @@
       <button class="navlink" data-route="latest">📰 <span data-i18n="nav_latest">Latest information</span></button>
       <button class="navlink" data-route="education">🎓 <span data-i18n="nav_education">Education</span></button>
       <button class="navlink" data-route="inventory">📦 <span>Keluar Masuk Barang</span></button>
+      <button class="navlink" data-route="analysis" style="color:var(--orange-600)">☕ <span>Analisis
+          Izin</span></button>
 
       <hr style="border:0; border-top:1px solid var(--line); margin:8px 0;">
 
@@ -893,7 +895,19 @@
             <!-- Input Scan -->
             <input id="scanInput" class="scan-input light" placeholder="Klik di sini lalu scan…" autocomplete="off"
               autocapitalize="off" spellcheck="false" inputmode="none" data-i18n="scan_placeholder" />
-            <div class="hint light marquee-wrap" style="max-width: 600px;">
+
+            <!-- Break Mode Buttons -->
+            <div class="break-controls" style="display:flex; gap:10px; margin-top:10px; justify-content:center;">
+              <button id="btnBreakOut" class="btn warning" style="min-width:120px;">☕ Izin Keluar</button>
+              <button id="btnBreakIn" class="btn primary" style="min-width:120px;">🔙 Kembali</button>
+              <button id="btnBreakCancel" class="btn" style="min-width:100px; display:none;">❌ Batal</button>
+            </div>
+            <div id="breakModeIndicator" class="hidden"
+              style="margin-top:8px; text-align:center; font-weight:bold; color:var(--orange-600);">
+              Mode: <span id="breakModeText">ISTIRAHAT</span>
+            </div>
+
+            <div class="hint light marquee-wrap" style="max-width: 600px; margin-top: 10px;">
               <div class="marquee-content" data-i18n="scan_hint">Utamakan Keselamatan dan Kesehatan Kerja.</div>
             </div>
 
@@ -1311,6 +1325,58 @@
             <tbody>
               <tr>
                 <td colspan="10" class="muted" style="text-align:center; padding: 20px;">Belum ada data log barang.</td>
+              </tr>
+            </tbody>
+          </table>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ANALYSIS (BREAK) -->
+    <section class="route hidden" id="route-analysis">
+      <div class="header-modern" style="margin-bottom:20px;">
+        <div class="header-content">
+          <h1 class="header-title">Analisis Izin & Istirahat</h1>
+          <div class="header-subtitle"><span data-i18n="analysis_subtitle">Laporan frekuensi izin keluar karyawan
+              berdasarkan periode.</span></div>
+        </div>
+      </div>
+
+      <div class="card toolbar" style="margin-bottom: 20px;">
+        <div style="display:flex; flex-wrap:wrap; gap:12px; align-items:flex-end;">
+          <label class="compact">
+            <span class="label">Bulan</span>
+            <input type="month" id="filterAnalysisMonth" class="input-sm">
+          </label>
+          <label class="compact">
+            <span class="label">Perusahaan</span>
+            <select id="filterAnalysisCompany" class="input-sm">
+              <option value="">Semua Perusahaan</option>
+            </select>
+          </label>
+          <button onclick="renderBreakAnalysis()" class="btn primary" style="height:38px;">🔍 Tampilkan</button>
+          <button onclick="exportBreakAnalysisPDF()" class="btn" style="height:38px; border:1px solid #ccc;">📄 Download
+            PDF</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="table-wrap">
+          <table class="table" id="tableAnalysis">
+            <thead>
+              <tr>
+                <th style="width:50px;">Rank</th>
+                <th>NID</th>
+                <th>Nama Karyawan</th>
+                <th>Perusahaan</th>
+                <th style="text-align:center;">Total Izin Keluar</th>
+                <th>Keterangan</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td colspan="6" class="muted" style="text-align:center;">Silakan pilih bulan dan klik Tampilkan.</td>
               </tr>
             </tbody>
           </table>

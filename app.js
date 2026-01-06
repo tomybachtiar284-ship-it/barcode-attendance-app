@@ -119,17 +119,28 @@ window.addEventListener('DOMContentLoaded', () => {
 
   async function pushAttendance(r) {
     if (!sb) return;
-    const { error } = await sb.from('attendance').insert({
-      ts: r.ts, status: r.status, nid: r.nid, name: r.name,
-      title: r.title, company: r.company, shift: r.shift,
-      note: r.note, late: r.late, ok_shift: r.okShift,
-      created_at: new Date(r.ts).toISOString()
-    });
-    if (error) console.error('Push att error:', error);
+    // Check status to decide table
+    if (r.status === 'break_out' || r.status === 'break_in') {
+      const { error } = await sb.from('breaks').insert({
+        ts: r.ts, status: r.status, nid: r.nid, name: r.name,
+        company: r.company, created_at: new Date(r.ts).toISOString()
+      });
+      if (error) console.error('Push break error:', error);
+    } else {
+      const { error } = await sb.from('attendance').insert({
+        ts: r.ts, status: r.status, nid: r.nid, name: r.name,
+        title: r.title, company: r.company, shift: r.shift,
+        note: r.note, late: r.late, ok_shift: r.okShift,
+        created_at: new Date(r.ts).toISOString()
+      });
+      if (error) console.error('Push att error:', error);
+    }
   }
   async function delAttendance(ts) {
     if (!sb) return;
+    // Try delete from both to be safe
     await sb.from('attendance').delete().eq('ts', ts);
+    await sb.from('breaks').delete().eq('ts', ts);
   }
 
   async function pushNews(n) {
@@ -212,15 +223,35 @@ window.addEventListener('DOMContentLoaded', () => {
 
     // Attendance (last 7 days)
     const since = Date.now() - 7 * 24 * 3600 * 1000;
+
+    // Fetch Main Attendance
     const { data: atts } = await sb.from('attendance').select('*').gte('ts', since);
-    if (atts) {
+    // Fetch Breaks
+    const { data: brks } = await sb.from('breaks').select('*').gte('ts', since);
+
+    if (atts || brks) {
       const old = attendance.filter(a => a.ts < since);
-      const newAtts = atts.map(x => ({
-        ts: x.ts, status: x.status, nid: x.nid, name: x.name,
-        title: x.title, company: x.company, shift: x.shift,
-        note: x.note, late: x.late, okShift: x.ok_shift
-      }));
-      attendance = [...old, ...newAtts].sort((a, b) => a.ts - b.ts);
+
+      let newAtts = [];
+      if (atts) {
+        newAtts = atts.map(x => ({
+          ts: x.ts, status: x.status, nid: x.nid, name: x.name,
+          title: x.title, company: x.company, shift: x.shift,
+          note: x.note, late: x.late, okShift: x.ok_shift
+        }));
+      }
+
+      let newBreaks = [];
+      if (brks) {
+        newBreaks = brks.map(x => ({
+          ts: x.ts, status: x.status, nid: x.nid, name: x.name,
+          title: '', company: x.company, shift: '',
+          note: (x.status === 'break_out' ? 'Izin Keluar / Istirahat' : 'Kembali Masuk'),
+          late: false, okShift: true
+        }));
+      }
+
+      attendance = [...old, ...newAtts, ...newBreaks].sort((a, b) => a.ts - b.ts);
       save(LS_ATT, attendance);
     }
 
@@ -331,6 +362,7 @@ window.addEventListener('DOMContentLoaded', () => {
     if (route === 'latest') renderLatest();
     if (route === 'shifts') { renderShiftForm(); initMonthlyScheduler(); }
     if (route === 'inventory') renderInventory();
+    if (route === 'analysis') renderAnalysisPage();
   }));
 
   // NEW: Restore Last Route (Page Persistence)
@@ -820,7 +852,12 @@ window.addEventListener('DOMContentLoaded', () => {
       else { pill.textContent = '—'; $('#scanTs') && ($('#scanTs').textContent = '—'); }
     }
   }
-  function nextStatusFor(nid) { const sod = new Date(todayISO() + 'T00:00:00').getTime(); const cnt = attendance.filter(a => a.nid === nid && a.ts >= sod).length; return (cnt % 2 === 0) ? 'datang' : 'pulang'; }
+  function nextStatusFor(nid) {
+    const sod = new Date(todayISO() + 'T00:00:00').getTime();
+    // Filter ONLY 'datang' and 'pulang' to toggle main shift status
+    const cnt = attendance.filter(a => a.nid === nid && a.ts >= sod && (a.status === 'datang' || a.status === 'pulang')).length;
+    return (cnt % 2 === 0) ? 'datang' : 'pulang';
+  }
   function parseRaw(s) { if (!s) return null; const p = s.split('|'); return (p.length >= 4) ? { nid: p[0], name: p[1], title: p[2], company: p[3] } : { nid: s }; }
   function findEmp(p) { if (!p) return null; let e = employees.find(x => x.nid == p.nid); if (!e && p.name) { e = employees.find(x => x.name.toLowerCase() === p.name.toLowerCase()); } return e; }
 
@@ -853,6 +890,32 @@ window.addEventListener('DOMContentLoaded', () => {
   });
   window.addEventListener('load', () => { $('#scanInput')?.focus(); });
 
+  let scanMode = 'auto'; // auto, break_out, break_in
+
+  // Break Buttons UI Logic
+  function setScanMode(mode) {
+    scanMode = mode;
+    const indicator = $('#breakModeIndicator');
+    const txt = $('#breakModeIndicator span');
+    const btnCancel = $('#btnBreakCancel');
+
+    if (mode === 'auto') {
+      indicator?.classList.add('hidden');
+      btnCancel && (btnCancel.style.display = 'none');
+      $('#scanInput')?.focus();
+    } else {
+      indicator?.classList.remove('hidden');
+      txt.textContent = (mode === 'break_out') ? 'IZIN KELUAR / ISTIRAHAT' : 'KEMBALI MASUK';
+      txt.style.color = (mode === 'break_out') ? 'var(--warning-600)' : 'var(--primary-600)';
+      btnCancel && (btnCancel.style.display = 'inline-block');
+      $('#scanInput')?.focus();
+    }
+  }
+
+  $('#btnBreakOut')?.addEventListener('click', () => setScanMode('break_out'));
+  $('#btnBreakIn')?.addEventListener('click', () => setScanMode('break_in'));
+  $('#btnBreakCancel')?.addEventListener('click', () => setScanMode('auto'));
+
   function handleScan(raw) {
     const parsed = parseRaw(raw); const ts = now(); const emp = findEmp(parsed);
     if (!emp) {
@@ -864,7 +927,18 @@ window.addEventListener('DOMContentLoaded', () => {
     let effShift = effectiveShiftFor(emp, ts);
     let noteOverride = ''; if (effShift === 'OFF') { noteOverride = 'Libur'; }
 
-    const status = nextStatusFor(emp.nid);
+    // Logic Break vs Auto
+    let status = 'datang';
+    if (scanMode === 'break_out') {
+      status = 'break_out';
+      noteOverride = 'Izin Keluar / Istirahat';
+    } else if (scanMode === 'break_in') {
+      status = 'break_in';
+      noteOverride = 'Kembali dari Istirahat';
+    } else {
+      status = nextStatusFor(emp.nid);
+    }
+
     const sWin = effShift === 'OFF' ? null : shiftWindow(effShift);
     const inWin = sWin ? isInWindow(minutesOf(ts), sWin) : false;
 
@@ -875,6 +949,9 @@ window.addEventListener('DOMContentLoaded', () => {
       const startDate = toDateFromHM(baseDay, shifts[effShift]?.start || '00:00');
       late = ts.getTime() >= (startDate.getTime() + 5 * 60 * 1000);
     }
+
+    // Reset mode back to auto after scan
+    if (scanMode !== 'auto') setScanMode('auto');
 
     const rec = {
       ts: ts.getTime(), status,
@@ -891,6 +968,180 @@ window.addEventListener('DOMContentLoaded', () => {
     window.dispatchEvent(new Event('attendance:update'));
     renderScanStats();
   }
+
+  // == NEW REPORT: Analisis Izin/Istirahat (Full Page) ==
+  function renderAnalysisPage() {
+    // Default month to current if empty
+    const mPicker = $('#filterAnalysisMonth');
+    if (mPicker && !mPicker.value) mPicker.value = todayISO().slice(0, 7);
+
+    // Populate Company Filter
+    const cSel = $('#filterAnalysisCompany');
+    if (cSel) {
+      const currentVal = cSel.value;
+      const companies = [...new Set(employees.map(e => (e.company || '').trim()).filter(Boolean))].sort();
+      cSel.innerHTML = '<option value="">Semua Perusahaan</option>' +
+        companies.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join('');
+      cSel.value = currentVal;
+    }
+  }
+
+  window.renderBreakAnalysis = function () {
+    const m = $('#filterAnalysisMonth')?.value;
+    const c = $('#filterAnalysisCompany')?.value || '';
+    const tbody = $('#tableAnalysis tbody');
+    if (!tbody) return;
+
+    if (!m) { toast('Pilih bulan terlebih dahulu.'); return; }
+
+    const start = new Date(m + '-01T00:00:00').getTime();
+    const year = parseInt(m.split('-')[0]), month = parseInt(m.split('-')[1]);
+    const end = new Date(year, month, 0, 23, 59, 59).getTime();
+
+    // Filter Data
+    let rawBreaks = attendance.filter(a => a.ts >= start && a.ts <= end && (a.status === 'break_out' || a.status === 'break_in'));
+
+    // Filter Company if selected
+    if (c) {
+      rawBreaks = rawBreaks.filter(b => (b.company || '').trim() === c);
+    }
+
+    // Group by NID and pairwise logic
+    const grouped = {};
+    rawBreaks.sort((a, b) => a.ts - b.ts); // Ensure time order for pairing
+
+    rawBreaks.forEach(r => {
+      if (!grouped[r.nid]) grouped[r.nid] = { name: r.name, company: r.company, sessions: [], lastOut: null };
+
+      if (r.status === 'break_out') {
+        grouped[r.nid].lastOut = r.ts;
+        // Push partial session
+        grouped[r.nid].sessions.push({ out: r.ts, in: null });
+      } else if (r.status === 'break_in') {
+        // Find last open session
+        const sessions = grouped[r.nid].sessions;
+        const last = sessions[sessions.length - 1];
+        if (last && last.out && !last.in) {
+          last.in = r.ts;
+        } else {
+          // Orphan break_in? Ignore or log?
+        }
+      }
+    });
+
+    // Convert to array and filter only checks that have at least one OUT
+    const sorted = Object.entries(grouped)
+      .map(([nid, val]) => ({ nid, ...val, count: val.sessions.length }))
+      .filter(x => x.count > 0)
+      .sort((a, b) => b.count - a.count);
+
+    // Render
+    if (sorted.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding:20px;">Tidak ada data izin keluar pada bulan ${m} ${c ? 'untuk ' + c : ''}.</td></tr>`;
+      return;
+    }
+
+    const hm = (ts) => ts ? new Date(ts).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : '...';
+
+    tbody.innerHTML = sorted.map((row, i) => {
+      const rank = i + 1;
+      // Format sessions
+      const details = row.sessions.map(s => {
+        const tOut = hm(s.out);
+        const tIn = hm(s.in);
+        const dur = (s.out && s.in) ? Math.round((s.in - s.out) / 60000) + 'm' : '?';
+        return `<div class="chip-sm" style="margin-bottom:2px; font-size:0.75rem;">${tOut} - ${tIn} (${dur})</div>`;
+      }).join('');
+
+      return `<tr>
+              <td style="text-align:center; font-weight:bold;">${rank}</td>
+              <td>${row.nid}</td>
+              <td>${row.name}</td>
+              <td>${row.company || '-'}</td>
+              <td style="text-align:center; font-weight:bold; font-size:1.1rem; color:var(--orange-600)">${row.count}</td>
+              <td>${details}</td>
+          </tr>`;
+    }).join('');
+  };
+
+  window.exportBreakAnalysisPDF = function () {
+    const { jsPDF } = window.jspdf;
+    if (!jsPDF) { alert("Library jsPDF belum dimuat."); return; }
+
+    const m = $('#filterAnalysisMonth')?.value;
+    const c = $('#filterAnalysisCompany')?.value || '';
+    if (!m) { toast('Pilih bulan terlebih dahulu.'); return; }
+
+    const start = new Date(m + '-01T00:00:00').getTime();
+    const year = parseInt(m.split('-')[0]), month = parseInt(m.split('-')[1]);
+    const end = new Date(year, month, 0, 23, 59, 59).getTime();
+
+    let rawBreaks = attendance.filter(a => a.ts >= start && a.ts <= end && (a.status === 'break_out' || a.status === 'break_in'));
+    if (c) rawBreaks = rawBreaks.filter(b => (b.company || '').trim() === c);
+
+    rawBreaks.sort((a, b) => a.ts - b.ts);
+    const grouped = {};
+    rawBreaks.forEach(r => {
+      if (!grouped[r.nid]) grouped[r.nid] = { name: r.name, company: r.company, sessions: [] };
+      if (r.status === 'break_out') {
+        grouped[r.nid].sessions.push({ out: r.ts, in: null });
+      } else if (r.status === 'break_in') {
+        const last = grouped[r.nid].sessions[grouped[r.nid].sessions.length - 1];
+        if (last && last.out && !last.in) last.in = r.ts;
+      }
+    });
+
+    const sorted = Object.values(grouped).map(v => ({ ...v, count: v.sessions.length })).filter(x => x.count > 0).sort((a, b) => b.count - a.count);
+    if (sorted.length === 0) { alert('Tidak ada data untuk diekspor.'); return; }
+
+    const doc = new jsPDF();
+
+    // Header
+    doc.setFontSize(14);
+    doc.text("Laporan Detil Izin Keluar & Istirahat", 14, 15);
+    doc.setFontSize(10);
+    doc.text(`Periode: ${m} | Filter: ${c || 'Semua Perusahaan'}`, 14, 22);
+    doc.text(`Dicetak: ${new Date().toLocaleString()}`, 14, 27);
+
+    // Table
+    const headers = [["Rank", "Nama", "Total", "Detail Waktu (Keluar - Masuk)"]];
+
+    const fullData = [];
+    const hm = (ts) => ts ? new Date(ts).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', day: '2-digit' }) : '...';
+
+    sorted.forEach((row, i) => {
+      const detailStr = row.sessions.map(s => {
+        const strOut = hm(s.out);
+        const strIn = s.in ? new Date(s.in).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : '...'; // Show only hour:min for IN if same day
+        // If different day, maybe show date?
+        // Let's simplified as: DD HH:mm
+        return `${strOut} s/d ${strIn}`;
+      }).join('\n');
+
+      fullData.push([
+        i + 1,
+        row.name + `\n(${row.company || '-'})`,
+        row.count + 'x',
+        detailStr
+      ]);
+    });
+
+    doc.autoTable({
+      head: headers,
+      body: fullData,
+      startY: 32,
+      theme: 'grid',
+      headStyles: { fillColor: [220, 53, 69] },
+      styles: { fontSize: 9 },
+      columnStyles: {
+        0: { halign: 'center', cellWidth: 15 },
+        2: { halign: 'center', cellWidth: 15 },
+        3: { cellWidth: 80 }
+      }
+    });
+
+    doc.save(`Analisis_Izin_Detail_${m}.pdf`);
+  };
 
   // ===== Employees =====
   const empTBody = $('#tableEmp tbody'); let editIdx = -1;
