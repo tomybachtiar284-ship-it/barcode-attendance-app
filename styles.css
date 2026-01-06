@@ -2,14 +2,23 @@
    AREA 1: KONFIGURASI ROOT (VARIABLES)
    ========================================================================== */
 :root {
-  /* ===== WARNA TEMA ===== */
-  --primary-700: #1e5ad6;
-  --primary-600: #2b7bff;
-  --primary-500: #4a8cff;
-  --primary-300: #a6c8ff;
-  --primary-200: #d6e6ff;
-  --primary-100: #eaf2ff;
-  --primary-50: #267eb4;
+  /* ===== WARNA TEMA (PLN Nusantara Power Services) ===== */
+  /* Main Blue: #00AEEF */
+  --primary-700: #008dbf;
+  /* Darker shade for hover */
+  --primary-600: #00AEEF;
+  /* Main Brand Color */
+  --primary-500: #33beff;
+  /* Lighter shade */
+  --primary-300: #a6dfff;
+  --primary-200: #d6f0ff;
+  --primary-100: #eaf8ff;
+  --primary-50: #00A2B9;
+  /* Using Secondary Teal for specific accents */
+
+  /* ===== WARNA TIPOGRAFI BRAND ===== */
+  --text-brand: #00A2B9;
+  /* Corporate Teal */
 
   /* ===== WARNA DASAR ===== */
   --bg: #23d9e2fd;
@@ -21,8 +30,10 @@
 
   /* ===== WARNA STATUS ===== */
   --success: #10b981;
-  --warning: #f59e0b;
-  --danger: #ef4444;
+  --warning: #FFF200;
+  /* Brand Yellow */
+  --danger: #ED1C24;
+  /* Brand Red */
 
   /* ===== LAYOUT & EFEK ===== */
   --radius: 18px;
@@ -58,8 +69,9 @@
   --cal-chip-text: var(--text);
   --cal-chip-border: var(--line);
   --cal-chip-hover-bg: var(--primary-200);
-  --cal-chip-active-bg: var(--primary-100);
-  --cal-chip-active-text: var(--primary-700);
+  --cal-chip-active-bg: var(--primary-600);
+  /* Strong active state */
+  --cal-chip-active-text: #ffffff;
   --cal-chip-focus: var(--primary-500);
 
   /* ===== BESAR FOTO SCAN ===== */
@@ -149,7 +161,9 @@ body::after {
   border-radius: 12px;
   display: grid;
   place-items: center;
-  background: linear-gradient(160deg, var(--primary-500), var(--primary-600));
+  place-items: center;
+  /* Brand Gradient: Blue to Teal */
+  background: linear-gradient(135deg, var(--primary-600), var(--text-brand));
   color: #fff;
   font-weight: 900;
   box-shadow: 0 6px 20px rgba(43, 123, 255, .35);
@@ -252,7 +266,9 @@ body::after {
 
 .card-title {
   font-weight: 700;
-  margin-bottom: 12px
+  margin-bottom: 12px;
+  color: var(--text-brand);
+  /* Brand identity on headers */
 }
 
 .card:hover {
@@ -2300,4 +2316,14 @@ dialog.camdlg::backdrop {
     white-space: nowrap;
     font-size: 0.85rem;
   }
+}
+
+/* ===== REBRANDING POLISH ===== */
+.header-title,
+h1.page-title {
+  color: var(--text-brand) !important;
+}
+
+.brand-name {
+  color: var(--text-brand);
 }
