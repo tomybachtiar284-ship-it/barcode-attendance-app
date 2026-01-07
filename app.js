@@ -1050,7 +1050,10 @@ window.addEventListener('DOMContentLoaded', () => {
         const tOut = hm(s.out);
         const tIn = hm(s.in);
         const dur = (s.out && s.in) ? Math.round((s.in - s.out) / 60000) + 'm' : '?';
-        return `<div class="chip-sm" style="margin-bottom:2px; font-size:0.75rem;">${tOut} - ${tIn} (${dur})</div>`;
+        return `<div class="chip-sm" style="margin-bottom:2px; font-size:0.75rem; display:inline-flex; align-items:center;">
+             ${tOut} - ${tIn} (${dur})
+             <button onclick="deleteBreakSession(${s.out}, ${s.in || 'null'})" title="Hapus Sesi" style="background:none; border:none; color:var(--danger); cursor:pointer; margin-left:6px; font-size:1.1em; line-height:1;">&times;</button>
+        </div>`;
       }).join('');
 
       return `<tr>
@@ -1062,6 +1065,29 @@ window.addEventListener('DOMContentLoaded', () => {
               <td>${details}</td>
           </tr>`;
     }).join('');
+  };
+
+  window.deleteBreakSession = async function (tsOut, tsIn) {
+    if (!confirm('Apakah Anda yakin ingin menghapus data izin/istirahat ini?')) return;
+
+    // Hapus dari array lokal (filter keluar tsOut dan tsIn)
+    attendance = attendance.filter(a => a.ts !== tsOut && a.ts !== tsIn);
+    save(LS_ATT, attendance);
+    syncGlobals();
+
+    // Tampilkan ulang
+    window.renderBreakAnalysis();
+    renderDashboard();
+
+    // Hapus dari server
+    try {
+      await delAttendance(tsOut);
+      if (tsIn) await delAttendance(tsIn);
+      toast('Data berhasil dihapus dari server.');
+    } catch (err) {
+      console.error(err);
+      toast('Gagal hapus server: ' + err.message);
+    }
   };
 
   window.exportBreakAnalysisPDF = function () {
