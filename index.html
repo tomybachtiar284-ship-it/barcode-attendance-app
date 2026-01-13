@@ -1010,8 +1010,17 @@
           <button id="btnExportEmp" class="btn ghost" data-i18n="btn_export">⬇️ Export Excel</button>
           <button id="btnTemplateEmp" class="btn ghost" data-i18n="btn_template">📄 Unduh Template</button>
         </div>
-        <div class="right"><input id="searchEmp" class="search" placeholder="Cari nama atau NID…"
-            data-i18n="search_placeholder" /></div>
+        <div class="right" style="display:flex; gap:8px;">
+          <select id="filterEmpGroup" class="input" style="padding:8px; border-radius:8px; width:140px;">
+            <option value="">Semua Grup</option>
+            <option value="A">Group A</option>
+            <option value="B">Group B</option>
+            <option value="C">Group C</option>
+            <option value="D">Group D</option>
+            <option value="DAYTIME">Daytime</option>
+          </select>
+          <input id="searchEmp" class="search" placeholder="Cari nama atau NID…" data-i18n="search_placeholder" />
+        </div>
       </div>
 
       <!-- Container untuk Kartu Perusahaan (Dynamic) -->

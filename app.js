@@ -1220,8 +1220,18 @@ window.addEventListener('DOMContentLoaded', () => {
     if (reset) {
       container.innerHTML = '';
       empLimit = empStep;
+      empLimit = empStep;
       const q = $('#searchEmp')?.value?.toLowerCase() || '';
-      currentFilteredEmp = employees.filter(e => (e.nid + ' ' + e.name + ' ' + (e.company || '')).toLowerCase().includes(q));
+      const gr = $('#filterEmpGroup')?.value || ''; // Group filter
+
+      currentFilteredEmp = employees.filter(e => {
+        // 1. Text Search
+        const matchText = (e.nid + ' ' + e.name + ' ' + (e.company || '')).toLowerCase().includes(q);
+        // 2. Group Filter
+        const matchGroup = gr ? (e.shift === gr) : true;
+
+        return matchText && matchGroup;
+      });
       currentFilteredEmp.sort((a, b) => a.name.localeCompare(b.name));
     }
 
@@ -1470,6 +1480,9 @@ window.addEventListener('DOMContentLoaded', () => {
     }
     else if (b.dataset.act === 'barcode') { dlBarcode(employees[idx]); }
   });
+  $('#btnExportEmp')?.addEventListener('click', () => exportExcelEmployees());
+  $('#searchEmp')?.addEventListener('input', debounce(() => renderEmployees(true), 300));
+  $('#filterEmpGroup')?.addEventListener('change', () => renderEmployees(true)); // Filter Group
   $('#btnAddEmp')?.addEventListener('click', () => openEmp());
 
   function openEmp(data = null, index = -1) {
