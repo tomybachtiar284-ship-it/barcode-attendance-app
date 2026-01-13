@@ -32,13 +32,13 @@ window.addEventListener('DOMContentLoaded', () => {
       A: { start: '08:00', end: '16:00' },
       B: { start: '16:00', end: '24:00' },
       C: { start: '24:00', end: '07:00' },
-      D: { start: '07:30', end: '15:30' },
-      DAYTIME: { start: '07:30', end: '16:00' }
+      /* D removed */
+      DAYTIME: { start: '08:00', end: '16:00' }
     }),
     news = load(LS_NEWS, []),
     sched = load(LS_SCHED, {});
   /* Cleanup removed */
-  // if (shifts.D) { delete shifts.D; save(LS_SHIFTS, shifts); }
+  if (shifts.D) { delete shifts.D; save(LS_SHIFTS, shifts); }
 
   // expose ke window agar script lain dapat ikut pakai
   function syncGlobals() {
@@ -202,24 +202,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
   async function pushShifts() {
     if (!sb) return;
-    // Map internal shifts object to array of rows
-    const rows = Object.entries(shifts).map(([code, val]) => ({
-      code: code,
-      label: CODE_TO_LABEL[code] || code, // Use app label or code as fallback
-      start_time: val.start,
-      end_time: val.end,
-      updated_at: new Date().toISOString()
-    }));
-
-    // Upsert all rows
-    const { error } = await sb.from('shifts').upsert(rows, { onConflict: 'code' });
-    if (error) {
-      console.error('Push shifts error:', error);
-      alert('GAGAL SIMPAN SHIFT KE DB: ' + error.message);
-    } else {
-      // Debug only (optional, remove later if annoying)
-      // toast('Shift berhasil disimpan ke Database SQL');
-    }
+    await sb.from('settings').upsert({ key: 'shifts', value: shifts }, { onConflict: 'key' });
   }
   async function pushSched(monthId) {
     if (!sb || !monthId) return;
@@ -329,22 +312,12 @@ window.addEventListener('DOMContentLoaded', () => {
       saveInventory();
     }
 
-    // Shifts - Fetch from new dedicated table
-    const { data: shRows, error: shErr } = await sb.from('shifts').select('*');
-    if (shErr) {
-      console.error('Error fetching shifts:', shErr);
-      alert('GAGAL AMBIL SHIFT DARI DB: ' + shErr.message);
-    } else if (shRows && shRows.length > 0) {
-      const newShifts = { ...shifts };
-      shRows.forEach(row => {
-        newShifts[row.code] = { start: row.start_time, end: row.end_time };
-      });
-      shifts = newShifts;
+    // Shifts
+    const { data: sh } = await sb.from('settings').select('*').eq('key', 'shifts').single();
+    if (sh && sh.value) {
+      shifts = sh.value;
+      if (shifts.D) { delete shifts.D; pushShifts(); } // Auto-clean server
       save(LS_SHIFTS, shifts);
-      // toast(`Sync: ${shRows.length} shift loaded from DB.`);
-    } else {
-      console.warn('No shifts found in DB?');
-      // alert('PERINGATAN: Tabel Shifts di Database kosong! Memakai default.');
     }
 
     // Schedule (current month)
@@ -411,12 +384,12 @@ window.addEventListener('DOMContentLoaded', () => {
 
   // Shift helpers
   const SHIFT_KEYS = ['A', 'B', 'C', 'D', 'DAYTIME'];
-  const CODE_TO_LABEL = { A: 'P', B: 'S', C: 'M', D: 'D', DAYTIME: 'DAY', OFF: 'L' };
+  const CODE_TO_LABEL = { A: 'P', B: 'S', C: 'M', DAYTIME: 'DAY', OFF: 'L' };
   const LABEL_TO_CODE = {
-    'a': 'A', 'p': 'A', 'pagi': 'A', 'group a': 'A',
-    'b': 'B', 's': 'B', 'sore': 'B', 'group b': 'B',
-    'c': 'C', 'm': 'C', 'malam': 'C', 'group c': 'C',
-    'd': 'D', 'shift d': 'D', 'group d': 'D',
+    'a': 'A', 'p': 'A', 'pagi': 'A',
+    'b': 'B', 's': 'B', 'sore': 'B',
+    'c': 'C', 'm': 'C', 'malam': 'C',
+    /* D removed */
     'day': 'DAYTIME', 'daytime': 'DAYTIME', 'siang': 'DAYTIME',
     'off': 'OFF', 'l': 'OFF', 'libur': 'OFF'
   };
@@ -492,7 +465,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
   function activeShiftsNow() {
     const n = new Date(); const m = minutesOf(n); const arr = [];
-    ['A', 'B', 'C', 'D', 'DAYTIME'].forEach(code => {
+    ['A', 'B', 'C', 'DAYTIME'].forEach(code => {
       const win = shiftWindow(code); if (!win) return;
       if (isInWindow(m, win)) { const df = scheduleDateFor(code, n); const gs = groupsScheduled(code, df); if (gs.length) arr.push({ code, groups: gs, win }); }
     });
@@ -504,11 +477,11 @@ window.addEventListener('DOMContentLoaded', () => {
     const emptyMsg = `<div class="muted" style="font-size:0.9rem">Tidak ada shift berjalan saat ini.</div>`;
 
     const CODE_FULL = {
-      A: 'Pagi (P)',
-      B: 'Sore (S)',
-      C: 'Malam (M)',
-      D: 'Shift D (D)',
-      DAYTIME: 'Daytime (DAY)'
+      A: 'Shift Pagi (P)',
+      B: 'Shift Sore (S)',
+      C: 'Shift Malam (M)',
+      /* D removed */
+      DAYTIME: 'Day Time'
     };
 
     const content = rows.length === 0 ? emptyMsg : rows.map(r => {
@@ -1077,9 +1050,9 @@ window.addEventListener('DOMContentLoaded', () => {
         const tOut = hm(s.out);
         const tIn = hm(s.in);
         const dur = (s.out && s.in) ? Math.round((s.in - s.out) / 60000) + 'm' : '?';
-        return `<div class="chip-sm" style="margin-bottom:2px; font-size:0.75rem; display:inline-flex; align-items:center;">
-             ${tOut} - ${tIn} (${dur})
-             <button onclick="deleteBreakSession(${s.out}, ${s.in || 'null'})" title="Hapus Sesi" style="background:none; border:none; color:var(--danger); cursor:pointer; margin-left:6px; font-size:1.1em; line-height:1;">&times;</button>
+        return `<div class="chip-sm" style="margin-bottom:2px; font-size:0.75rem; display:inline-flex; align-items:center; gap:4px;">
+            ${tOut} - ${tIn} (${dur})
+            <button onclick="deleteBreakSession(${s.out}, ${s.in || 'null'})" style="background:none; border:none; color:var(--danger); cursor:pointer; padding:0 4px; font-weight:bold;">&times;</button>
         </div>`;
       }).join('');
 
@@ -1094,26 +1067,22 @@ window.addEventListener('DOMContentLoaded', () => {
     }).join('');
   };
 
-  window.deleteBreakSession = async function (tsOut, tsIn) {
-    if (!confirm('Apakah Anda yakin ingin menghapus data izin/istirahat ini?')) return;
+  window.deleteBreakSession = async function (outTs, inTs) {
+    if (!confirm('Hapus sesi izin/istirahat ini? Data tidak dapat dikembalikan.')) return;
 
-    // Hapus dari array lokal (filter keluar tsOut dan tsIn)
-    attendance = attendance.filter(a => a.ts !== tsOut && a.ts !== tsIn);
+    // Local Delete
+    attendance = attendance.filter(a => a.ts !== outTs && a.ts !== inTs);
     save(LS_ATT, attendance);
-    syncGlobals();
 
-    // Tampilkan ulang
-    window.renderBreakAnalysis();
-    renderDashboard();
-
-    // Hapus dari server
+    // Server Delete
     try {
-      await delAttendance(tsOut);
-      if (tsIn) await delAttendance(tsIn);
-      toast('Data berhasil dihapus dari server.');
-    } catch (err) {
-      console.error(err);
-      toast('Gagal hapus server: ' + err.message);
+      await delAttendance(outTs);
+      if (inTs) await delAttendance(inTs);
+      toast('Data berhasil dihapus');
+      renderBreakAnalysis();
+    } catch (e) {
+      console.error(e);
+      alert('Gagal hapus data: ' + e.message);
     }
   };
 
@@ -1615,7 +1584,7 @@ window.addEventListener('DOMContentLoaded', () => {
     const ws = XLSX.utils.json_to_sheet(rows); const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'Karyawan'); XLSX.writeFile(wb, 'karyawan.xlsx');
   });
   $('#btnTemplateEmp')?.addEventListener('click', () => {
-    const rows = [{ NID: 'EMP001', Nama: 'Nama Lengkap', Jabatan: 'Operator', Perusahaan: 'PT PLN NPS', Grup: 'Group A', FotoURL: 'https://…' }];
+    const rows = [{ NID: 'EMP001', Nama: 'Nama Lengkap', Jabatan: 'Operator', Perusahaan: 'PT PLN NPS', Grup: 'A', FotoURL: 'https://…' }];
     const ws = XLSX.utils.json_to_sheet(rows); const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'Template'); XLSX.writeFile(wb, 'template_karyawan.xlsx');
   });
 
@@ -1683,8 +1652,8 @@ window.addEventListener('DOMContentLoaded', () => {
         pagi: alt.A || { start: '08:00', end: '16:00' },
         sore: alt.B || { start: '16:00', end: '24:00' },
         malam: alt.C || { start: '24:00', end: '07:00' },
-        shiftd: alt.D || { start: '07:30', end: '15:30' },
-        day: alt.DAYTIME || { start: '07:30', end: '16:00' }
+        shiftd: alt.D || { start: '07:00', end: '15:00' },
+        day: alt.DAYTIME || alt.A || { start: '08:00', end: '16:00' }
       };
     }
     const pagi = {
@@ -1699,20 +1668,18 @@ window.addEventListener('DOMContentLoaded', () => {
       start: pickVal('#shiftMalamStart', '#shiftCStart') || '24:00',
       end: pickVal('#shiftMalamEnd', '#shiftCEnd') || '07:00'
     };
-    const shiftd = {
-      start: pickVal('#shiftDStart') || '07:30',
-      end: pickVal('#shiftDEnd') || '15:30'
-    };
     const day = {
-      start: pickVal('#shiftDayStart') || '07:30',
-      end: pickVal('#shiftDayEnd') || '16:00'
+      start: pickVal('#shiftDayStart', '') || '08:00',
+      end: pickVal('#shiftDayEnd', '') || '16:00'
     };
-    return { pagi, sore, malam, shiftd, day };
+    /* shiftd removed */
+    return { pagi, sore, malam, day };
   }
   function renderShiftForm() {
     const pagi = shifts.A || { start: '08:00', end: '16:00' };
     const sore = shifts.B || { start: '16:00', end: '24:00' };
     const malam = shifts.C || { start: '24:00', end: '07:00' };
+    const day = shifts.DAYTIME || { start: pagi.start, end: pagi.end };
     /* shiftd removed */
 
     $('#shiftPagiStart') && ($('#shiftPagiStart').value = pagi.start);
@@ -1721,15 +1688,10 @@ window.addEventListener('DOMContentLoaded', () => {
     $('#shiftSoreEnd') && ($('#shiftSoreEnd').value = sore.end);
     $('#shiftMalamStart') && ($('#shiftMalamStart').value = malam.start);
     $('#shiftMalamEnd') && ($('#shiftMalamEnd').value = malam.end);
+    $('#shiftDayStart') && ($('#shiftDayStart').value = day.start);
+    $('#shiftDayEnd') && ($('#shiftDayEnd').value = day.end);
+    /* shiftd inputs removed */
 
-    // Map D/Daytime to the same input
-    $('#shiftDStart').value = shifts.D?.start || '07:30';
-    $('#shiftDEnd').value = shifts.D?.end || '15:30';
-
-    $('#shiftDayStart').value = shifts.DAYTIME?.start || '07:30';
-    $('#shiftDayEnd').value = shifts.DAYTIME?.end || '16:00';
-
-    // Compat selectors just in case
     $('#shiftAStart') && ($('#shiftAStart').value = pagi.start);
     $('#shiftAEnd') && ($('#shiftAEnd').value = pagi.end);
     $('#shiftBStart') && ($('#shiftBStart').value = sore.start);
@@ -1744,8 +1706,7 @@ window.addEventListener('DOMContentLoaded', () => {
       A: { start: normalizeTime(pagi.start), end: normalizeTime(pagi.end) },
       B: { start: normalizeTime(sore.start), end: normalizeTime(sore.end) },
       C: { start: normalizeTime(malam.start), end: normalizeTime(malam.end) },
-      // Automatically sync D to match DAYTIME (since D is just the group using Daytime hours)
-      D: { start: normalizeTime(day.start), end: normalizeTime(day.end) },
+      /* D removed */
       DAYTIME: { start: normalizeTime(day.start), end: normalizeTime(day.end) }
     };
     save(LS_SHIFTS, shifts); syncGlobals();
@@ -2440,7 +2401,36 @@ window.addEventListener('DOMContentLoaded', () => {
     if (modal) modal.style.display = 'none';
   };
 
-  // window.saveShifts replaced by event listener #btnSaveShift
+  window.saveShifts = function () {
+    const newShifts = { ...shifts }; // clone
+    let changed = false;
+
+    Object.keys(newShifts).forEach(key => {
+      const startEl = document.getElementById(`shift_start_${key}`);
+      const endEl = document.getElementById(`shift_end_${key}`);
+      if (startEl && endEl) {
+        if (newShifts[key].start !== startEl.value || newShifts[key].end !== endEl.value) {
+          newShifts[key].start = startEl.value;
+          newShifts[key].end = endEl.value;
+          changed = true;
+        }
+      }
+    });
+
+    if (changed) {
+      shifts = newShifts;
+      save(LS_SHIFTS, shifts); // Save to LocalStorage
+      syncGlobals(); // Update window.shifts
+      renderCurrentShiftPanel(); // Refresh UI
+      // Force reload specific panels if needed
+      renderCurrentShiftPanel(); // Refresh UI
+      // Force reload specific panels if needed
+      toast(t('msg_saved'));
+      closeShiftModal();
+    } else {
+      closeShiftModal();
+    }
+  };
 
   // Close modal if clicked outside
   window.onclick = function (event) {
