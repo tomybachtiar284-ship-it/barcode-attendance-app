@@ -1259,8 +1259,11 @@ window.addEventListener('DOMContentLoaded', () => {
     const companies = Object.keys(groups).sort();
 
     // State helper
+    // Fix: Default to '0' (Expanded) and treat null as '0'.
+    // Only collapse if explicitly set to '1'.
     const getCState = (k) => localStorage.getItem('COLLAPSE_' + k) === '1';
     const setCState = (k, v) => localStorage.setItem('COLLAPSE_' + k, v ? '1' : '0');
+
 
     companies.forEach(comp => {
       const list = groups[comp];
@@ -1484,6 +1487,50 @@ window.addEventListener('DOMContentLoaded', () => {
   $('#searchEmp')?.addEventListener('input', debounce(() => renderEmployees(true), 300));
   $('#filterEmpGroup')?.addEventListener('change', () => renderEmployees(true)); // Filter Group
   $('#btnAddEmp')?.addEventListener('click', () => openEmp());
+
+  function exportExcelEmployees() {
+    if (!employees || employees.length === 0) {
+      alert('Tidak ada data karyawan untuk diexport.');
+      return;
+    }
+
+    // Prepare data
+    const data = employees.map(e => ({
+      NID: e.nid,
+      Nama: e.name,
+      Jabatan: e.title,
+      Perusahaan: e.company,
+      Shift: e.shift
+    }));
+
+    // Create Worksheet
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Data Karyawan");
+
+    // Save
+    const dateStr = new Date().toISOString().split('T')[0];
+    XLSX.writeFile(wb, `Data_Karyawan_${dateStr}.xlsx`);
+  }
+
+  // Sync Button Logic
+  $('#btnSyncEmp')?.addEventListener('click', async () => {
+    if (!confirm(`Upload ${employees.length} data karyawan ke Cloud (Supabase)?`)) return;
+
+    let successCount = 0;
+    let failCount = 0;
+    toast('Sedang mengupload data...');
+
+    // Batch insert using logic similar to pushEmployee but ideally batch execution if possible
+    // Use simple loop for now
+    for (const emp of employees) {
+      if (!emp.nid) continue;
+      const ok = await pushEmployee(emp);
+      if (ok) successCount++; else failCount++;
+    }
+
+    alert(`Sync Selesai!\nBerhasil: ${successCount}\nGagal: ${failCount}`);
+  });
 
   function openEmp(data = null, index = -1) {
     editIdx = index;
