@@ -438,9 +438,15 @@ window.addEventListener('DOMContentLoaded', () => {
   }));
 
   // NEW: Restore Last Route (Page Persistence)
+  // NEW: Restore Last Route (Page Persistence)
   setTimeout(() => {
     const lastRoute = localStorage.getItem('SA_CURRENT_ROUTE');
-    if (lastRoute) {
+    // Force Dashboard on Mobile (User Request)
+    if (window.innerWidth <= 768) {
+      window.appRoute('dashboard');
+    }
+    // Otherwise restore last session
+    else if (lastRoute) {
       window.appRoute(lastRoute);
     }
   }, 50); // Small delay to ensure DOM fully ready
@@ -3401,12 +3407,4 @@ document.addEventListener('DOMContentLoaded', () => {
 // Initial Render if on inventory route
 window.renderInventory = renderInventory;
 
-// Force Dashboard on Mobile Load
-window.addEventListener('load', () => {
-  if (window.innerWidth <= 768) {
-    // If user is on mobile, always default to Dashboard to ensure clean state
-    // But allow if they specifically navigated to something else? 
-    // User logic: "pastikan ketika membuka versi hp langsung di arahkan ke beranda"
-    navigate('dashboard');
-  }
-});
+
