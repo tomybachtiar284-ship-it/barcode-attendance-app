@@ -613,6 +613,7 @@
           Karyawan</span></button>
       <button class="navlink" data-route="shifts">🕘 <span data-i18n="nav_shifts">Shift Setting</span></button>
       <button class="navlink" data-route="attendance">📑 <span data-i18n="nav_report">Laporan 24 Jam</span></button>
+      <button class="navlink" data-route="general-report">📈 <span>General Report</span></button>
       <button class="navlink" data-route="latest">📰 <span data-i18n="nav_latest">Latest information</span></button>
       <button class="navlink" data-route="education">🎓 <span data-i18n="nav_education">Education</span></button>
       <button class="navlink" data-route="inventory">📦 <span>Keluar Masuk Barang</span></button>
@@ -808,6 +809,89 @@
       </div>
 
       <!-- (Kartu Education terpisah DIHAPUS) -->
+    </section>
+
+    <!-- GENERAL REPORT -->
+    <section class="route hidden" id="route-general-report">
+      <div class="header-modern" style="margin-bottom:20px;">
+        <div class="header-content" style="margin:0;">
+          <h1 class="header-title" style="text-align:left;">General Report & Analytics</h1>
+          <div class="header-subtitle" style="text-align:left;">Visualisasi Tren Kinerja & Kedisiplinan Karyawan</div>
+        </div>
+      </div>
+
+      <!-- Summary Stats Row -->
+      <div class="grid-4" style="margin-bottom:20px;">
+        <div class="card-solid stat-blue">
+          <div class="lbl">Total Karyawan</div>
+          <div class="val" id="repTotalEmp">0</div>
+        </div>
+        <div class="card-solid stat-orange">
+          <div class="lbl">Avg. Terlambat (7 Hari)</div>
+          <div class="val" id="repAvgLate">0</div>
+        </div>
+        <div class="card-solid stat-green">
+          <div class="lbl">Avg. Kehadiran (7 Hari)</div>
+          <div class="val" id="repAvgPresent">0%</div>
+        </div>
+        <div class="card-solid stat-cyan">
+          <div class="lbl">Top Divisi Rajin</div>
+          <div class="val" id="repTopDiv" style="font-size:1.2rem;">-</div>
+        </div>
+      </div>
+
+      <!-- Charts Grid -->
+      <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap:20px;">
+
+        <!-- Chart 1: Late Trend -->
+        <div class="card">
+          <div class="card-title">Tren Keterlambatan (14 Hari Terakhir)</div>
+          <div style="position:relative; height:300px; width:100%;">
+            <canvas id="chartLateTrend"></canvas>
+          </div>
+        </div>
+
+        <!-- Chart 2: In/Out Traffic -->
+        <div class="card">
+          <div class="card-title">Traffic Jam Scan (7 Hari Terakhir)</div>
+          <div style="position:relative; height:300px; width:100%;">
+            <canvas id="chartInOutFlow"></canvas>
+          </div>
+        </div>
+
+        <!-- Chart 3: Composition -->
+        <div class="card">
+          <div class="card-title">Komposisi Kehadiran Hari Ini</div>
+          <div style="position:relative; height:300px; width:100%; display:flex; justify-content:center;">
+            <canvas id="chartAttendanceRate"></canvas>
+          </div>
+        </div>
+
+        <!-- Chart 4: Division Performance -->
+        <div class="card">
+          <div class="card-title">Kinerja Per Divisi (30 Hari Terakhir)</div>
+          <div style="position:relative; height:300px; width:100%;">
+            <canvas id="chartDivPerformance"></canvas>
+          </div>
+        </div>
+
+        <!-- Chart 5: Overtime Trend -->
+        <div class="card">
+          <div class="card-title">Tren Lembur (14 Hari Terakhir)</div>
+          <div style="position:relative; height:300px; width:100%;">
+            <canvas id="chartOvertimeTrend"></canvas>
+          </div>
+        </div>
+
+        <!-- Chart 6: Top 5 Overtime -->
+        <div class="card">
+          <div class="card-title">Top 5 Karyawan Paling Rajin Lembur (30 Hari)</div>
+          <div style="position:relative; height:300px; width:100%;">
+            <canvas id="chartTopOvertime"></canvas>
+          </div>
+        </div>
+
+      </div>
     </section>
 
     <!-- SCAN -->
@@ -1197,6 +1281,7 @@
             <option value="">Semua Status</option>
             <option value="LATE">Terlambat</option>
             <option value="ONTIME">Tepat Waktu</option>
+            <option value="OVERTIME">Lembur (Overtime)</option>
             <option value="UNKNOWN">Tanpa Keterangan</option>
           </select>
           <button id="btnFilterAtt" class="btn">🔍 Tampilkan</button>
@@ -1641,6 +1726,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="config.local.js"></script>
+  <script src="js/report.js"></script>
   <script src="app.js"></script>
 
   <!-- MODAL: INVENTORY -->

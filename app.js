@@ -390,6 +390,9 @@ window.addEventListener('DOMContentLoaded', () => {
     if (route === 'shifts') { renderShiftForm(); initMonthlyScheduler(); }
     if (route === 'inventory') renderInventory();
     if (route === 'analysis') renderAnalysisPage();
+    if (route === 'general-report') {
+      if (window.renderGeneralReport) window.renderGeneralReport();
+    }
   }));
 
   // NEW: Restore Last Route (Page Persistence)
