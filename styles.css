@@ -2324,6 +2324,325 @@ h1.page-title {
   color: var(--text-brand) !important;
 }
 
-.brand-name {
-  color: var(--text-brand);
+/* ============================================================================
+   AREA FINAL: MOBILE REDESIGN (REF STYLE)
+   ========================================================================== */
+
+/* Default State: Mobile UI Hidden */
+.mob-dash-container {
+  display: none;
+}
+
+.desktop-dash {
+  display: block;
+}
+
+.mobile-bottom-nav {
+  display: none;
+}
+
+/* MOBILE BREAKPOINT */
+@media (max-width: 768px) {
+
+  /* 1. Toggle Views */
+  .mob-dash-container {
+    display: block;
+  }
+
+  .desktop-dash {
+    display: none !important;
+  }
+
+  /* Sidebar: Hidden by default on mobile, unless active */
+  .sidebar:not(.active-mobile) {
+    display: none !important;
+  }
+
+  /* Mobile Sidebar Drawer Style */
+  .sidebar.active-mobile {
+    display: flex !important;
+    flex-direction: column;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 280px;
+    height: 100vh;
+    z-index: 10002;
+    /* Above everything */
+    background: #fff;
+    box-shadow: 4px 0 15px rgba(0, 0, 0, 0.15);
+    padding-top: 20px;
+    animation: slideInSidebar 0.3s ease forwards;
+  }
+
+  @keyframes slideInSidebar {
+    from {
+      transform: translateX(-100%);
+    }
+
+    to {
+      transform: translateX(0);
+    }
+  }
+
+  /* Overlay Z-Index Fix */
+  .sidebar-overlay.active {
+    z-index: 10001;
+    display: block;
+    background: rgba(0, 0, 0, 0.5);
+  }
+
+  /* Kill Desktop Header & Toggle Button (redundant) */
+  .header-modern,
+  .mobile-nav-toggle,
+  #btnMobileNav {
+    display: none !important;
+  }
+
+  /* Kill Desktop Header */
+
+  /* Show Bottom Nav */
+  .mobile-bottom-nav {
+    display: flex !important;
+    justify-content: space-evenly;
+    align-items: center;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    background: #fff;
+    padding: 12px 16px 24px 16px;
+    /* Extra padding bottom for safe area */
+    border-top-left-radius: 24px;
+    border-top-right-radius: 24px;
+    box-shadow: 0 -8px 30px rgba(0, 0, 0, 0.08);
+    z-index: 9999;
+  }
+
+  /* Reset Main Padding */
+  .main {
+    margin-left: 0 !important;
+    width: 100% !important;
+    padding: 20px 20px 100px 20px !important;
+    /* Bottom pad for nav */
+  }
+
+  /* 2. Mobile Components Styling */
+  .mob-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 24px;
+  }
+
+  .mob-logo {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  }
+
+  .mob-brand h3 {
+    margin: 0;
+    color: var(--text);
+    font-size: 1.1rem;
+    font-weight: 800;
+  }
+
+  .mob-brand span {
+    font-size: 0.8rem;
+    color: var(--muted);
+  }
+
+  .mob-hero-card {
+    background: linear-gradient(135deg, var(--primary-600), var(--primary-500));
+    padding: 24px;
+    border-radius: 24px;
+    color: #fff;
+    text-align: center;
+    box-shadow: 0 12px 24px rgba(0, 174, 239, 0.25);
+    /* Cyan Shadow */
+    margin-bottom: 24px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  /* Decor circles */
+  .mob-hero-card::before {
+    content: "";
+    position: absolute;
+    top: -50px;
+    left: -50px;
+    width: 150px;
+    height: 150px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 50%;
+  }
+
+  .mob-clock {
+    font-size: 2.8rem;
+    font-weight: 800;
+    line-height: 1;
+    margin-bottom: 4px;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .mob-date {
+    font-size: 0.95rem;
+    opacity: 0.9;
+    margin-bottom: 12px;
+  }
+
+  .mob-greet {
+    display: inline-block;
+    background: rgba(255, 255, 255, 0.2);
+    padding: 6px 14px;
+    border-radius: 99px;
+    font-size: 0.85rem;
+    font-weight: 600;
+  }
+
+  .mob-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin-bottom: 24px;
+  }
+
+  .mob-stat-card {
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    padding: 16px 10px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
+  }
+
+  .mob-stat-card.red {
+    border-bottom: 3px solid var(--danger);
+  }
+
+  .mob-stat-card.blue {
+    border-bottom: 3px solid var(--primary-600);
+  }
+
+  .mob-stat-card.gray {
+    border-bottom: 3px solid var(--muted);
+  }
+
+  .mob-stat-card .label {
+    font-size: 0.7rem;
+    color: var(--muted);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .mob-stat-card .val {
+    font-size: 1.6rem;
+    font-weight: 800;
+    color: var(--text);
+    margin: 6px 0;
+  }
+
+  .mob-stat-card .unit {
+    font-size: 0.65rem;
+    color: #94a3b8;
+  }
+
+  .mob-gauge-card {
+    background: #fff;
+    border-radius: 20px;
+    padding: 20px;
+    text-align: center;
+    border: 1px solid var(--line);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
+  }
+
+  .mob-gauge-card h4 {
+    margin: 0 0 16px 0;
+    font-size: 1rem;
+    color: var(--text);
+  }
+
+  .gauge-wrap {
+    width: 140px;
+    height: 140px;
+    border-radius: 50%;
+    border: 12px solid var(--primary-100);
+    margin: 0 auto 12px auto;
+    display: grid;
+    place-items: center;
+    position: relative;
+  }
+
+  /* Simple CSS Gauge Simulation */
+  .gauge-wrap::after {
+    content: "";
+    position: absolute;
+    inset: -12px;
+    border-radius: 50%;
+    border: 12px solid transparent;
+    border-top-color: var(--primary-600);
+    border-right-color: var(--primary-600);
+    transform: rotate(-45deg);
+    /* Demo 75% filled */
+  }
+
+  /* Gauge Val */
+  .gauge-val {
+    font-size: 2rem;
+    font-weight: 800;
+    color: var(--primary-700);
+  }
+
+  /* ============================================================================ 
+     AREA 3: GENERAL REPORT OPTIMIZATION (MOBILE)
+     Force charts to be smaller (180px) to reduce scrolling
+     ========================================================================== */
+  #route-general-report {
+    padding-bottom: 80px;
+    /* Space for bottom nav */
+  }
+
+  /* Compact Chart Containers */
+  #route-general-report .card>div {
+    height: 200px !important;
+    /* Force override inline 300px */
+    min-height: 0 !important;
+  }
+
+  /* Compact Cards */
+  #route-general-report .card {
+    margin-bottom: 12px;
+    padding: 12px;
+  }
+
+  #route-general-report .card-title {
+    font-size: 0.9rem;
+    margin-bottom: 8px;
+  }
+
+  /* Compact Top Stats (Cards Row) */
+  #route-general-report .grid-4 {
+    grid-template-columns: repeat(2, 1fr) !important;
+    /* 2 cols instead of 1 stack */
+    gap: 8px;
+  }
+
+  #route-general-report .card-solid {
+    padding: 10px;
+    margin-bottom: 0;
+  }
+
+  #route-general-report .card-solid .val {
+    font-size: 1.2rem;
+  }
+
+  #route-general-report .card-solid .lbl {
+    font-size: 0.7rem;
+  }
 }

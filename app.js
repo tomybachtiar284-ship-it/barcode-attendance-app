@@ -49,6 +49,32 @@ window.addEventListener('DOMContentLoaded', () => {
   }
   syncGlobals();
 
+  // ===== MOBILE NAV LOGIC =====
+  const btnMob = $('.mobile-nav-toggle');
+  const sidebar = $('.sidebar');
+  const overlay = $('.sidebar-overlay'); // Pastikan elemen ini ada di HTML
+
+  if (btnMob && sidebar) {
+    function toggleMenu() {
+      sidebar.classList.toggle('active');
+      if (overlay) overlay.classList.toggle('active');
+    }
+    function closeMenu() {
+      sidebar.classList.remove('active');
+      if (overlay) overlay.classList.remove('active');
+    }
+
+    btnMob.addEventListener('click', (e) => { e.stopPropagation(); toggleMenu(); });
+    if (overlay) overlay.addEventListener('click', closeMenu);
+
+    // Auto-close saat klik menu item (khusus mobile)
+    $$('.navlink').forEach(btn => {
+      btn.addEventListener('click', () => {
+        if (window.innerWidth <= 1024) closeMenu();
+      });
+    });
+  }
+
   // ===== SUPABASE SYNC =====
   let sb = null;
 
@@ -372,17 +398,28 @@ window.addEventListener('DOMContentLoaded', () => {
   }
 
   // Router
-  $$('.navlink').forEach(btn => btn.addEventListener('click', () => {
-    $$('.navlink').forEach(b => b.classList.remove('active')); btn.classList.add('active');
-    const route = btn.dataset.route;
+  window.appRoute = function (route) {
+    // 1. Update Sidebar Active
+    $$('.navlink').forEach(b => b.classList.toggle('active', b.dataset.route === route));
 
-    // NEW: Persist Route
+    // 2. Update Mobile Bottom Nav Active
+    const mobItems = $$('.mb-item');
+    if (mobItems.length) {
+      mobItems.forEach(b => b.classList.remove('active'));
+      const target = [...mobItems].find(b => b.dataset.route === route);
+      if (target) target.classList.add('active');
+    }
+
+    // 3. Persist
     localStorage.setItem('SA_CURRENT_ROUTE', route);
 
+    // 4. Show/Hide Sections
     $$('.route').forEach(s => s.classList.add('hidden'));
-    $('#route-' + route)?.classList.remove('hidden');
+    const section = $('#route-' + route);
+    if (section) section.classList.remove('hidden');
 
-    if (route === 'dashboard') { renderDashboard(); }
+    // 5. Trigger Initializers
+    if (route === 'dashboard') { renderDashboard(); window.scrollTo(0, 0); }
     if (route === 'employees') renderEmployees();
     if (route === 'attendance') renderAttendance();
     if (route === 'scan') { renderScanPage(); $('#scanInput')?.focus(); }
@@ -393,14 +430,18 @@ window.addEventListener('DOMContentLoaded', () => {
     if (route === 'general-report') {
       if (window.renderGeneralReport) window.renderGeneralReport();
     }
+  };
+
+  // Bind existing sidebar links
+  $$('.navlink').forEach(btn => btn.addEventListener('click', () => {
+    window.appRoute(btn.dataset.route);
   }));
 
   // NEW: Restore Last Route (Page Persistence)
   setTimeout(() => {
     const lastRoute = localStorage.getItem('SA_CURRENT_ROUTE');
     if (lastRoute) {
-      const btn = $(`.navlink[data-route="${lastRoute}"]`);
-      if (btn) btn.click();
+      window.appRoute(lastRoute);
     }
   }, 50); // Small delay to ensure DOM fully ready
 
@@ -842,9 +883,61 @@ window.addEventListener('DOMContentLoaded', () => {
     renderNewsWidgets();
     renderCompanyPresence();
     renderLiveCompanyStats();
+    if (window.renderMobileDashboard) window.renderMobileDashboard();
   }
+
+  window.renderMobileDashboard = function () {
+    if (window.innerWidth > 768) return;
+    // 1. Clock & Date
+    const d = new Date();
+    const timeStr = d.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' }).replace(/\./g, ':');
+    const dateStr = d.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+    const elClock = document.getElementById('mobClock');
+    const elDate = document.getElementById('mobDate');
+    if (elClock) elClock.textContent = timeStr;
+    if (elDate) elDate.textContent = dateStr;
+
+    // 2. Stats
+    const total = employees.length;
+    // Calc logic
+    const sod = new Date(new Date().getFullYear() + '-' + String(new Date().getMonth() + 1).padStart(2, '0') + '-' + String(new Date().getDate()).padStart(2, '0')).getTime();
+    const today = attendance.filter(a => a.ts >= sod);
+    const present = today.filter(a => a.status === 'datang').length;
+    const late = today.filter(a => a.status === 'datang' && a.late).length;
+
+    const elLate = document.getElementById('mobStatLate');
+    const elPres = document.getElementById('mobStatPresent');
+    const elTot = document.getElementById('mobStatTotal');
+    const elGauge = document.getElementById('mobGaugeVal');
+
+    if (elLate) elLate.textContent = late;
+    if (elPres) elPres.textContent = present;
+    if (elTot) elTot.textContent = total;
+    if (elGauge) elGauge.textContent = (total > 0 ? Math.round((present / total) * 100) : 0) + '%';
+  };
+
+  // Auto-tick mobile clock
+  setInterval(() => {
+    if (window.innerWidth <= 768 && window.renderMobileDashboard) window.renderMobileDashboard();
+  }, 1000);
   renderDashboard();
   setInterval(renderLiveCompanyStats, 30000);
+
+  // === MOBILE MENU TOGGLE (Re-added) ===
+  window.toggleMobileMenu = function () {
+    console.log('Toggle Mobile Menu Clicked');
+    const sb = document.querySelector('.sidebar');
+    const ov = document.querySelector('.sidebar-overlay');
+    if (sb) sb.classList.toggle('active-mobile');
+    if (ov) ov.classList.toggle('active');
+  };
+
+  // Close menu when clicking overlay
+  const ov = document.querySelector('.sidebar-overlay');
+  if (ov) ov.onclick = () => {
+    document.querySelector('.sidebar')?.classList.remove('active-mobile');
+    ov.classList.remove('active');
+  };
 
   // Fullscreen
   function fs(btnSel, targetSel) {

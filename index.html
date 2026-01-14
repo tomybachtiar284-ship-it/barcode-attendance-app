@@ -633,182 +633,232 @@
   <!-- MAIN -->
   <main class="main">
     <!-- DASHBOARD -->
-    <section class="route" id="route-dashboard">
-      <!-- MODERN HEADER (New) -->
-      <div class="header-modern">
-        <!-- Logo Kiri -->
-        <div class="header-logo" id="brandLogoPanelDash">
-          <img src="assets/LOGO PLN NP SERVICES - FIN.png" alt="PLN Nusantara Power Services"
-            onerror="this.onerror=null; this.src='assets/LOGO PLN NP SERVICES - FIN.svg';">
+    <section class="route active" id="route-dashboard">
+
+      <!-- MOBILE DASHBOARD (Visible ONLY on Mobile) -->
+      <div class="mob-dash-container">
+        <!-- 1. Header & Greeting -->
+        <div class="mob-header">
+          <img src="assets/AMAN-S-Logo.jpg" class="mob-logo">
+          <div class="mob-brand">
+            <h3>AMAN-S APP</h3>
+            <span>PLN Nusantara Power Services</span>
+          </div>
         </div>
 
-        <!-- Teks Tengah -->
-        <div class="header-content">
-          <h1 class="header-title" data-i18n="dash_welcome_title">SELAMAT DATANG DI PT PLN NUSANTARA POWER SERVICES
-            LINGKUP PLTU AMPANA ⚡</h1>
-          <div class="header-subtitle">
-            <div class="marquee-wrap">
-              <div class="marquee-content" data-i18n="dash_welcome_sub">ANDA BERADA DI KAWASAN PLN NPS UNIT PLTU AMPANA
-                DAN
-                WAJIB MEMATUHI SEMUA ATURAN YANG BERLAKU</div>
+        <!-- 2. Hero Clock Card -->
+        <div class="mob-hero-card">
+          <div class="mob-clock" id="mobClock">--:--</div>
+          <div class="mob-date" id="mobDate">...</div>
+          <div class="mob-greet" id="mobGreet">Selamat Datang</div>
+        </div>
+
+        <!-- 3. Stats Row -->
+        <div class="mob-stats-grid">
+          <div class="mob-stat-card red">
+            <span class="label">Terlambat</span>
+            <span class="val" id="mobStatLate">0</span>
+            <span class="unit">Orang</span>
+          </div>
+          <div class="mob-stat-card blue">
+            <span class="label">Hadir</span>
+            <span class="val" id="mobStatPresent">0</span>
+            <span class="unit">Orang</span>
+          </div>
+          <div class="mob-stat-card gray">
+            <span class="label">Total</span>
+            <span class="val" id="mobStatTotal">0</span>
+            <span class="unit">Karyawan</span>
+          </div>
+        </div>
+
+        <!-- 4. Gauge -->
+        <div class="mob-gauge-card">
+          <h4>Kehadiran Bulan Ini</h4>
+          <div class="gauge-wrap">
+            <div class="gauge-val" id="mobGaugeVal">0%</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- DESKTOP DASHBOARD (Hidden on Mobile) -->
+      <div class="desktop-dash">
+        <!-- MODERN HEADER (New) -->
+        <div class="header-modern">
+          <!-- Logo Kiri -->
+          <div class="header-logo" id="brandLogoPanelDash">
+            <img src="assets/LOGO PLN NP SERVICES - FIN.png" alt="PLN Nusantara Power Services"
+              onerror="this.onerror=null; this.src='assets/LOGO PLN NP SERVICES - FIN.svg';">
+          </div>
+
+          <!-- Teks Tengah -->
+          <div class="header-content">
+            <h1 class="header-title" data-i18n="dash_welcome_title">SELAMAT DATANG DI PT PLN NUSANTARA POWER SERVICES
+              LINGKUP PLTU AMPANA ⚡</h1>
+            <div class="header-subtitle">
+              <div class="marquee-wrap">
+                <div class="marquee-content" data-i18n="dash_welcome_sub">ANDA BERADA DI KAWASAN PLN NPS UNIT PLTU
+                  AMPANA
+                  DAN
+                  WAJIB MEMATUHI SEMUA ATURAN YANG BERLAKU</div>
+              </div>
             </div>
           </div>
-        </div>
 
-        <!-- Kanan: Jam & Button -->
-        <div class="header-right">
-          <div class="header-clock" id="liveClock">--:--</div>
-          <button id="btnFullDash" class="header-btn" data-i18n="btn_fullscreen">⛶ Layar Penuh</button>
-        </div>
-      </div>
-
-      <!-- Kartu statistik -->
-      <!-- Kartu statistik (V2 Solid Color) -->
-      <div class="grid-4">
-        <!-- Blue: Total Karyawan -->
-        <div class="card-solid stat-blue" data-hover-card="interactive"
-          data-tooltip="Total semua karyawan yang terdaftar dalam database."
-          onclick="$('.navlink[data-route=\'employees\']').click()">
-          <div class="pills">
-            <span class="pill" data-i18n="pill_today">Today</span>
-            <span class="pill" data-i18n="pill_active">Active</span>
-          </div>
-          <div class="lbl" data-i18n="stat_total_emp">Total Karyawan</div>
-          <div class="val" id="statTotalEmp">0</div>
-        </div>
-
-        <!-- Orange: Scan 24 Jam -->
-        <div class="card-solid stat-orange" data-hover-card="interactive"
-          data-tooltip="Jumlah aktivitas scan (masuk & pulang) dalam 24 jam terakhir."
-          onclick="showStatDetail('scan24h')">
-          <div class="pills">
-            <span class="pill" data-i18n="pill_24h">24 Hours</span>
-          </div>
-          <div class="lbl" data-i18n="stat_scan_24h">Scan 24 jam</div>
-          <div class="val" id="statScan24h">0</div>
-        </div>
-
-        <!-- Cyan: On-time -->
-        <div class="card-solid stat-cyan" data-hover-card="interactive"
-          data-tooltip="Karyawan yang melakukan scan MASUK tepat waktu hari ini." onclick="showStatDetail('ontime')">
-          <div class="pills">
-            <span class="pill">Daily</span>
-          </div>
-          <div class="lbl" data-i18n="stat_ontime">On-time</div>
-          <div class="val" id="statOnTime">0</div>
-        </div>
-
-        <!-- Green: Terlambat -->
-        <div class="card-solid stat-green" data-hover-card="interactive"
-          data-tooltip="Karyawan yang terlambat melakukan scan MASUK hari ini." onclick="showStatDetail('late')">
-          <div class="pills">
-            <span class="pill">Alert</span>
-          </div>
-          <div class="lbl" data-i18n="stat_late">Terlambat</div>
-          <div class="val" id="statLate">0</div>
-        </div>
-      </div>
-
-      <!-- Hide Old Stats (Backup) -->
-      <div class="grid-3 hidden">
-        <div class="card stat">
-          <div class="stat-sub"><span id="statShiftBreakdown">—</span></div>
-        </div>
-        <div class="card stat">
-          <div class="stat-sub"><span data-i18n="stat_in">Datang</span>: <b id="statIn24h">0</b> • <span
-              data-i18n="stat_out">Pulang</span>: <b id="statOut24h">0</b></div>
-        </div>
-      </div>
-
-      <!-- Active Shift & Overtime Row -->
-      <div style="display:flex; gap:16px; margin-bottom:20px; align-items:stretch;">
-
-        <!-- Active Shift Panel -->
-        <div class="card" style="flex:1; border-left:4px solid var(--primary-500)">
-          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px">
-            <h3 style="margin:0; font-size:1.1rem">🕒 Shift Yang Sedang Bertugas</h3>
-          </div>
-          <div id="activeShiftsContainer" style="display:flex; flex-wrap:wrap; gap:8px;">
-            <!-- Shift content rendered by JS -->
+          <!-- Kanan: Jam & Button -->
+          <div class="header-right">
+            <div class="header-clock" id="liveClock">--:--</div>
+            <button id="btnFullDash" class="header-btn" data-i18n="btn_fullscreen">⛶ Layar Penuh</button>
           </div>
         </div>
 
-        <!-- Overtime Panel (Dashboard) -->
-        <div id="overtimePanelDash" class="card" onclick="showOvertimeList()" title="Klik untuk melihat detail"
-          style="display:none; width: auto; min-width: 200px; border-left:4px solid var(--danger-500); background: #fff0f0; cursor:pointer; align-items:center; justify-content:space-between; gap:16px;">
-          <div>
-            <h3 style="margin:0; font-size:1.1rem; color:var(--danger-700)">Overtime</h3>
-            <div class="muted" style="font-size:0.85rem">Melewati jam pulang</div>
+        <!-- Kartu statistik -->
+        <!-- Kartu statistik (V2 Solid Color) -->
+        <div class="grid-4">
+          <!-- Blue: Total Karyawan -->
+          <div class="card-solid stat-blue" data-hover-card="interactive"
+            data-tooltip="Total semua karyawan yang terdaftar dalam database."
+            onclick="$('.navlink[data-route=\'employees\']').click()">
+            <div class="pills">
+              <span class="pill" data-i18n="pill_today">Today</span>
+              <span class="pill" data-i18n="pill_active">Active</span>
+            </div>
+            <div class="lbl" data-i18n="stat_total_emp">Total Karyawan</div>
+            <div class="val" id="statTotalEmp">0</div>
           </div>
-          <div id="overtimeCountDash" style="font-size:2rem; font-weight:800; color:var(--danger-600)">0</div>
+
+          <!-- Orange: Scan 24 Jam -->
+          <div class="card-solid stat-orange" data-hover-card="interactive"
+            data-tooltip="Jumlah aktivitas scan (masuk & pulang) dalam 24 jam terakhir."
+            onclick="showStatDetail('scan24h')">
+            <div class="pills">
+              <span class="pill" data-i18n="pill_24h">24 Hours</span>
+            </div>
+            <div class="lbl" data-i18n="stat_scan_24h">Scan 24 jam</div>
+            <div class="val" id="statScan24h">0</div>
+          </div>
+
+          <!-- Cyan: On-time -->
+          <div class="card-solid stat-cyan" data-hover-card="interactive"
+            data-tooltip="Karyawan yang melakukan scan MASUK tepat waktu hari ini." onclick="showStatDetail('ontime')">
+            <div class="pills">
+              <span class="pill">Daily</span>
+            </div>
+            <div class="lbl" data-i18n="stat_ontime">On-time</div>
+            <div class="val" id="statOnTime">0</div>
+          </div>
+
+          <!-- Green: Terlambat -->
+          <div class="card-solid stat-green" data-hover-card="interactive"
+            data-tooltip="Karyawan yang terlambat melakukan scan MASUK hari ini." onclick="showStatDetail('late')">
+            <div class="pills">
+              <span class="pill">Alert</span>
+            </div>
+            <div class="lbl" data-i18n="stat_late">Terlambat</div>
+            <div class="val" id="statLate">0</div>
+          </div>
         </div>
 
-      </div>
-
-      <!-- Company Presence -->
-      <div class="card" id="companyPresenceCard">
-        <div class="card-title" data-i18n="company_attendance_title">Company Attendance (today)</div>
-        <div class="live-row" style="margin:2px 0 10px">
-          <b data-i18n="company_live_stats">STATISTIK KEHADIRAN LANGSUNG</b>
-          <span class="muted" id="companyLiveTime">--:--:--</span>
-        </div>
-        <div id="companyPresenceGrid" class="company-grid"></div>
-      </div>
-
-      <!-- ===== DASH TRIO ===== -->
-      <div class="dash-trio">
-        <div class="card" id="monthCalendarCard" data-hover-card>
-          <div class="card-title" data-i18n="card_monthly_calendar">Kalender Bulan Ini</div>
-          <div id="monthCalendar"></div>
+        <!-- Hide Old Stats (Backup) -->
+        <div class="grid-3 hidden">
+          <div class="card stat">
+            <div class="stat-sub"><span id="statShiftBreakdown">—</span></div>
+          </div>
+          <div class="card stat">
+            <div class="stat-sub"><span data-i18n="stat_in">Datang</span>: <b id="statIn24h">0</b> • <span
+                data-i18n="stat_out">Pulang</span>: <b id="statOut24h">0</b></div>
+          </div>
         </div>
 
-        <div class="card" id="newsCardDash">
-          <div class="card-title" data-i18n="card_latest_info">Informasi Terbaru⚠️📢</div>
-          <div class="news-grid" id="newsGridDash"></div>
+        <!-- Active Shift & Overtime Row -->
+        <div style="display:flex; gap:16px; margin-bottom:20px; align-items:stretch;">
+
+          <!-- Active Shift Panel -->
+          <div class="card" style="flex:1; border-left:4px solid var(--primary-500)">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px">
+              <h3 style="margin:0; font-size:1.1rem">🕒 Shift Yang Sedang Bertugas</h3>
+            </div>
+            <div id="activeShiftsContainer" style="display:flex; flex-wrap:wrap; gap:8px;">
+              <!-- Shift content rendered by JS -->
+            </div>
+          </div>
+
+          <!-- Overtime Panel (Dashboard) -->
+          <div id="overtimePanelDash" class="card" onclick="showOvertimeList()" title="Klik untuk melihat detail"
+            style="display:none; width: auto; min-width: 200px; border-left:4px solid var(--danger-500); background: #fff0f0; cursor:pointer; align-items:center; justify-content:space-between; gap:16px;">
+            <div>
+              <h3 style="margin:0; font-size:1.1rem; color:var(--danger-700)">Overtime</h3>
+              <div class="muted" style="font-size:0.85rem">Melewati jam pulang</div>
+            </div>
+            <div id="overtimeCountDash" style="font-size:2rem; font-weight:800; color:var(--danger-600)">0</div>
+          </div>
+
         </div>
 
-        <!-- GABUNG: Aktivitas Terbaru + Education (fleksibel) -->
-        <div class="card" id="recentCard" data-has-edu="0">
-          <div class="recent-flex">
-            <!-- Education (Highlights) -->
-            <aside class="recent-edu" id="recentEduPane">
-              <div class="subhead">Education (Highlights)</div>
-              <div id="eduListRecent" class="edu-list compact"></div>
-            </aside>
+        <!-- Company Presence -->
+        <div class="card" id="companyPresenceCard">
+          <div class="card-title" data-i18n="company_attendance_title">Company Attendance (today)</div>
+          <div class="live-row" style="margin:2px 0 10px">
+            <b data-i18n="company_live_stats">STATISTIK KEHADIRAN LANGSUNG</b>
+            <span class="muted" id="companyLiveTime">--:--:--</span>
+          </div>
+          <div id="companyPresenceGrid" class="company-grid"></div>
+        </div>
 
-            <!-- Tabel Aktivitas -->
-            <div class="recent-table">
-              <div class="subhead" style="display:flex; justify-content:space-between; align-items:center;">
-                <div>
-                  <span data-i18n="card_recent_activity">Aktivitas Terbaru</span>
-                  <small id="recentCount" class="muted">(3 terakhir hari ini)</small>
+        <!-- ===== DASH TRIO ===== -->
+        <div class="dash-trio">
+          <div class="card" id="monthCalendarCard" data-hover-card>
+            <div class="card-title" data-i18n="card_monthly_calendar">Kalender Bulan Ini</div>
+            <div id="monthCalendar"></div>
+          </div>
+
+          <div class="card" id="newsCardDash">
+            <div class="card-title" data-i18n="card_latest_info">Informasi Terbaru⚠️📢</div>
+            <div class="news-grid" id="newsGridDash"></div>
+          </div>
+
+          <!-- GABUNG: Aktivitas Terbaru + Education (fleksibel) -->
+          <div class="card" id="recentCard" data-has-edu="0">
+            <div class="recent-flex">
+              <!-- Education (Highlights) -->
+              <aside class="recent-edu" id="recentEduPane">
+                <div class="subhead">Education (Highlights)</div>
+                <div id="eduListRecent" class="edu-list compact"></div>
+              </aside>
+
+              <!-- Tabel Aktivitas -->
+              <div class="recent-table">
+                <div class="subhead" style="display:flex; justify-content:space-between; align-items:center;">
+                  <div>
+                    <span data-i18n="card_recent_activity">Aktivitas Terbaru</span>
+                    <small id="recentCount" class="muted">(3 terakhir hari ini)</small>
+                  </div>
+                  <button onclick="exportExcel()" class="btn-export"
+                    style="background:#28a745; color:white; border:none; padding:4px 8px; border-radius:4px; cursor:pointer; font-size:0.8rem;">
+                    📊 Export Excel
+                  </button>
                 </div>
-                <button onclick="exportExcel()" class="btn-export"
-                  style="background:#28a745; color:white; border:none; padding:4px 8px; border-radius:4px; cursor:pointer; font-size:0.8rem;">
-                  📊 Export Excel
-                </button>
-              </div>
-              <div class="table-wrap">
-                <table class="table" id="tableRecent">
-                  <thead>
-                    <tr>
-                      <th data-i18n="table_time">Waktu</th>
-                      <th data-i18n="table_status">Status</th>
-                      <th data-i18n="table_nid">NID</th>
-                      <th data-i18n="table_name">Nama</th>
-                      <th data-i18n="table_shift">Shift</th>
-                    </tr>
-                  </thead>
-                  <tbody></tbody>
-                </table>
+                <div class="table-wrap">
+                  <table class="table" id="tableRecent">
+                    <thead>
+                      <tr>
+                        <th data-i18n="table_time">Waktu</th>
+                        <th data-i18n="table_status">Status</th>
+                        <th data-i18n="table_nid">NID</th>
+                        <th data-i18n="table_name">Nama</th>
+                        <th data-i18n="table_shift">Shift</th>
+                      </tr>
+                    </thead>
+                    <tbody></tbody>
+                  </table>
+                </div>
               </div>
             </div>
           </div>
+          <!-- /GABUNG -->
         </div>
-        <!-- /GABUNG -->
-      </div>
 
-      <!-- (Kartu Education terpisah DIHAPUS) -->
+        <!-- (Kartu Education terpisah DIHAPUS) -->
     </section>
 
     <!-- GENERAL REPORT -->
@@ -1754,6 +1804,42 @@
       <button id="btnSaveInv" class="btn primary">Simpan</button>
     </div>
   </dialog>
+  <!-- OLD NAV (Corrupt) -->
+  <div style="display:none">
+    <nav class="mobile-bottom-nav">
+      <div class="mb-item active" data-route="dashboard" onclick="window.appRoute('dashboard')">
+        <div class="icon">🏠</div><span>Beranda</span>
+      </div>
+      <div class="mb-item" data-route="scan" onclick="window.appRoute('scan')">
+        <div class="icon">📸</div><span>Absen</span>
+      </div>
+      <div class="mb-item" data-route="attendance" onclick="window.appRoute('attendance')">
+        <div class="icon">📄</div><span>Laporan</span>
+      </div>
+      <div class="mb-item" data-route="general-report" onclick="window.appRoute('general-report')">
+        <div class="icon">�</div><span>Analisis</span>
+      </div>
+    </nav>
+  </div> <!-- End Hide -->
+
+  <!-- MOBILE BOTTOM NAV (5 Items) -->
+  <nav class="mobile-bottom-nav">
+    <div class="mb-item active" data-route="dashboard" onclick="window.appRoute('dashboard')">
+      <div class="icon">🏠</div><span>Beranda</span>
+    </div>
+    <div class="mb-item" data-route="scan" onclick="window.appRoute('scan')">
+      <div class="icon">📸</div><span>Absen</span>
+    </div>
+    <div class="mb-item" data-route="employees" onclick="window.appRoute('employees')">
+      <div class="icon">👥</div><span>Karyawan</span>
+    </div>
+    <div class="mb-item" data-route="inventory" onclick="window.appRoute('inventory')">
+      <div class="icon">📦</div><span>Logistik</span>
+    </div>
+    <div class="mb-item" onclick="window.toggleMobileMenu()">
+      <div class="icon">☰</div><span>Menu</span>
+    </div>
+  </nav>
 </body>
 
 </html>
