@@ -1397,12 +1397,12 @@ window.addEventListener('DOMContentLoaded', () => {
       list.forEach(e => {
         tableHtml += `
           <tr>
-            <td><div style="width:40px;height:40px;border-radius:10px;background:#eef4ff url('${e.photo || ''}') center/cover no-repeat; border:1px solid var(--line)"></div></td>
-            <td>${e.nid}</td>
-            <td>${e.name}</td>
-            <td>${e.title}</td>
-            <td><span style="background:var(--surface-2); padding:4px 8px; border-radius:6px; font-size:0.85rem; font-weight:600; color:var(--primary-700)">Group ${e.shift || '-'}</span></td>
-            <td>
+            <td data-label="Foto"><div style="width:40px;height:40px;border-radius:10px;background:#eef4ff url('${e.photo || ''}') center/cover no-repeat; border:1px solid var(--line)"></div></td>
+            <td data-label="NID">${e.nid}</td>
+            <td data-label="Nama">${e.name}</td>
+            <td data-label="Jabatan">${e.title}</td>
+            <td data-label="Shift"><span style="background:var(--surface-2); padding:4px 8px; border-radius:6px; font-size:0.85rem; font-weight:600; color:var(--primary-700)">Group ${e.shift || '-'}</span></td>
+            <td data-label="Aksi">
               <div style="display:flex; justify-content:flex-end; gap:6px;">
                 <button class='btn small' data-act='edit' data-id='${e.nid}' title="Edit" style="padding:4px;width:28px;height:28px;display:grid;place-items:center;">✏️</button>
                 <button class='btn small' data-act='barcode' data-id='${e.nid}' title="ID Card" style="padding:4px;width:28px;height:28px;display:grid;place-items:center;">🏷️</button>
@@ -3031,16 +3031,16 @@ function renderInventory() {
 
     return `
           <tr>
-            <td>${sorted.length - idx}</td>
-            <td>${dateStr}</td>
-            <td>${timeInStr}</td>
-            <td>${timeOutStr}</td>
-            <td>${item.carrier || '-'}</td>
-            <td>${item.company || '-'}</td>
-            <td>${item.item || '-'}</td>
-            <td>${item.dest || '-'}</td>
-            <td style="font-family:cursive; opacity:0.7">${item.officer || 'Security'}</td>
-            <td style="text-align:center">${actionBtn}</td>
+            <td data-label="No">${sorted.length - idx}</td>
+            <td data-label="Tanggal">${dateStr}</td>
+            <td data-label="Masuk">${timeInStr}</td>
+            <td data-label="Keluar">${timeOutStr}</td>
+            <td data-label="Pembawa">${item.carrier || '-'}</td>
+            <td data-label="Perusahaan">${item.company || '-'}</td>
+            <td data-label="Barang">${item.item || '-'}</td>
+            <td data-label="Tujuan">${item.dest || '-'}</td>
+            <td data-label="Petugas" style="font-family:cursive; opacity:0.7">${item.officer || 'Security'}</td>
+            <td data-label="Aksi" style="text-align:center">${actionBtn}</td>
           </tr>
         `;
   }).join('');
@@ -3400,3 +3400,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // Initial Render if on inventory route
 window.renderInventory = renderInventory;
+
+// Force Dashboard on Mobile Load
+window.addEventListener('load', () => {
+  if (window.innerWidth <= 768) {
+    // If user is on mobile, always default to Dashboard to ensure clean state
+    // But allow if they specifically navigated to something else? 
+    // User logic: "pastikan ketika membuka versi hp langsung di arahkan ke beranda"
+    navigate('dashboard');
+  }
+});

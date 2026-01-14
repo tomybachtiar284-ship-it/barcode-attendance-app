@@ -2646,3 +2646,365 @@ h1.page-title {
     font-size: 0.7rem;
   }
 }
+
+/* 3. Mobile Table "Card View" Transformation */
+@media (max-width: 768px) {
+
+  /* Generic Table Reset for Card View */
+  .emp-table,
+  #route-inventory table,
+  #route-latest table,
+  #route-education table {
+    display: block;
+    width: 100%;
+  }
+
+  .emp-table thead,
+  #route-inventory thead,
+  #route-latest thead,
+  #route-education thead {
+    display: none;
+    /* Hide headers */
+  }
+
+  .emp-table tbody,
+  #route-inventory tbody,
+  #route-latest tbody,
+  #route-education tbody {
+    display: block;
+    width: 100%;
+  }
+
+  .emp-table tr,
+  #route-inventory tr,
+  #route-latest tr,
+  #route-education tr {
+    display: block;
+    background: #fff;
+    margin-bottom: 16px;
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    padding: 16px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.02);
+  }
+
+  .emp-table td,
+  #route-inventory td,
+  #route-latest td,
+  #route-education td {
+    display: flex;
+    justify-content: space-between;
+    /* Label Left, Value Right */
+    align-items: center;
+    padding: 8px 0;
+    border: none;
+    border-bottom: 1px solid #f3f4f6;
+    font-size: 0.9rem;
+    text-align: right;
+    /* Value align right */
+  }
+
+  .emp-table td:last-child,
+  #route-inventory td:last-child {
+    border-bottom: none;
+    padding-top: 16px;
+    justify-content: center;
+    /* Actions centered */
+  }
+
+  /* Inject Label via data-label */
+  .emp-table td::before,
+  #route-inventory td::before,
+  #route-latest td::before,
+  #route-education td::before {
+    content: attr(data-label);
+    font-weight: 600;
+    color: var(--muted);
+    text-align: left;
+    margin-right: 16px;
+    font-size: 0.85rem;
+  }
+
+  /* Fix Image Alignment in Employee Card */
+  .emp-table td[data-label="Foto"] {
+    justify-content: center;
+    border-bottom: none;
+    padding-bottom: 4px;
+    padding-top: 0;
+  }
+
+  .emp-table td[data-label="Foto"]::before {
+    display: none;
+    /* Hide label for photo */
+  }
+
+  /* Make Action Buttons Bigger on Mobile */
+  .btn.small {
+    padding: 8px 12px;
+    font-size: 0.9rem;
+    min-width: 40px;
+    min-height: 40px;
+  }
+
+  /* Adjust Toolbar Layouts */
+  .toolbar .left,
+  .toolbar .right {
+    flex-direction: column;
+    align-items: stretch;
+    width: 100%;
+  }
+
+  .toolbar input,
+  .toolbar select,
+  .toolbar button {
+    width: 100% !important;
+    margin-bottom: 8px;
+  }
+
+  /* SpecificTweaks */
+  .emp-table td[data-label="Nama"] {
+    font-weight: 700;
+    color: var(--primary-700);
+    font-size: 1.1rem;
+    display: block;
+    text-align: center;
+  }
+
+  .emp-table td[data-label="Nama"]::before {
+    display: none;
+  }
+
+  /* 4. Mobile Dashboard Grid Adjustments */
+  .grid-4 {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 12px !important;
+  }
+
+  /* Adjust Card size for 2-column layout */
+  .card-stat {
+    padding: 16px !important;
+    min-height: 140px;
+  }
+
+  .card-stat .val {
+    font-size: 2rem !important;
+  }
+
+  .card-stat .lbl {
+    font-size: 0.8rem !important;
+  }
+
+  .card-stat h3 {
+    font-size: 0.9rem !important;
+  }
+
+  /* 5. Fix Scan Page Layout on Mobile */
+  .scan-hero {
+    flex-direction: column !important;
+    gap: 16px;
+  }
+
+  .scan-hero-left,
+  .scan-hero-right {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  /* Fix Input Scan */
+  .scan-input {
+    font-size: 1.1rem !important;
+    padding: 12px !important;
+  }
+
+  /* Scan Profile Card Mobile */
+  .scan-profile-card {
+    flex-direction: row;
+    /* Keep row for photo + details */
+    align-items: flex-start;
+    padding: 16px;
+    background: #fff;
+    border-radius: 16px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  }
+
+  .scan-profile-card .photo-big {
+    width: 80px;
+    height: 80px;
+    flex: 0 0 80px;
+  }
+
+  /* Fix Table in Scan Page */
+  #route-scan .table-wrap {
+    border: none;
+    box-shadow: none;
+  }
+}
+
+/* 6. Fix Logistik (Inventory) Toolbar on Mobile */
+@media (max-width: 768px) {
+  #route-inventory .toolbar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 16px !important;
+  }
+
+  /* Target the nested container with date inputs */
+  #route-inventory .toolbar .left>div {
+    flex-direction: column;
+    align-items: stretch !important;
+    border-left: none !important;
+    padding-left: 0 !important;
+    margin-left: 0 !important;
+    gap: 12px !important;
+    width: 100%;
+    margin-top: 12px;
+  }
+
+  /* Make date inputs full width */
+  #route-inventory input[type="date"] {
+    width: 100% !important;
+    box-sizing: border-box;
+    /* Ensure padding doesn't overflow */
+  }
+
+  /* Fix small buttons in toolbar to be full width/bigger */
+  #route-inventory .toolbar .btn.small {
+    width: 100%;
+    justify-content: center;
+    padding: 10px;
+  }
+
+  /* Allow text wrap in Card View Values */
+  #route-inventory td {
+    white-space: normal !important;
+    /* Allow wrapping */
+  }
+
+  #route-inventory td {
+    align-items: flex-start !important;
+    /* Align label/value to top if wrapped */
+  }
+
+  #route-inventory td::before {
+    white-space: nowrap;
+    /* Keep label single line */
+    flex-shrink: 0;
+    /* Prevent label from shrinking */
+  }
+
+  /* Specific fix for "Barang" value alignment */
+  #route-inventory td[data-label="Jenis Barang & Jumlah"] {
+    text-align: right;
+    /* Keep right align but allow wrap */
+    word-break: break-word;
+  }
+
+  /* 7. Fix Karyawan (Employees) Toolbar on Mobile */
+  #route-employees .toolbar {
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  /* Make button container a grid for neat alignment */
+  #route-employees .toolbar .left {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    /* 2 columns */
+    gap: 8px;
+    width: 100%;
+  }
+
+  /* "Tambah" button full width */
+  #btnAddEmp {
+    grid-column: 1 / -1;
+    justify-content: center;
+  }
+
+  /* "Sync Cloud" button also full width for emphasis */
+  #btnSyncEmp {
+    grid-column: 1 / -1;
+    justify-content: center;
+  }
+
+  #route-employees .toolbar .left .btn {
+    justify-content: center;
+    width: 100%;
+    margin: 0;
+  }
+
+  /* Stack inputs on the right */
+  #route-employees .toolbar .right {
+    flex-direction: column;
+    width: 100%;
+    gap: 8px !important;
+  }
+
+  #route-employees .toolbar .right select,
+  #route-employees .toolbar .right input {
+    width: 100% !important;
+    max-width: 100% !important;
+
+    /* 8. Fix Add Employee Modal on Mobile */
+    #empModal .grid-2 {
+      grid-template-columns: 1fr !important;
+      /* Force 1 column */
+      gap: 16px;
+    }
+
+    /* Force Labels to stack vertically with Inputs */
+    #empModal label {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 4px;
+      width: 100%;
+    }
+
+    /* Full width inputs/selects */
+    #empModal input,
+    #empModal select {
+      width: 100% !important;
+      max-width: 100% !important;
+      box-sizing: border-box;
+      padding: 12px;
+      /* Bigger touch target */
+    }
+
+    /* Camera Actions: 2 columns for buttons */
+    #empModal .camera-actions {
+      display: grid !important;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      width: 100%;
+      margin-top: 8px;
+    }
+
+    #empModal .camera-actions button {
+      width: 100%;
+      justify-content: center;
+    }
+
+    #empModal .camera-actions small {
+      grid-column: 1 / -1;
+      /* Hint text spans full width */
+      text-align: center;
+    }
+
+    /* Modal Actions (Save/Cancel) */
+    #empModal .modal-actions {
+      display: grid;
+      /* Grid for 2 big buttons at bottom */
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-top: 20px;
+    }
+
+    #empModal .modal-actions button {
+      width: 100%;
+      justify-content: center;
+      padding: 12px;
+    }
+  }
+}
