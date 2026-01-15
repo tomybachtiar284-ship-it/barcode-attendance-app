@@ -941,7 +941,8 @@ window.addEventListener('DOMContentLoaded', () => {
     // 2. Stats
     const total = employees.length;
     // Calc logic
-    const sod = new Date(new Date().getFullYear() + '-' + String(new Date().getMonth() + 1).padStart(2, '0') + '-' + String(new Date().getDate()).padStart(2, '0')).getTime();
+    // FIXED: Use todayISO() + T00:00:00 to match Desktop logic (Local Time)
+    const sod = new Date(todayISO() + 'T00:00:00').getTime();
     const today = attendance.filter(a => a.ts >= sod);
     const present = today.filter(a => a.status === 'datang').length;
     const late = today.filter(a => a.status === 'datang' && a.late).length;

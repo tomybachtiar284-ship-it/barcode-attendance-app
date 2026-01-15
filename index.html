@@ -582,6 +582,103 @@
         animation: none !important;
       }
     }
+
+    /* Sidebar Close Button (Mobile Only) */
+    @media (max-width: 768px) {
+      .btn-close-sidebar {
+        display: block !important;
+      }
+
+      /* === MOBILE SCAN PAGE OPTIMIZATION === */
+      #route-scan .header-modern {
+        padding: 12px 10px;
+        gap: 6px;
+      }
+
+      #route-scan .header-title {
+        font-size: 0.9rem;
+        line-height: 1.2;
+      }
+
+      #route-scan .header-subtitle {
+        font-size: 0.7rem;
+        display: none;
+      }
+
+      /* Hide marquee on mobile to save space? Or just small */
+
+      /* Grid 2x2 for Stats */
+      #route-scan .grid-4 {
+        display: grid !important;
+        grid-template-columns: 1fr 1fr !important;
+        gap: 8px !important;
+        padding: 0 10px !important;
+        margin-top: 10px !important;
+      }
+
+      /* Compact Cards */
+      #route-scan .card-solid {
+        padding: 10px !important;
+        min-height: 80px !important;
+      }
+
+      #route-scan .card-solid .pills {
+        display: none !important;
+      }
+
+      /* Hide pills */
+      #route-scan .card-solid .lbl {
+        font-size: 0.7rem !important;
+        margin-bottom: 0 !important;
+        opacity: 0.9;
+      }
+
+      #route-scan .card-solid .val {
+        font-size: 1.6rem !important;
+        margin-top: 2px !important;
+      }
+
+      /* Input Field */
+      #route-scan .scan-input.light {
+        padding: 10px 12px !important;
+        font-size: 0.95rem !important;
+        margin: 10px 0 !important;
+      }
+
+      /* Company Grid Compact */
+      .company-card {
+        padding: 8px 10px !important;
+        flex-direction: row !important;
+        align-items: center !important;
+        gap: 8px !important;
+        border-radius: 8px !important;
+      }
+
+      .company-card .name {
+        font-size: 0.8rem !important;
+      }
+
+      .company-card .sub {
+        font-size: 0.65rem !important;
+      }
+
+      .company-card .badge {
+        font-size: 1.1rem !important;
+      }
+
+      /* Hide Active Shifts Time Range */
+      #activeShiftsContainer .shift-card {
+        padding: 6px 10px !important;
+      }
+
+      #activeShiftsContainer h4 {
+        font-size: 0.85rem !important;
+      }
+
+      #activeShiftsContainer small {
+        font-size: 0.7rem !important;
+      }
+    }
   </style>
 </head>
 
@@ -609,6 +706,15 @@
           Safety
         </div>
       </div>
+      <!-- NEW: Close Button for Mobile -->
+      <button class="btn-close-sidebar" onclick="window.toggleMobileMenu()" aria-label="Close Menu"
+        style="margin-left: auto; background: none; border: none; color: #0f172a; cursor: pointer; display: none; z-index:50;">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+          stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="18" y1="6" x2="6" y2="18"></line>
+          <line x1="6" y1="6" x2="18" y2="18"></line>
+        </svg>
+      </button>
     </div>
 
     <nav class="nav">
