@@ -919,7 +919,8 @@ window.addEventListener('DOMContentLoaded', () => {
       });
     }
     renderCurrentShiftPanel();
-    renderOvertimePanel();
+    // Use standardized Global Overtime Renderer
+    if (window.renderOvertimePanel) window.renderOvertimePanel();
     renderNewsWidgets();
     renderCompanyPresence();
     renderLiveCompanyStats();
@@ -1971,28 +1972,32 @@ window.addEventListener('DOMContentLoaded', () => {
   }
   // Shared filter logic
   function getFilteredAttendanceRows() {
+    // 1. Prepare Date Range
     const fromVal = $('#attFrom').value;
     const toVal = $('#attTo').value;
-    if (!fromVal || !toVal) return []; // Should not happen if init correctly
+    if (!fromVal || !toVal) return [];
 
-    const from = new Date(fromVal + 'T00:00:00').getTime();
-    const to = new Date(toVal + 'T23:59:59').getTime();
+    const dFrom = new Date(fromVal); dFrom.setHours(0, 0, 0, 0); const tFrom = dFrom.getTime();
+    const dTo = new Date(toVal); dTo.setHours(23, 59, 59, 999); const tTo = dTo.getTime();
 
-    // Search query
+    // Use Window Globals
+    let atts = window.attendance || attendance || [];
+    if (!Array.isArray(atts)) atts = [];
+
+    const shfs = window.shifts || shifts || {};
+
+    // Inputs
     const q = ($('#attSearch')?.value || '').toLowerCase().trim();
-    // Group filter
     const gr = $('#attGroupFilter')?.value || '';
-    // Status filter
     const st = $('#attStatusFilter')?.value || '';
 
-    return attendance.filter(a => {
-      // 1. Check Date
-      if (a.ts < from || a.ts > to) return false;
+    return atts.filter(a => {
+      // 1. Check Date Range
+      if (a.ts < tFrom || a.ts > tTo) return false;
 
       // 2. Check Search (Name or NID)
       if (q) {
-        const text = (a.name + ' ' + a.nid).toLowerCase();
-        if (!text.includes(q)) return false;
+        if (!(a.name + ' ' + a.nid).toLowerCase().includes(q)) return false;
       }
 
       // 3. Check Group
@@ -2001,17 +2006,34 @@ window.addEventListener('DOMContentLoaded', () => {
         if (!emp || emp.shift !== gr) return false;
       }
 
-      // 4. Check Status (Late/Ontime)
+      // 4. Check Status
       if (st) {
         if (st === 'LATE') {
-          if (!a.late) return false;
-        } else if (st === 'ONTIME') {
-          // Hanya tampilkan yang STATUS='datang' DAN TIDAK LATE
-          if (a.status !== 'datang' || a.late) return false;
-        } else if (st === 'UNKNOWN') {
-          // Opsional: tampilkan yg tidak punya flag late (misal data lama / pulang)
-          if (a.status === 'datang' && typeof a.late === 'boolean') return false;
+          return !!a.late;
         }
+        if (st === 'ONTIME') {
+          return a.status === 'datang' && !a.late;
+        }
+        if (st === 'UNKNOWN') {
+          return a.status === 'datang' && typeof a.late === 'boolean';
+        }
+        if (st === 'OVERTIME') {
+          if (a.status !== 'pulang') return false;
+
+          const sDef = shfs[a.shift];
+          if (!sDef || !sDef.end) return false;
+
+          // Time Calc
+          const d = new Date(a.ts);
+          const scanMins = d.getHours() * 60 + d.getMinutes();
+          const [h, m] = sDef.end.split(':').map(Number);
+          const endMins = h * 60 + m;
+
+          // Strict Overtime (> 10 mins tolerance)
+          return scanMins > (endMins + 10);
+        }
+        // Unknown filter -> hide
+        return false;
       }
       return true;
     }).sort((a, b) => b.ts - a.ts);
@@ -2026,8 +2048,12 @@ window.addEventListener('DOMContentLoaded', () => {
       const tr = document.createElement('tr');
       tr.dataset.ts = r.ts;
 
-      const statusClass = r.status === 'datang' ? 'status-masuk' : 'status-pulang';
-      const statusLabel = r.status === 'datang' ? 'Masuk' : 'Pulang';
+      let statusLabel = 'Pulang';
+      let statusClass = 'status-pulang';
+
+      if (r.status === 'datang') { statusLabel = 'Masuk'; statusClass = 'status-masuk'; }
+      else if (r.status === 'break_out') { statusLabel = 'Izin Keluar'; statusClass = 'status-pulang'; } // Re-use pulang style or custom
+      else if (r.status === 'break_in') { statusLabel = 'Kembali'; statusClass = 'status-masuk'; }
 
       tr.innerHTML = `
         <td>${fmtTs(r.ts)}</td>
@@ -3441,4 +3467,159 @@ document.addEventListener('DOMContentLoaded', () => {
 // Initial Render if on inventory route
 window.renderInventory = renderInventory;
 
+// ===== OVERTIME ALERT (Standardized Logic) =====
+window.showOvertimeList = function () {
+  const now = new Date();
+  const pad = n => String(n).padStart(2, '0');
+  const todayVal = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
 
+  const start = new Date(todayVal + 'T00:00:00').getTime();
+  const end = new Date(todayVal + 'T23:59:59').getTime();
+
+  const atts = window.attendance || [];
+  const shfs = window.shifts || {};
+
+  const todays = atts.filter(a => a.ts >= start && a.ts <= end);
+
+  // Logic: DAYTIME ONLY & > End+10m
+  const overs = todays.filter(a => {
+    if (a.status !== 'pulang') return false;
+    // NEW RULE: ONLY DAYTIME SHIFT
+    if (a.shift !== 'DAYTIME') return false;
+
+    const sDef = shfs[a.shift];
+    if (!sDef || !sDef.end) return false;
+
+    const d = new Date(a.ts);
+    const scanMins = d.getHours() * 60 + d.getMinutes();
+
+    const [h, m] = sDef.end.split(':').map(Number);
+    const endMins = h * 60 + m;
+
+    return scanMins > (endMins + 10);
+  });
+
+  if (overs.length === 0) {
+    alert('Belum ada karyawan DAYTIME yang lembur hari ini.');
+    return;
+  }
+
+  const list = overs.map((a, i) => {
+    const sEnd = shfs[a.shift]?.end;
+    const d = new Date(a.ts);
+    const [eh, em] = sEnd.split(':').map(Number);
+    const endMins = eh * 60 + em;
+    const scanMins = d.getHours() * 60 + d.getMinutes();
+    const diff = scanMins - endMins;
+    const durH = Math.floor(diff / 60);
+    const durM = diff % 60;
+    const durStr = `+${durH}j ${durM}m`;
+
+    return `${i + 1}. ${a.name} (Shift ${a.shift} ${sEnd}, ${durStr})`;
+  }).join('\n');
+
+  alert(`Daftar Karyawan Overtime (DAYTIME) Hari Ini:\n\n${list}`);
+};
+
+/* 
+  ===== DASHBOARD OVERTIME RENDERER (Clean & Strict) =====
+  Ensures Dashboard Counter matches the Alert List logic exactly.
+*/
+window.renderOvertimePanel = function () {
+  const elCount = document.getElementById('overtimeCountDash');
+  const elPanel = document.getElementById('overtimePanelDash');
+  if (!elCount || !elPanel) return;
+
+  // 1. Get Data from Global Window (Freshness)
+  const atts = window.attendance || [];
+  const shfs = window.shifts || {};
+
+  // 2. Filter Today (Local YYYY-MM-DD)
+  const now = new Date();
+  const pad = n => String(n).padStart(2, '0');
+  const todayVal = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+  const start = new Date(todayVal + 'T00:00:00').getTime();
+  const end = new Date(todayVal + 'T23:59:59').getTime();
+
+  const todays = atts.filter(a => a.ts >= start && a.ts <= end);
+
+  // 3. Count Strict Overtime (> 10 mins tolerance, DAYTIME ONLY)
+  const overs = todays.filter(a => {
+    if (a.status !== 'pulang') return false;
+
+    // NEW RULE: ONLY DAYTIME SHIFT
+    if (a.shift !== 'DAYTIME') return false;
+
+    const sDef = shfs[a.shift];
+    if (!sDef || !sDef.end) return false;
+
+    const d = new Date(a.ts);
+    const scanMins = d.getHours() * 60 + d.getMinutes();
+
+    // Normalize Shift End
+    const [h, m] = sDef.end.split(':').map(Number);
+    const endMins = h * 60 + m;
+
+    // Logic
+    return scanMins > (endMins + 10);
+  });
+
+  // 4. Update UI
+  const count = overs.length;
+  elCount.textContent = count;
+
+  if (count > 0) {
+    elPanel.style.display = 'flex'; // Show Red Panel
+    // Update tooltip title if possible? No, click handles list.
+  } else {
+    elPanel.style.display = 'none'; // Hide if 0
+  }
+};
+
+// OVERRIDE: Force DAYTIME ONLY Logic & Always Show Panel
+window.renderOvertimePanel = function () {
+  const elCount = document.getElementById('overtimeCountDash');
+  const elPanel = document.getElementById('overtimePanelDash');
+  if (!elCount || !elPanel) return;
+
+  // 1. Get Data from Global Window (Freshness)
+  const atts = window.attendance || [];
+  const shfs = window.shifts || {};
+
+  // 2. Filter Today (Local YYYY-MM-DD)
+  const now = new Date();
+  const pad = n => String(n).padStart(2, '0');
+  const todayVal = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`; // Local YYYY-MM-DD
+  const start = new Date(todayVal + 'T00:00:00').getTime();
+  const end = new Date(todayVal + 'T23:59:59').getTime();
+
+  const todays = atts.filter(a => a.ts >= start && a.ts <= end);
+
+  // 3. Count Strict Overtime (> 10 mins tolerance, DAYTIME ONLY)
+  const overs = todays.filter(a => {
+    if (a.status !== 'pulang') return false;
+
+    // NEW RULE: ONLY DAYTIME SHIFT
+    if (a.shift !== 'DAYTIME') return false;
+
+    const sDef = shfs[a.shift];
+    if (!sDef || !sDef.end) return false;
+
+    const d = new Date(a.ts);
+    const scanMins = d.getHours() * 60 + d.getMinutes();
+
+    // Normalize Shift End
+    const [h, m] = sDef.end.split(':').map(Number);
+    const endMins = h * 60 + m;
+
+    // Logic
+    return scanMins > (endMins + 10);
+  });
+
+  // 4. Update UI
+  const count = overs.length;
+  elCount.textContent = count;
+
+  // ALWAYS SHOW PANEL (User Request)
+  elPanel.style.display = 'flex';
+};
