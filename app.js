@@ -184,8 +184,21 @@ window.addEventListener('DOMContentLoaded', () => {
 
   async function delNews(ts) {
     if (!sb) return;
-    const { error } = await sb.from('news').delete().eq('ts', ts);
-    if (error) alert('Gagal Hapus News di Cloud: ' + error.message);
+    try {
+      // Use select to confirm deletion count
+      const { error, count } = await sb.from('news').delete({ count: 'exact' }).eq('ts', ts);
+      if (error) {
+        alert('Gagal Hapus News di Cloud: ' + error.message);
+        console.error('Del news error:', error);
+      } else if (count === 0) {
+        alert('Peringatan: Item berhasil dihapus dari lokal, tapi tidak ditemukan di server (atau akses ditolak). Jika item muncul kembali, periksa "RLS Policy" di Supabase Anda.');
+        console.warn('Del news count=0 for ts:', ts);
+      } else {
+        console.log('✅ News deleted from Cloud:', ts);
+      }
+    } catch (err) {
+      alert('Exception saat hapus news: ' + err.message);
+    }
   }
 
   async function pushEdu(e) {
