@@ -2026,10 +2026,12 @@ window.addEventListener('DOMContentLoaded', () => {
     $('#btnExportAtt').dataset.count = rows.length;
   }
   $('#btnFilterAtt')?.addEventListener('click', filterAttendance);
-  // Realtime search & group filter
+  // Realtime search & group filter & DATE filter
   $('#attSearch')?.addEventListener('input', filterAttendance);
   $('#attGroupFilter')?.addEventListener('change', filterAttendance);
   $('#attStatusFilter')?.addEventListener('change', filterAttendance);
+  $('#attFrom')?.addEventListener('change', filterAttendance);
+  $('#attTo')?.addEventListener('change', filterAttendance);
 
   $('#tableAtt tbody')?.addEventListener('click', (e) => {
     const btn = e.target.closest('button[data-act="del-att"]'); if (!btn) return;
