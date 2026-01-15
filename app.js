@@ -272,13 +272,28 @@ window.addEventListener('DOMContentLoaded', () => {
     // Fetch Breaks
     const { data: brks } = await sb.from('breaks').select('*').gte('ts', since);
 
+    // Helper: Ensure we parse timestamp as UTC
+    const parseSbTs = (v) => {
+      if (typeof v === 'number') return v;
+      if (typeof v === 'string') {
+        // If likely ISO but missing Z/Offset, append Z to treat as UTC
+        if (v.includes('T') && !v.endsWith('Z') && !v.includes('+')) return new Date(v + 'Z').getTime();
+        return new Date(v).getTime();
+      }
+      return Date.now();
+    };
+
     if (atts || brks) {
+      // Keep old LOCAL data that is NOT yet synced?
+      // Actually pullAll usually replaces everything within the window ('since').
+      // But we must support offline.
       const old = attendance.filter(a => a.ts < since);
 
       let newAtts = [];
       if (atts) {
         newAtts = atts.map(x => ({
-          ts: x.ts, status: x.status, nid: x.nid, name: x.name,
+          ts: parseSbTs(x.ts), // Fix Timezone
+          status: x.status, nid: x.nid, name: x.name,
           title: x.title, company: x.company, shift: x.shift,
           note: x.note, late: x.late, okShift: x.ok_shift
         }));
@@ -287,7 +302,8 @@ window.addEventListener('DOMContentLoaded', () => {
       let newBreaks = [];
       if (brks) {
         newBreaks = brks.map(x => ({
-          ts: x.ts, status: x.status, nid: x.nid, name: x.name,
+          ts: parseSbTs(x.ts), // Fix Timezone
+          status: x.status, nid: x.nid, name: x.name,
           title: '', company: x.company, shift: '',
           note: (x.status === 'break_out' ? 'Izin Keluar / Istirahat' : 'Kembali Masuk'),
           late: false, okShift: true
