@@ -3623,3 +3623,124 @@ window.renderOvertimePanel = function () {
   // ALWAYS SHOW PANEL (User Request)
   elPanel.style.display = 'flex';
 };
+
+// ===== MOBILE INTERACTIVITY (Scrollable Modal) =====
+window.showMobileList = function (title, items) {
+  // 1. Remove existing if any
+  const old = document.getElementById('mobListOverlay');
+  if (old) old.remove();
+
+  // 2. Create Overlay
+  const ov = document.createElement('div');
+  ov.id = 'mobListOverlay';
+  Object.assign(ov.style, {
+    position: 'fixed', inset: 0, zIndex: 9999,
+    background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)',
+    display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px'
+  });
+
+  // 3. Create Card
+  const card = document.createElement('div');
+  Object.assign(card.style, {
+    background: '#fff', width: '100%', maxWidth: '400px', maxHeight: '80vh',
+    borderRadius: '16px', display: 'flex', flexDirection: 'column',
+    boxShadow: '0 10px 25px rgba(0,0,0,0.2)', overflow: 'hidden'
+  });
+
+  // 4. Header
+  const head = document.createElement('div');
+  Object.assign(head.style, {
+    padding: '16px', borderBottom: '1px solid #eee', display: 'flex',
+    justifyContent: 'space-between', alignItems: 'center', background: '#f8fafc'
+  });
+  head.innerHTML = `<h3 style="margin:0; font-size:1.1rem; color:#334155">${title}</h3>
+    <button id="btnCloseMobList" style="border:none; background:none; font-size:1.5rem; cursor:pointer; color:#64748b;">&times;</button>`;
+
+  // 5. List Container
+  const list = document.createElement('div');
+  Object.assign(list.style, {
+    padding: '0', overflowY: 'auto', flex: 1
+  });
+
+  if (items.length === 0) {
+    list.innerHTML = `<div style="padding:20px; text-align:center; color:#94a3b8;">Tidak ada data.</div>`;
+  } else {
+    items.forEach((it, i) => {
+      const row = document.createElement('div');
+      Object.assign(row.style, {
+        padding: '12px 16px', borderBottom: '1px solid #f1f5f9', fontSize: '0.9rem', color: '#0f172a'
+      });
+      // Alternate bg
+      if (i % 2 === 0) row.style.background = '#fff';
+      else row.style.background = '#f8fafc';
+
+      row.textContent = `${i + 1}. ${it}`;
+      list.appendChild(row);
+    });
+  }
+
+  // 6. Assemble
+  card.appendChild(head);
+  card.appendChild(list);
+  ov.appendChild(card);
+  document.body.appendChild(ov);
+
+  // 7. Close Logic
+  const close = () => ov.remove();
+  ov.onclick = (e) => { if (e.target === ov) close(); };
+  head.querySelector('#btnCloseMobList').onclick = close;
+};
+
+function setupMobileListeners() {
+  const elLate = document.getElementById('mobStatLate');
+  const elPres = document.getElementById('mobStatPresent');
+  const elTot = document.getElementById('mobStatTotal');
+
+  const getTodayAtts = () => {
+    const sod = new Date(new Date().getFullYear() + '-' + String(new Date().getMonth() + 1).padStart(2, '0') + '-' + String(new Date().getDate()).padStart(2, '0')).getTime();
+    return (window.attendance || []).filter(a => a.ts >= sod);
+  };
+
+  if (elLate) {
+    const card = elLate.closest('.mob-stat-card');
+    if (card) {
+      card.style.cursor = 'pointer';
+      card.onclick = () => {
+        const today = getTodayAtts();
+        const lates = today.filter(a => a.status === 'datang' && a.late);
+        const names = lates.map(a => `${a.name} (${a.shift})`);
+        showMobileList(`📋 Terlambat (${lates.length})`, names);
+      };
+    }
+  }
+
+  if (elPres) {
+    const card = elPres.closest('.mob-stat-card');
+    if (card) {
+      card.style.cursor = 'pointer';
+      card.onclick = () => {
+        const today = getTodayAtts();
+        const presents = today.filter(a => a.status === 'datang');
+        const names = presents.map(a => `${a.name} (${a.late ? 'Terlambat' : 'On-time'})`);
+        showMobileList(`📋 Hadir (${presents.length})`, names);
+      };
+    }
+  }
+
+  if (elTot) {
+    const card = elTot.closest('.mob-stat-card');
+    if (card) {
+      card.style.cursor = 'pointer';
+      card.onclick = () => {
+        document.querySelector('.navlink[data-route="employees"]')?.click();
+      };
+    }
+  }
+}
+
+// Init safely
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', setupMobileListeners);
+} else {
+  setupMobileListeners();
+}
