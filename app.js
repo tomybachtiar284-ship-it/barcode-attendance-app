@@ -338,10 +338,15 @@ window.addEventListener('DOMContentLoaded', () => {
         localMap.set(x.ts, { ts: x.ts, title: x.title, body: x.body, link: x.link });
       });
 
-      // 2. Identify Pending Local Items -> Push to Server
+      // 2. Identify Pending Local Items -> Push to Server OR Delete Local
       for (const [ts, val] of localMap.entries()) {
         if (!serverMap.has(Number(ts))) {
-          await pushNews(val);
+          if (val.pending_sync) {
+            await pushNews(val);
+          } else {
+            // Missing from server & not new = Deleted Remotely
+            localMap.delete(ts);
+          }
         }
       }
 
@@ -2447,7 +2452,8 @@ window.addEventListener('DOMContentLoaded', () => {
       ts: newsEditingId ? (news.find(x => x.id === newsEditingId)?.ts || Date.now()) : Date.now(),
       title,
       body,
-      link: $('#nLink').value.trim()
+      link: $('#nLink').value.trim(),
+      pending_sync: true // Flag for sync
     };
 
     if (newsEditingId) {
@@ -2464,14 +2470,16 @@ window.addEventListener('DOMContentLoaded', () => {
     try {
       if (sb) {
         await pushNews(item);
+        item.pending_sync = false; // Synced!
+        save(LS_NEWS, news); // Update local state
         toast('Info berhasil disimpan & disinkronkan.');
       } else {
-        toast('Info disimpan lokal.');
+        toast('Info disimpan lokal (pending sync).');
       }
       $('#newsModal').close();
     } catch (err) {
       alert('Gagal sync info: ' + err.message);
-      $('#newsModal').close(); // Close anyway or let user retry? User wants fast.
+      $('#newsModal').close();
     } finally {
       if (btn) { btn.disabled = false; btn.textContent = 'Simpan'; }
     }
