@@ -62,6 +62,7 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
+  <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="js/translation.js"></script>
   <script src="config.local.js"></script>
@@ -589,32 +590,228 @@
         display: block !important;
       }
 
-      /* === MOBILE SCAN PAGE OPTIMIZATION === */
-      #route-scan .header-modern {
-        padding: 12px 10px;
-        gap: 6px;
+      /* === MOBILE SCAN REDESIGN (REF STYLE) === */
+      .mobile-only {
+        display: block !important;
       }
 
-      #route-scan .header-title {
-        font-size: 0.9rem;
-        line-height: 1.2;
+      .desktop-only {
+        display: none !important;
       }
 
-      #route-scan .header-subtitle {
-        font-size: 0.7rem;
+      /* Mobile Container */
+      #mobScanView {
+        background: #f8fafc;
+        min-height: 80vh;
+        padding-bottom: 80px;
+        /* Space for scroll */
+      }
+
+      /* 1. Curved Blue Header */
+      .mob-scan-header {
+        background: linear-gradient(135deg, var(--primary-700), var(--primary-600));
+        padding: 24px 20px 40px;
+        /* Extra bottom pad for curve */
+        border-bottom-left-radius: 32px;
+        border-bottom-right-radius: 32px;
+        color: #fff;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        box-shadow: 0 10px 30px rgba(0, 141, 191, 0.25);
+        margin-bottom: -20px;
+        /* Pull content up overlap */
+      }
+
+      .mob-scan-header .logo-area {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .mob-scan-header img {
+        height: 40px;
+        width: auto;
+        background: #fff;
+        border-radius: 8px;
+        padding: 2px;
+      }
+
+      .mob-scan-header .title-area h2 {
+        margin: 0;
+        font-size: 1.1rem;
+        font-weight: 700;
+      }
+
+      .mob-scan-header .title-area p {
+        margin: 0;
+        font-size: 0.8rem;
+        opacity: 0.9;
+      }
+
+      /* 2. Overlap Card (Stats) */
+      .mob-stats-overlap {
+        margin: 0 16px 20px;
+        position: relative;
+        z-index: 2;
+      }
+
+      /* Re-use .grid-4 but flattened/styled */
+      .mob-stats-overlap .grid-4 {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+      }
+
+      .mob-stats-overlap .card-solid {
+        background: #fff;
+        border-radius: 16px;
+        padding: 14px;
+        text-align: center;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+        border: none;
+      }
+
+      .mob-stats-overlap .card-solid .val {
+        font-size: 1.4rem;
+        color: var(--primary-700);
+        font-weight: 800;
+      }
+
+      .mob-stats-overlap .card-solid .lbl {
+        font-size: 0.75rem;
+        color: #64748b;
+        margin-top: 4px;
+      }
+
+      /* 3. Action Area (Camera & Input) */
+      .mob-action-area {
+        padding: 0 20px;
+        margin-bottom: 24px;
+      }
+
+      #btnCamToggleMob {
+        width: 100%;
+        background: var(--primary-500);
+        color: #fff;
+        border: none;
+        padding: 16px;
+        border-radius: 16px;
+        font-size: 1rem;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        box-shadow: 0 8px 20px rgba(51, 190, 255, 0.3);
+        margin-bottom: 12px;
+      }
+
+      #mobScanInput {
+        width: 100%;
+        padding: 14px;
+        border: 1px solid #e2e8f0;
+        background: #fff;
+        border-radius: 12px;
+        text-align: center;
+        font-size: 1rem;
+      }
+
+      /* 4. Vertical Feed (Recent Scans) */
+      .mob-feed-title {
+        padding: 0 20px;
+        font-size: 1rem;
+        font-weight: 700;
+        color: #334155;
+        margin-bottom: 12px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      #mobScanFeed {
+        padding: 0 20px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+
+      .mob-feed-card {
+        background: #fff;
+        padding: 12px;
+        border-radius: 16px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
+        border: 1px solid #f1f5f9;
+        animation: slideInUp 0.3s ease;
+      }
+
+      .mob-feed-card img {
+        width: 48px;
+        height: 48px;
+        border-radius: 10px;
+        object-fit: cover;
+        background: #eee;
+      }
+
+      .mob-feed-card .info {
+        flex: 1;
+      }
+
+      .mob-feed-card .info h4 {
+        margin: 0 0 4px;
+        font-size: 0.95rem;
+        color: #0f172a;
+      }
+
+      .mob-feed-card .info p {
+        margin: 0;
+        font-size: 0.8rem;
+        color: #64748b;
+      }
+
+      .mob-feed-card .status {
+        padding: 4px 10px;
+        border-radius: 8px;
+        font-size: 0.75rem;
+        font-weight: 600;
+      }
+
+      .mob-feed-card .status.in {
+        background: #ecfdf5;
+        color: #059669;
+      }
+
+      .mob-feed-card .status.out {
+        background: #fff1f2;
+        color: #e11d48;
+      }
+
+      @keyframes slideInUp {
+        from {
+          opacity: 0;
+          transform: translateY(10px);
+        }
+
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+    }
+
+    /* Desktop Default */
+    .mobile-only {
+      display: none;
+    }
+
+    @media (max-width: 768px) {
+      .desktop-only {
         display: none;
       }
 
-      /* Hide marquee on mobile to save space? Or just small */
-
-      /* Grid 2x2 for Stats */
-      #route-scan .grid-4 {
-        display: grid !important;
-        grid-template-columns: 1fr 1fr !important;
-        gap: 8px !important;
-        padding: 0 10px !important;
-        margin-top: 10px !important;
-      }
 
       /* Compact Cards */
       #route-scan .card-solid {
@@ -1057,188 +1254,267 @@
 
     <!-- SCAN -->
     <section class="route hidden" id="route-scan">
-      <!-- MODERN HEADER (Scan Version) -->
-      <div class="header-modern">
-        <!-- Logo Kiri -->
-        <div class="header-logo">
-          <img src="assets/LOGO PLN NP SERVICES - FIN.png" alt="PLN Nusantara Power Services"
-            onerror="this.onerror=null; this.src='assets/LOGO PLN NP SERVICES - FIN.svg';">
+      <!-- === MOBILE SCAN VIEW === -->
+      <div id="mobScanView" class="mobile-only">
+        <!-- 1. Header Lengkung -->
+        <div class="mob-scan-header">
+          <div class="logo-area">
+            <img src="assets/AMAN-S-Logo.jpg" alt="Logo" style="border-radius:12px;">
+            <div class="title-area">
+              <h2 style="font-weight:800; font-size:1.1rem;">AMAN-S APP</h2>
+              <p>PLN Nusantara Power Services</p>
+            </div>
+          </div>
+          <div style="text-align:right; color:#fff;">
+            <div style="font-size:0.8rem; opacity:0.8;">Jam</div>
+            <div class="header-clock" style="font-size:1.2rem; font-weight:700;" id="liveClockMob">--:--</div>
+            <script>
+              (function () {
+                function updateC() {
+                  var el = document.getElementById('liveClockMob');
+                  if (el) el.innerText = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }).replace('.', ':');
+                }
+                setInterval(updateC, 1000);
+                updateC();
+              })();
+            </script>
+          </div>
         </div>
 
-        <!-- Teks Tengah -->
-        <div class="header-content">
-          <h1 class="header-title" data-i18n="scan_title_main">SELAMAT DATANG DI PT PLN NUSANTARA POWER SERVICES
-            LINGKUP PLTU AMPANA ⚡</h1>
-          <div class="header-subtitle">
-            <div class="marquee-wrap">
-              <div class="marquee-content" data-i18n="dash_welcome_sub">
-                UTAMAKAN KESELAMATAN DAN KESEHATAN KERJA • PASTIKAN SUDAH SCAN PULANG SEBELUM MENINGGALKAN AREA
-              </div>
+        <!-- 2. Overlap Stats -->
+        <div class="mob-stats-overlap">
+          <div class="grid-4">
+            <div class="card-solid">
+              <div class="val" id="mobStatTotal">0</div>
+              <div class="lbl">Total Scan</div>
+            </div>
+            <div class="card-solid">
+              <div class="val" id="mobStatLate" style="color:var(--danger)">0</div>
+              <div class="lbl">Terlambat</div>
             </div>
           </div>
         </div>
 
-        <!-- Kanan: Jam & Button -->
-        <div class="header-right">
-          <div class="header-clock" id="liveClockScan">--:--</div>
-          <button id="btnFull" class="header-btn" data-i18n="btn_fullscreen">⛶ Layar Penuh</button>
+        <!-- 3. Action Area -->
+        <div class="mob-action-area">
+          <button id="btnCamToggleMob" type="button">
+            📸 Buka Kamera
+          </button>
+          <!-- Hidden Reader for Mobile -->
+          <div id="readerMob" class="hidden"
+            style="width:100%; border-radius:12px; overflow:hidden; border:2px solid var(--primary-500); margin-bottom:12px;">
+          </div>
+
+          <input type="text" id="mobScanInput" placeholder="Ketik NID/Nama..." autocomplete="off">
+        </div>
+
+        <!-- 4. Recent Scans Feed -->
+        <div class="mob-feed-title">
+          <span>Riwayat Terbaru</span>
+          <span style="font-size:0.8rem; color:#64748b; font-weight:400;">Hari ini</span>
+        </div>
+        <div id="mobScanFeed">
+          <!-- Items injected by JS -->
         </div>
       </div>
 
-      <!-- Stat Cards in Scan Page (Clone of Dashboard) -->
-      <div class="grid-4" style="padding: 0 1rem; margin-top: 1rem;">
-        <!-- Blue: Total Karyawan -->
-        <div class="card-solid stat-blue" data-hover-card="interactive"
-          data-tooltip="Total semua karyawan yang terdaftar dalam database."
-          onclick="alert('Total Karyawan: ' + (employees?.length || 0))">
-          <div class="pills">
-            <span class="pill">Today</span>
-            <span class="pill">Active</span>
+      <!-- === DESKTOP SCAN VIEW === -->
+      <div id="deskScanView" class="desktop-only">
+        <!-- MODERN HEADER (Scan Version) -->
+        <div class="header-modern">
+          <!-- Logo Kiri -->
+          <div class="header-logo">
+            <img src="assets/LOGO PLN NP SERVICES - FIN.png" alt="PLN Nusantara Power Services"
+              onerror="this.onerror=null; this.src='assets/LOGO PLN NP SERVICES - FIN.svg';">
           </div>
-          <div class="lbl" data-i18n="stat_total_emp">Total Karyawan</div>
-          <div class="val" id="statTotalEmpScan">0</div>
-        </div>
 
-        <!-- Orange: Scan 24 Jam -->
-        <div class="card-solid stat-orange" data-hover-card="interactive"
-          data-tooltip="Jumlah aktivitas scan (masuk & pulang) dalam 24 jam terakhir."
-          onclick="showStatDetail('scan24h')">
-          <div class="pills">
-            <span class="pill">24 Hours</span>
-          </div>
-          <div class="lbl" data-i18n="stat_scan_24h">Scan 24 jam</div>
-          <div class="val" id="statScan24hScan">0</div>
-        </div>
-
-        <!-- Cyan: On-time -->
-        <div class="card-solid stat-cyan" data-hover-card="interactive"
-          data-tooltip="Karyawan yang melakukan scan MASUK tepat waktu hari ini." onclick="showStatDetail('ontime')">
-          <div class="pills">
-            <span class="pill">Daily</span>
-          </div>
-          <div class="lbl" data-i18n="stat_ontime">On-time</div>
-          <div class="val" id="statOnTimeScan">0</div>
-        </div>
-
-        <!-- Green: Terlambat -->
-        <div class="card-solid stat-green" data-hover-card="interactive"
-          data-tooltip="Karyawan yang terlambat melakukan scan MASUK hari ini." onclick="showStatDetail('late')">
-          <div class="pills">
-            <span class="pill">Alert</span>
-          </div>
-          <div class="lbl" data-i18n="stat_late">Terlambat</div>
-          <div class="val" id="statLateScan">0</div>
-        </div>
-      </div>
-
-      <div class="scan-ui">
-        <div class="scan-hero">
-          <!-- Kiri -->
-          <div class="scan-hero-left">
-            <div class="scan-hello"></div>
-            <!-- Title Actions removed as it is now in header -->
-            <!-- Input Scan -->
-            <input id="scanInput" class="scan-input light" placeholder="Klik di sini lalu scan…" autocomplete="off"
-              autocapitalize="off" spellcheck="false" inputmode="none" data-i18n="scan_placeholder" />
-
-            <!-- Break Mode Buttons -->
-            <div class="break-controls" style="display:flex; gap:10px; margin-top:10px; justify-content:center;">
-              <button id="btnBreakOut" class="btn warning" style="min-width:120px;">☕ Izin Keluar</button>
-              <button id="btnBreakIn" class="btn primary" style="min-width:120px;">🔙 Kembali</button>
-              <button id="btnBreakCancel" class="btn" style="min-width:100px; display:none;">❌ Batal</button>
-            </div>
-            <div id="breakModeIndicator" class="hidden"
-              style="margin-top:8px; text-align:center; font-weight:bold; color:var(--orange-600);">
-              Mode: <span id="breakModeText">ISTIRAHAT</span>
-            </div>
-
-            <div class="hint light marquee-wrap" style="max-width: 600px; margin-top: 10px;">
-              <div class="marquee-content" data-i18n="scan_hint">Utamakan Keselamatan dan Kesehatan Kerja.</div>
-            </div>
-
-            <!-- Company Presence (Scan Version) -->
-            <!-- Company Presence (Scan Version) -->
-            <!-- Company Presence (Scan Version) -->
-            <div class="card" id="companyPresenceCardScan"
-              style="margin-top: 16px; border:none; box-shadow:none; padding:0;">
-              <div class="live-row" style="margin:2px 0 16px">
-                <b data-i18n="company_live_stats" style="font-size: 1.05rem;">STATISTIK KEHADIRAN LANGSUNG</b>
-              </div>
-
-              <div id="companyPresenceGridScan" class="company-grid"
-                style="grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));"></div>
-            </div>
-
-            <!-- Shift & Overtime Panel Row -->
-            <div class="row-panels" style="display:flex; gap:10px; margin-top:10px;">
-              <!-- Shift Panel (Scan Version) -->
-              <div id="activeShiftsScan" style="flex:1; display:flex; flex-wrap:wrap; gap:8px;"></div>
-
-              <!-- Overtime Panel -->
-              <div id="overtimePanelScan" class="card-light" onclick="showOvertimeList()"
-                title="Klik untuk melihat detail"
-                style="display:none; flex:0 1 auto; min-width:140px; border-color:var(--danger-200); background:var(--danger-50); padding: 8px 12px; align-items:center; justify-content:space-between; flex-direction:row; gap:12px; cursor:pointer; transition: background 0.2s;">
-                <div>
-                  <div class="card-title-light"
-                    style="color:var(--danger-700); margin-bottom:2px; font-size: 0.95rem; font-weight:800;">Overtime
-                  </div>
-                  <div class="muted" style="font-size:0.8rem">Melewati jam pulang</div>
+          <!-- Teks Tengah -->
+          <div class="header-content">
+            <h1 class="header-title" data-i18n="scan_title_main">SELAMAT DATANG DI PT PLN NUSANTARA POWER SERVICES
+              LINGKUP PLTU AMPANA ⚡</h1>
+            <div class="header-subtitle">
+              <div class="marquee-wrap">
+                <div class="marquee-content" data-i18n="dash_welcome_sub">
+                  UTAMAKAN KESELAMATAN DAN KESEHATAN KERJA • PASTIKAN SUDAH SCAN PULANG SEBELUM MENINGGALKAN AREA
                 </div>
-                <div id="overtimeCount" style="font-size:1.5rem; font-weight:700; color:var(--danger-600)">0</div>
-              </div>
-            </div>
-
-            <!-- STATISTIK KEHADIRAN (REALTIME) -->
-            <!-- STATISTIK REMOVED -->
-
-            <!-- Tabel 5 scan terbaru hari ini (MOVED HERE) -->
-            <div class="scan-table card-light" style="margin-top:2px;">
-              <div class="card-title-light" data-i18n="scan_history_title">Riwayat Scan (5 terbaru hari ini)</div>
-              <div class="table-wrap light">
-                <table class="table light" id="tableScan" style="font-size: 0.85rem;">
-                  <thead>
-                    <tr>
-                      <th data-i18n="table_time">Waktu</th>
-                      <th data-i18n="table_status">Status</th>
-                      <th data-i18n="table_nid">NID</th>
-                      <th data-i18n="table_name">Nama</th>
-                      <th data-i18n="col_job">Jabatan</th>
-                      <th data-i18n="scan_col_company">Perusahaan</th>
-                      <th data-i18n="table_shift">Shift</th>
-                      <th>Keterangan</th>
-                    </tr>
-                  </thead>
-                  <tbody></tbody>
-                </table>
               </div>
             </div>
           </div>
 
-          <!-- Kanan -->
-          <div class="scan-hero-right" id="scanResult">
-            <style>
-              /* Local override for right panel scroll */
-              #scanResult {
-                overflow-y: auto;
-                justify-content: flex-start;
-              }
-            </style>
-            <!-- Wrapper Baru untuk Horizontal Layout -->
-            <div class="scan-profile-card">
-              <div class="photo-big" id="scanPhoto"></div>
-              <div class="info">
-                <div class="name" id="scanName">—</div>
-                <div class="meta"><span id="scanNID">—</span> <span id="scanTitle">—</span></div>
-                <div class="meta"><span id="scanCompany">—</span> <span id="scanShift">—</span></div>
-                <div class="pill light" id="scanShiftCheck">—</div>
-                <div class="ts" id="scanTs">—</div>
+          <!-- Kanan: Jam & Button -->
+          <div class="header-right">
+            <div class="header-clock" id="liveClockScan">--:--</div>
+            <button id="btnFull" class="header-btn" data-i18n="btn_fullscreen">⛶ Layar Penuh</button>
+          </div>
+        </div>
+
+        <!-- Stat Cards in Scan Page (Clone of Dashboard) -->
+        <div class="grid-4" style="padding: 0 1rem; margin-top: 1rem;">
+          <!-- Blue: Total Karyawan -->
+          <div class="card-solid stat-blue" data-hover-card="interactive"
+            data-tooltip="Total semua karyawan yang terdaftar dalam database."
+            onclick="alert('Total Karyawan: ' + (employees?.length || 0))">
+            <div class="pills">
+              <span class="pill">Today</span>
+              <span class="pill">Active</span>
+            </div>
+            <div class="lbl" data-i18n="stat_total_emp">Total Karyawan</div>
+            <div class="val" id="statTotalEmpScan">0</div>
+          </div>
+
+          <!-- Orange: Scan 24 Jam -->
+          <div class="card-solid stat-orange" data-hover-card="interactive"
+            data-tooltip="Jumlah aktivitas scan (masuk & pulang) dalam 24 jam terakhir."
+            onclick="showStatDetail('scan24h')">
+            <div class="pills">
+              <span class="pill">24 Hours</span>
+            </div>
+            <div class="lbl" data-i18n="stat_scan_24h">Scan 24 jam</div>
+            <div class="val" id="statScan24hScan">0</div>
+          </div>
+
+          <!-- Cyan: On-time -->
+          <div class="card-solid stat-cyan" data-hover-card="interactive"
+            data-tooltip="Karyawan yang melakukan scan MASUK tepat waktu hari ini." onclick="showStatDetail('ontime')">
+            <div class="pills">
+              <span class="pill">Daily</span>
+            </div>
+            <div class="lbl" data-i18n="stat_ontime">On-time</div>
+            <div class="val" id="statOnTimeScan">0</div>
+          </div>
+
+          <!-- Green: Terlambat -->
+          <div class="card-solid stat-green" data-hover-card="interactive"
+            data-tooltip="Karyawan yang terlambat melakukan scan MASUK hari ini." onclick="showStatDetail('late')">
+            <div class="pills">
+              <span class="pill">Alert</span>
+            </div>
+            <div class="lbl" data-i18n="stat_late">Terlambat</div>
+            <div class="val" id="statLateScan">0</div>
+          </div>
+        </div>
+
+        <div class="scan-ui">
+          <div class="scan-hero">
+            <!-- Kiri -->
+            <div class="scan-hero-left">
+              <div class="scan-hello"></div>
+              <!-- title actions removed -->
+
+              <!-- CAMERA SCAN SECTION -->
+              <div id="cameraSection" style="margin-bottom: 12px; display: flex; flex-direction: column; gap: 8px;">
+                <button id="btnCamToggle" class="btn light"
+                  style="width:100%; display:flex; align-items:center; justify-content:center; gap:8px;">
+                  📷 <span id="btnCamText">Buka Kamera</span>
+                </button>
+                <div id="reader"
+                  style="width: 100%; display:none; border-radius:12px; overflow:hidden; border:2px solid var(--primary-300);">
+                </div>
+              </div>
+
+              <!-- Input Scan -->
+              <input id="scanInput" class="scan-input light" placeholder="Klik di sini lalu scan…" autocomplete="off"
+                autocapitalize="off" spellcheck="false" inputmode="none" data-i18n="scan_placeholder" />
+
+              <!-- Break Mode Buttons -->
+              <div class="break-controls" style="display:flex; gap:10px; margin-top:10px; justify-content:center;">
+                <button id="btnBreakOut" class="btn warning" style="min-width:120px;">☕ Izin Keluar</button>
+                <button id="btnBreakIn" class="btn primary" style="min-width:120px;">🔙 Kembali</button>
+                <button id="btnBreakCancel" class="btn" style="min-width:100px; display:none;">❌ Batal</button>
+              </div>
+              <div id="breakModeIndicator" class="hidden"
+                style="margin-top:8px; text-align:center; font-weight:bold; color:var(--orange-600);">
+                Mode: <span id="breakModeText">ISTIRAHAT</span>
+              </div>
+
+              <div class="hint light marquee-wrap" style="max-width: 600px; margin-top: 10px;">
+                <div class="marquee-content" data-i18n="scan_hint">Utamakan Keselamatan dan Kesehatan Kerja.</div>
+              </div>
+
+              <!-- Company Presence (Scan Version) -->
+              <!-- Company Presence (Scan Version) -->
+              <!-- Company Presence (Scan Version) -->
+              <div class="card" id="companyPresenceCardScan"
+                style="margin-top: 16px; border:none; box-shadow:none; padding:0;">
+                <div class="live-row" style="margin:2px 0 16px">
+                  <b data-i18n="company_live_stats" style="font-size: 1.05rem;">STATISTIK KEHADIRAN LANGSUNG</b>
+                </div>
+
+                <div id="companyPresenceGridScan" class="company-grid"
+                  style="grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));"></div>
+              </div>
+
+              <!-- Shift & Overtime Panel Row -->
+              <div class="row-panels" style="display:flex; gap:10px; margin-top:10px;">
+                <!-- Shift Panel (Scan Version) -->
+                <div id="activeShiftsScan" style="flex:1; display:flex; flex-wrap:wrap; gap:8px;"></div>
+
+                <!-- Overtime Panel -->
+                <div id="overtimePanelScan" class="card-light" onclick="showOvertimeList()"
+                  title="Klik untuk melihat detail"
+                  style="display:none; flex:0 1 auto; min-width:140px; border-color:var(--danger-200); background:var(--danger-50); padding: 8px 12px; align-items:center; justify-content:space-between; flex-direction:row; gap:12px; cursor:pointer; transition: background 0.2s;">
+                  <div>
+                    <div class="card-title-light"
+                      style="color:var(--danger-700); margin-bottom:2px; font-size: 0.95rem; font-weight:800;">Overtime
+                    </div>
+                    <div class="muted" style="font-size:0.8rem">Melewati jam pulang</div>
+                  </div>
+                  <div id="overtimeCount" style="font-size:1.5rem; font-weight:700; color:var(--danger-600)">0</div>
+                </div>
+              </div>
+
+              <!-- STATISTIK KEHADIRAN (REALTIME) -->
+              <!-- STATISTIK REMOVED -->
+
+              <!-- Tabel 5 scan terbaru hari ini (MOVED HERE) -->
+              <div class="scan-table card-light" style="margin-top:2px;">
+                <div class="card-title-light" data-i18n="scan_history_title">Riwayat Scan (5 terbaru hari ini)</div>
+                <div class="table-wrap light">
+                  <table class="table light" id="tableScan" style="font-size: 0.85rem;">
+                    <thead>
+                      <tr>
+                        <th data-i18n="table_time">Waktu</th>
+                        <th data-i18n="table_status">Status</th>
+                        <th data-i18n="table_nid">NID</th>
+                        <th data-i18n="table_name">Nama</th>
+                        <th data-i18n="col_job">Jabatan</th>
+                        <th data-i18n="scan_col_company">Perusahaan</th>
+                        <th data-i18n="table_shift">Shift</th>
+                        <th>Keterangan</th>
+                      </tr>
+                    </thead>
+                    <tbody></tbody>
+                  </table>
+                </div>
               </div>
             </div>
 
-            <!-- Info terbaru (MOVED HERE) -->
-            <div class="card-light" style="margin-top:24px; width:100%; text-align:left;">
-              <div class="card-title-light">Informasi Terbaru ⚠️📢</div>
-              <div class="news-grid" id="newsGridScan"></div>
+            <!-- Kanan -->
+            <div class="scan-hero-right" id="scanResult">
+              <style>
+                /* Local override for right panel scroll */
+                #scanResult {
+                  overflow-y: auto;
+                  justify-content: flex-start;
+                }
+              </style>
+              <!-- Wrapper Baru untuk Horizontal Layout -->
+              <div class="scan-profile-card">
+                <div class="photo-big" id="scanPhoto"></div>
+                <div class="info">
+                  <div class="name" id="scanName">—</div>
+                  <div class="meta"><span id="scanNID">—</span> <span id="scanTitle">—</span></div>
+                  <div class="meta"><span id="scanCompany">—</span> <span id="scanShift">—</span></div>
+                  <div class="pill light" id="scanShiftCheck">—</div>
+                  <div class="ts" id="scanTs">—</div>
+                </div>
+              </div>
+
+              <!-- Info terbaru (MOVED HERE) -->
+              <div class="card-light" style="margin-top:24px; width:100%; text-align:left;">
+                <div class="card-title-light">Informasi Terbaru ⚠️📢</div>
+                <div class="news-grid" id="newsGridScan"></div>
+              </div>
             </div>
           </div>
         </div>

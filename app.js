@@ -1081,6 +1081,84 @@ window.addEventListener('DOMContentLoaded', () => {
   $('#btnBreakIn')?.addEventListener('click', () => setScanMode('break_in'));
   $('#btnBreakCancel')?.addEventListener('click', () => setScanMode('auto'));
 
+  // ===== CAMERA SCANNER LOGIC =====
+  let cameraObj = null; // Html5Qrcode instance
+  let isCamOpen = false;
+
+  async function toggleCamera() {
+    // Detect active view (Desktop or Mobile)
+    const mobView = document.getElementById('mobScanView');
+    const isMobile = mobView && getComputedStyle(mobView).display !== 'none';
+    const boxId = isMobile ? 'readerMob' : 'reader';
+
+    // Buttons
+    const btnTxtDesktop = $('#btnCamText');
+    const btnMob = $('#btnCamToggleMob');
+
+    const box = document.getElementById(boxId);
+    if (!box) return alert('Error: Element kamera tidak ditemukan');
+
+    if (isCamOpen) {
+      // STOP
+      if (cameraObj) {
+        try { await cameraObj.stop(); } catch (e) { console.error('Stop error:', e); }
+        try { cameraObj.clear(); } catch (e) { console.error('Clear error:', e); }
+      }
+      box.style.display = 'none';
+      box.classList.add('hidden');
+
+      if (btnTxtDesktop) btnTxtDesktop.textContent = "Buka Kamera";
+      if (btnMob) btnMob.innerHTML = "📸 Buka Kamera";
+
+      isCamOpen = false;
+      cameraObj = null; // Destroy instance
+    } else {
+      // START
+      if (!window.Html5Qrcode) { alert('Library Kamera belum siap. Periksa koneksi internet.'); return; }
+
+      box.style.display = 'block';
+      box.classList.remove('hidden');
+
+      if (btnTxtDesktop) btnTxtDesktop.textContent = "Tutup Kamera";
+      if (btnMob) btnMob.innerHTML = "❌ Tutup Kamera";
+
+      // Create fresh instance for the visible container
+      try {
+        cameraObj = new Html5Qrcode(boxId);
+        isCamOpen = true;
+        await cameraObj.start(
+          { facingMode: "environment" },
+          { fps: 10, qrbox: { width: 250, height: 250 } },
+          (txt) => {
+            // Success
+            if (txt) {
+              const inp = isMobile ? $('#mobScanInput') : $('#scanInput');
+              if (inp) inp.value = txt;
+
+              handleScan(txt);
+
+              // Pause
+              if (cameraObj) cameraObj.pause();
+              setTimeout(() => { if (isCamOpen && cameraObj) cameraObj.resume(); }, 2500);
+            }
+          },
+          (err) => { /* ignore frame errors */ }
+        );
+      } catch (err) {
+        alert("Gagal akses kamera: " + err);
+        isCamOpen = false;
+        box.style.display = 'none';
+        if (btnTxtDesktop) btnTxtDesktop.textContent = "Buka Kamera";
+        if (btnMob) btnMob.textContent = "📸 Buka Kamera";
+        cameraObj = null;
+      }
+    }
+  }
+
+  // Bind Button
+  $('#btnCamToggle')?.addEventListener('click', toggleCamera);
+
+
   function handleScan(raw) {
     const parsed = parseRaw(raw); const ts = now(); const emp = findEmp(parsed);
     if (!emp) {
@@ -2318,7 +2396,7 @@ window.addEventListener('DOMContentLoaded', () => {
   window.addEventListener('attendance:update', () => { updateScanLiveCircle(true); renderScanStats(); });
 
   // ===== Init page sections =====
-  function renderScanPage() { renderScanTable(); renderScanPreview(null, null); renderNewsWidgets(); ensureScanLiveCircle(); updateScanLiveCircle(false); renderScanStats(); }
+  function renderScanPage() { renderScanTable(); renderScanPreview(null, null); renderNewsWidgets(); ensureScanLiveCircle(); updateScanLiveCircle(false); renderScanStats(); if (typeof renderMobileScanUI === 'function') renderMobileScanUI(); }
   renderEmployees(); renderDashboard(); renderScanPage(); renderLatest();
 
   const routeShifts = $('#route-shifts');
