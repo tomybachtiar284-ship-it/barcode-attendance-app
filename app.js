@@ -1951,19 +1951,23 @@ window.addEventListener('DOMContentLoaded', () => {
     $('#attFrom').value = from.toISOString().slice(0, 10); $('#attTo').value = to.toISOString().slice(0, 10);
     filterAttendance();
   }
-  function filterAttendance() {
-    const tb = $('#tableAtt tbody'); if (!tb) return;
-    const from = new Date($('#attFrom').value + 'T00:00:00').getTime(), to = new Date($('#attTo').value + 'T23:59:59').getTime();
+  // Shared filter logic
+  function getFilteredAttendanceRows() {
+    const fromVal = $('#attFrom').value;
+    const toVal = $('#attTo').value;
+    if (!fromVal || !toVal) return []; // Should not happen if init correctly
+
+    const from = new Date(fromVal + 'T00:00:00').getTime();
+    const to = new Date(toVal + 'T23:59:59').getTime();
 
     // Search query
     const q = ($('#attSearch')?.value || '').toLowerCase().trim();
     // Group filter
     const gr = $('#attGroupFilter')?.value || '';
-
     // Status filter
     const st = $('#attStatusFilter')?.value || '';
 
-    const rows = attendance.filter(a => {
+    return attendance.filter(a => {
       // 1. Check Date
       if (a.ts < from || a.ts > to) return false;
 
@@ -1981,23 +1985,6 @@ window.addEventListener('DOMContentLoaded', () => {
 
       // 4. Check Status (Late/Ontime)
       if (st) {
-        if (st === 'LATE' && !a.late) return false;
-        if (st === 'ONTIME' && a.late) return false;
-        // UNKNOWN = jika status bukan 'datang' (misal pulang) atau datang tapi field late undefined? 
-        // Asumsi: 'late' flag ada di record 'datang'. 
-        // Jika user filter LATE, kita cari a.late == true.
-        // Jika filter ONTIME, kita cari a.late == false (tapi hanya yg 'datang'?). 
-        // Sederhananya: 
-        // LATE -> a.late === true
-        // ONTIME -> a.late === false (atau falsy) DAN status === 'datang' (opsional, tergantung definisi user)
-        // Kita pakai logika simple:
-        if (st === 'ONTIME' && (a.late || a.status !== 'datang')) return false;
-        // ^ Note: 'On-time' biasanya refer ke Datang Tepat Waktu. Pulang tidak ada on-time/late di logic ini (kecuali overtime).
-        // Tapi row 'Pulang' tidak punya flag 'late' biasanya. Jadi kalau pilih ONTIME, row Pulang hilang?
-        // Mari kita buat lebih longgar:
-        // Jika st === 'ONTIME' -> !a.late (berarti tidak terlambat).
-
-        // REVISI LOGIC FILTER:
         if (st === 'LATE') {
           if (!a.late) return false;
         } else if (st === 'ONTIME') {
@@ -2008,9 +1995,13 @@ window.addEventListener('DOMContentLoaded', () => {
           if (a.status === 'datang' && typeof a.late === 'boolean') return false;
         }
       }
-
       return true;
     }).sort((a, b) => b.ts - a.ts);
+  }
+
+  function filterAttendance() {
+    const tb = $('#tableAtt tbody'); if (!tb) return;
+    const rows = getFilteredAttendanceRows();
 
     tb.innerHTML = '';
     rows.forEach(r => {
@@ -2020,7 +2011,6 @@ window.addEventListener('DOMContentLoaded', () => {
       const statusClass = r.status === 'datang' ? 'status-masuk' : 'status-pulang';
       const statusLabel = r.status === 'datang' ? 'Masuk' : 'Pulang';
 
-      // Highlight matching text if simple enough, or just render
       tr.innerHTML = `
         <td>${fmtTs(r.ts)}</td>
         <td>${statusLabel}</td>
@@ -2050,20 +2040,25 @@ window.addEventListener('DOMContentLoaded', () => {
     }
   });
   $('#btnExportAtt')?.addEventListener('click', () => {
-    const from = new Date($('#attFrom').value + 'T00:00:00').getTime(), to = new Date($('#attTo').value + 'T23:59:59').getTime();
+    // USE SHARED FILTER FUNCTION so export matches display
+    const rows = getFilteredAttendanceRows().map(r => ({
+      Waktu: fmtTs(r.ts),
+      Status: capStatus(r.status),
+      NID: r.nid,
+      Nama: r.name,
+      Jabatan: r.title,
+      Perusahaan: r.company,
+      Shift: CODE_TO_LABEL[r.shift] || r.shift || '',
+      Keterangan: r.note || ''
+    }));
 
-    // Also respect current filters? 
-    // Usually export covers visible range. The request was just "filter display".
-    // I'll keep export as is (filtering only by date) OR make it match displayed rows?
-    // "Export Excel" usually means "Export what is visible" or "Export data in range".
-    // The previous logic was just `attendance.filter(a => a.ts >= from && a.ts <= to)`.
-    // I will stick to that unless requested otherwise to avoid confusion.
-    // The previous code had:
-    const rows = attendance
-      .filter(a => a.ts >= from && a.ts <= to)
-      .map(r => ({ Waktu: fmtTs(r.ts), Status: capStatus(r.status), NID: r.nid, Nama: r.name, Jabatan: r.title, Perusahaan: r.company, Shift: CODE_TO_LABEL[r.shift] || r.shift || '', Keterangan: r.note || '' }));
+    const ws = XLSX.utils.json_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Kehadiran');
 
-    const ws = XLSX.utils.json_to_sheet(rows); const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, 'Kehadiran'); XLSX.writeFile(wb, `kehadiran_${$('#attFrom').value}_sd_${$('#attTo').value}.xlsx`);
+    // Use the from-to values for filename
+    const fName = `kehadiran_${$('#attFrom').value}_sd_${$('#attTo').value}.xlsx`;
+    XLSX.writeFile(wb, fName);
   });
 
   // ===== Latest info =====
