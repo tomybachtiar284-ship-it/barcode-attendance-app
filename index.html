@@ -923,6 +923,7 @@
           Karyawan</span></button>
       <button class="navlink" data-route="shifts">🕘 <span data-i18n="nav_shifts">Shift Setting</span></button>
       <button class="navlink" data-route="attendance">📑 <span data-i18n="nav_report">Laporan 24 Jam</span></button>
+      <button class="navlink" data-route="overtime-report">🕒 <span>Laporan Overtime</span></button>
       <button class="navlink" data-route="general-report">📈 <span>General Report</span></button>
       <button class="navlink" data-route="latest">📰 <span data-i18n="nav_latest">Latest information</span></button>
       <button class="navlink" data-route="education">🎓 <span data-i18n="nav_education">Education</span></button>
@@ -1094,13 +1095,13 @@
           </div>
 
           <!-- Overtime Panel (Dashboard) -->
-          <div id="overtimePanelDash" class="card" onclick="showOvertimeList()" title="Klik untuk melihat detail"
+          <div id="overtimePanelDash_Fixed" class="card" onclick="showOvertimeList()" title="Klik untuk melihat detail"
             style="display:none; width: auto; min-width: 200px; border-left:4px solid var(--danger-500); background: #fff0f0; cursor:pointer; align-items:center; justify-content:space-between; gap:16px;">
             <div>
               <h3 style="margin:0; font-size:1.1rem; color:var(--danger-700)">Overtime</h3>
               <div class="muted" style="font-size:0.85rem">Melewati jam pulang</div>
             </div>
-            <div id="overtimeCountDash" style="font-size:2rem; font-weight:800; color:var(--danger-600)">0</div>
+            <div id="overtimeCountDash_Fixed" style="font-size:2rem; font-weight:800; color:var(--danger-600)">0</div>
           </div>
 
         </div>
@@ -1747,6 +1748,57 @@
                 <th>SHIFT</th>
                 <th>KETERANGAN</th>
                 <th style="text-align:right; padding-right:16px">AKSI</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- OVERTIME REPORT (Daytime Special) -->
+    <section class="route hidden" id="route-overtime-report">
+      <div class="toolbar" style="margin-bottom: 20px;">
+        <div class="left" style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+          <label style="font-weight: 600;">Periode:
+            <input type="date" id="otRepStart" class="input" style="width: auto;">
+          </label>
+          <span style="color: var(--muted);">-</span>
+          <label>
+            <input type="date" id="otRepEnd" class="input" style="width: auto;">
+          </label>
+          <button id="btnGenOtReport" class="btn primary">🔍 Tampilkan Laporan</button>
+        </div>
+        <div class="right">
+          <button id="btnExportOtPdf" class="btn" style="background: #ef4444; color: white;">📄 Export PDF</button>
+        </div>
+      </div>
+
+      <!-- Summary Cards -->
+      <div class="grid-3" style="margin-bottom: 20px;">
+        <div class="card stat">
+          <div class="stat-sub">Total Karyawan Lembur</div>
+          <div class="stat-val" id="otRepTotalEmp">0</div>
+        </div>
+        <div class="card stat">
+          <div class="stat-sub">Total Jam Lembur</div>
+          <div class="stat-val" id="otRepTotalHours">0</div>
+        </div>
+      </div>
+
+      <!-- Table -->
+      <div class="card">
+        <div class="card-title">Rincian Lembur (Daytime Only)</div>
+        <div class="table-wrap">
+          <table class="table" id="tableOtReport">
+            <thead>
+              <tr>
+                <th>TANGGAL</th>
+                <th>NAMA</th>
+                <th>SHIFT</th>
+                <th>JAM PULANG</th>
+                <th>DURASI</th>
+                <th>KETERANGAN</th>
               </tr>
             </thead>
             <tbody></tbody>

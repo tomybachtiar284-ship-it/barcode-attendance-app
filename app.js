@@ -612,85 +612,197 @@ window.addEventListener('DOMContentLoaded', () => {
     hosts.forEach(h => { if (h) h.innerHTML = content; });
   }
 
+  // Refactored Overtime Logic: "Daytime" Only + Today's Total (Active + Finished)
+  // Threshold: e.g. 1 minute (to avoid noise, can be adjusted)
+  const OT_THRESHOLD_MINUTES = 1;
+
+  function getOvertimeData(forceActiveOnly = false) {
+    const t = now(); // Current time for "Active" calculation
+    const todayStr = todayISO();
+    const sod = new Date(todayStr + 'T00:00:00').getTime();
+
+    // 1. Get all attendance for TODAY
+    const todays = attendance.filter(a => a.ts >= sod);
+
+    // Group by NID (taking the latest status)
+    // But for "Finished Overtime", we need the PAIR (In -> Out).
+    // Simplest approach: Check employees who have "Datang" today.
+    // If they are "Pulang", check if Pulang Time > Shift End.
+    // If they are still "Datang", check if Now > Shift End.
+
+    const results = [];
+
+    employees.forEach(e => {
+      // Filter 1: Strictly DAYTIME shift only.
+      // Note: Shift 'A', 'B', 'C', 'D' are EXCLUDED.
+      // We check `effectiveShiftFor` or just `e.shift`?
+      // User said "Shift A, B, C, D tidak berlaku". "Daytime" only.
+      // Assuming 'DAYTIME' code is 'DAYTIME' or mapped.
+
+      let isDaytime = (e.shift === 'DAYTIME') || (e.shift && e.shift.toLowerCase().includes('day'));
+
+      const effCode = effectiveShiftFor(e, t);
+
+      // FIX: If effectiveShiftFor returns OFF/null (missing schedule) but static shift IS Daytime, force generic Daytime.
+      if ((!effCode || effCode === 'OFF') && isDaytime) {
+        // Keep isDaytime = true
+      } else if (effCode !== 'DAYTIME') {
+        // If explicitly scheduled for something else (A,B,C), then reject.
+        isDaytime = false;
+      }
+
+      if (!isDaytime) return;
+
+      // Get Employee's Today Status
+      // Find 'datang' record
+      const came = todays.find(a => a.nid === e.nid && a.status === 'datang');
+      if (!came) return; // Not present today
+
+      // Find specific shift times
+      const s = shifts['DAYTIME'];
+      if (!s) return; // No rule
+
+      // Parse Shift End Time
+      const baseDateStr = todayStr;
+      let sEnd = toDateFromHM(baseDateStr, s.end);
+      // Handle cross-day if needed (Daytime usually doesn't, but safety first)
+      let sStart = toDateFromHM(baseDateStr, s.start);
+      if (sEnd < sStart) sEnd = new Date(sEnd.getTime() + 24 * 3600 * 1000);
+
+      // Check 'Pulang' record
+      // We pick the LATEST 'pulang' after 'datang'
+      const left = todays.find(a => a.nid === e.nid && a.status === 'pulang' && a.ts > came.ts);
+
+      const isStillHere = !left;
+      let otDurationMs = 0;
+
+      if (isStillHere) {
+        // Live Overtime
+        // Active & Now > End??
+        if (t.getTime() > sEnd.getTime()) {
+          otDurationMs = t.getTime() - sEnd.getTime();
+        }
+      } else {
+        // Finished Overtime
+        // Left Time > End??
+        if (left.ts > sEnd.getTime()) {
+          otDurationMs = left.ts - sEnd.getTime();
+        }
+      }
+
+      if (otDurationMs > OT_THRESHOLD_MINUTES * 60 * 1000) {
+        const h = Math.floor(otDurationMs / 3600000);
+        const m = Math.floor((otDurationMs % 3600000) / 60000);
+
+        results.push({
+          nid: e.nid,
+          name: e.name,
+          status: isStillHere ? 'Aktif' : 'Pulang',
+          shiftEnd: s.end,
+          actualOut: isStillHere ? '-' : fmtTs(left.ts).split(' ')[1],
+          durationMs: otDurationMs,
+          desc: `${h}j ${m}m`,
+          isLive: isStillHere
+        });
+      }
+    });
+
+    return results.sort((a, b) => b.durationMs - a.durationMs);
+  }
+
   function renderOvertimePanel() {
     const targets = [
       { host: document.getElementById('overtimePanelScan'), count: document.getElementById('overtimeCount') },
-      { host: document.getElementById('overtimePanelDash'), count: document.getElementById('overtimeCountDash') }
+      { host: document.getElementById('overtimePanelDash_Fixed'), count: document.getElementById('overtimeCountDash_Fixed') }
     ];
 
-    const t = now();
-    const latestMap = {};
-    attendance.forEach(a => {
-      if (!latestMap[a.nid] || a.ts > latestMap[a.nid].ts) {
-        latestMap[a.nid] = a;
-      }
-    });
-
-    let otCount = 0;
-    employees.forEach(e => {
-      const last = latestMap[e.nid];
-      if (last && last.status === 'datang') {
-        const effShift = effectiveShiftFor(e, t);
-        if (effShift && effShift !== 'OFF' && shifts[effShift]) {
-          const sEndStr = shifts[effShift].end;
-          const checkDate = new Date(last.ts);
-          const baseDateStr = `${checkDate.getFullYear()}-${pad(checkDate.getMonth() + 1)}-${pad(checkDate.getDate())}`;
-          let sEnd = toDateFromHM(baseDateStr, sEndStr);
-          if (shifts[effShift].end < shifts[effShift].start) {
-            sEnd = new Date(sEnd.getTime() + 24 * 3600 * 1000);
-          }
-          if (now().getTime() > sEnd.getTime()) {
-            otCount++;
-          }
-        }
-      }
-    });
+    const list = getOvertimeData();
+    const countVal = list.length;
 
     targets.forEach(({ host, count }) => {
       if (!host || !count) return;
-      if (otCount > 0) {
+      if (countVal > 0) {
+        // SHOW
         host.style.display = 'flex';
-        count.textContent = otCount;
-        host.title = `Klik untuk melihat ${otCount} karyawan overtime`;
+        host.style.setProperty('display', 'flex', 'important');
+        host.classList.remove('hidden'); // Ensure no hidden class
+        count.textContent = countVal;
+        host.title = `Klik untuk melihat ${countVal} karyawan lembur (Daytime)`;
       } else {
+        // HIDE
         host.style.display = 'none';
+        host.style.setProperty('display', 'none', 'important');
+        host.classList.add('hidden'); // Add helper class if exists
+
+        // DEBUG: Nuclear Hide confirmation
+        if (host.id.includes('_Fixed') && host.offsetParent !== null) {
+          host.setAttribute('style', 'display:none !important; visibility:hidden !important; opacity:0 !important;');
+        }
       }
     });
   }
 
-  // Function to show details
+  // New Modal UI for Overtime
   window.showOvertimeList = function () {
-    const t = now();
-    const latestMap = {};
-    attendance.forEach(a => { if (!latestMap[a.nid] || a.ts > latestMap[a.nid].ts) latestMap[a.nid] = a; });
-
-    const otList = [];
-    employees.forEach(e => {
-      const last = latestMap[e.nid];
-      if (last && last.status === 'datang') {
-        const effShift = effectiveShiftFor(e, t);
-        if (effShift && effShift !== 'OFF' && shifts[effShift]) {
-          const sEndStr = shifts[effShift].end;
-          const checkDate = new Date(last.ts);
-          const baseDateStr = `${checkDate.getFullYear()}-${pad(checkDate.getMonth() + 1)}-${pad(checkDate.getDate())}`;
-          let sEnd = toDateFromHM(baseDateStr, sEndStr);
-          if (shifts[effShift].end < shifts[effShift].start) sEnd = new Date(sEnd.getTime() + 24 * 3600 * 1000);
-
-          const diff = now().getTime() - sEnd.getTime();
-          if (diff > 0) {
-            const h = Math.floor(diff / 3600000);
-            const m = Math.floor((diff % 3600000) / 60000);
-            otList.push(`${e.name} (Shift ${shifts[effShift].end}, +${h}j ${m}m)`);
-          }
-        }
-      }
-    });
-
-    if (otList.length > 0) {
-      alert("Daftar Karyawan Overtime:\n\n" + otList.map((n, i) => `${i + 1}. ${n}`).join('\n'));
-    } else {
-      toast('Tidak ada data overtime saat ini.');
+    const list = getOvertimeData();
+    if (list.length === 0) {
+      toast('Tidak ada data lembur untuk Shift Daytime hari ini.');
+      return;
     }
+
+    // Reuse existing modal structure if possible or create a dedicated one dynamically
+    let modal = document.getElementById('modalOvertime');
+    if (!modal) {
+      modal = document.createElement('div');
+      modal.id = 'modalOvertime';
+      modal.className = 'modal-overlay'; // Use existing class if available
+      // If no generic modal class, style inline
+      modal.style.position = 'fixed';
+      modal.style.top = '0'; modal.style.left = '0'; modal.style.width = '100%'; modal.style.height = '100%';
+      modal.style.background = 'rgba(0,0,0,0.5)'; modal.style.zIndex = '10000';
+      modal.style.display = 'none';
+      modal.style.justifyContent = 'center'; modal.style.alignItems = 'center';
+
+      modal.innerHTML = `
+         <div class="modal-content" style="background:var(--surface,#fff); padding:20px; border-radius:16px; width:90%; max-width:500px; max-height:80vh; overflow-y:auto; box-shadow:var(--shadow-lg);">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px">
+               <h3 style="margin:0; color:var(--text)">📋 Lembur Hari Ini (Daytime)</h3>
+               <button onclick="document.getElementById('modalOvertime').style.display='none'" style="background:none; border:none; font-size:1.5rem; cursor:pointer">&times;</button>
+            </div>
+            <div id="modalOvertimeBody"></div>
+            <div style="margin-top:20px; text-align:right">
+               <button onclick="document.getElementById('modalOvertime').style.display='none'" class="btn-primary" style="padding:8px 16px; border-radius:8px">Tutup</button>
+            </div>
+         </div>
+       `;
+      document.body.appendChild(modal);
+    }
+
+    // Populate Data
+    const tbody = list.map((item, i) => `
+       <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 0; border-bottom:1px solid var(--line,#eee)">
+          <div>
+             <div style="font-weight:600; color:var(--text)">${i + 1}. ${item.name}</div>
+             <div style="font-size:0.85rem; color:var(--text-muted)">
+                ${item.isLive ? '<span style="color:var(--success); font-weight:bold">Sedang Lembur</span>' : `Pulang: ${item.actualOut}`} 
+             </div>
+          </div>
+          <div style="text-align:right">
+             <div style="font-weight:bold; color:var(--primary-600)">+${item.desc}</div>
+             <div style="font-size:0.8rem; color:var(--text-muted)">Batas: ${item.shiftEnd}</div>
+          </div>
+       </div>
+    `).join('');
+
+    document.getElementById('modalOvertimeBody').innerHTML = tbody;
+
+    // Show
+    modal.style.display = 'flex';
+
+    // Close on click outside
+    modal.onclick = (e) => {
+      if (e.target === modal) modal.style.display = 'none';
+    };
   };
 
   window.showStatDetail = function (type) {
@@ -3041,6 +3153,187 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 });
+
+
+
+/* =========================================
+   OVERTIME REPORT LOGIC (DAYTIME SPECIAL)
+   ========================================= */
+(function initOvertimeReport() {
+  const btnGen = document.getElementById('btnGenOtReport');
+  const btnPdf = document.getElementById('btnExportOtPdf');
+
+  // Set default date range (First day of month to Now)
+  const today = new Date();
+  const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+  const pad = n => String(n).padStart(2, '0');
+
+  if (document.getElementById('otRepStart')) {
+    document.getElementById('otRepStart').value = `${firstDay.getFullYear()}-${pad(firstDay.getMonth() + 1)}-${pad(firstDay.getDate())}`;
+    document.getElementById('otRepEnd').value = `${today.getFullYear()}-${pad(today.getMonth() + 1)}-${pad(today.getDate())}`;
+  }
+
+  function getOtReportData() {
+    const dStart = new Date(document.getElementById('otRepStart').value + 'T00:00:00');
+    const dEnd = new Date(document.getElementById('otRepEnd').value + 'T23:59:59');
+
+    // Cache employees
+    const empMap = new Map((window.employees || []).map(e => [e.nid, e]));
+
+    // Group attendance by Date + NID
+    // structure: { "YYYY-MM-DD|NID": { datang: ts, pulang: ts, nid: ... } }
+    const records = {};
+
+    (window.attendance || []).forEach(a => {
+      const d = new Date(a.ts);
+      if (d < dStart || d > dEnd) return;
+
+      const dateStr = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+      const key = `${dateStr}|${a.nid}`;
+
+      if (!records[key]) records[key] = { date: dateStr, nid: a.nid, datang: null, pulang: null };
+
+      if (a.status === 'datang') {
+        // Take earliest datang
+        if (!records[key].datang || a.ts < records[key].datang) records[key].datang = a.ts;
+      } else if (a.status === 'pulang') {
+        // Take latest pulang
+        if (!records[key].pulang || a.ts > records[key].pulang) records[key].pulang = a.ts;
+      }
+    });
+
+    const results = [];
+
+    Object.values(records).forEach(rec => {
+      if (!rec.datang || !rec.pulang) return; // Must have In and Out
+
+      const e = empMap.get(rec.nid);
+      if (!e) return;
+
+      // --- LOGIC FILTER STRICT DAYTIME (REUSED) ---
+      const tDate = new Date(rec.datang);
+      const effCode = window.effectiveShiftFor ? window.effectiveShiftFor(e, tDate) : null;
+      // Fallback Logic
+      let isDaytime = (e.shift === 'DAYTIME') || (e.shift && e.shift.toLowerCase().includes('day'));
+
+      if ((!effCode || effCode === 'OFF') && isDaytime) {
+        // Keep trusted static
+      } else if (effCode !== 'DAYTIME') {
+        isDaytime = false;
+      }
+
+      if (!isDaytime) return;
+      // ---------------------------------------------
+
+      // Calculate Overtime
+      // Shift End Rule
+      const s = (window.shifts && window.shifts.DAYTIME) ? window.shifts.DAYTIME : { end: '16:00' };
+      const [eh, em] = s.end.split(':').map(Number);
+
+      const schedEnd = new Date(rec.datang); // Base on Scan In Date
+      schedEnd.setHours(eh, em, 0, 0);
+
+      if (rec.pulang > schedEnd.getTime()) {
+        const diffMs = rec.pulang - schedEnd.getTime();
+        // Threshold check (e.g. 1 min)
+        if (diffMs > 60000) {
+          const hours = Math.floor(diffMs / 3600000);
+          const mins = Math.floor((diffMs % 3600000) / 60000);
+
+          results.push({
+            date: rec.date,
+            nid: rec.nid,
+            name: e.name,
+            shiftEnd: s.end,
+            actualOut: new Date(rec.pulang).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
+            durationMs: diffMs,
+            desc: `${hours}h ${mins}m`
+          });
+        }
+      }
+    });
+
+    // Sort by Date Desc, then Duration Desc
+    results.sort((a, b) => {
+      if (a.date !== b.date) return b.date.localeCompare(a.date);
+      return b.durationMs - a.durationMs;
+    });
+
+    return results;
+  }
+
+  function renderReport() {
+    const list = getOtReportData();
+    const tbody = document.querySelector('#tableOtReport tbody');
+    if (!tbody) return;
+
+    tbody.innerHTML = '';
+
+    let totalEmp = new Set();
+    let totalMs = 0;
+
+    list.forEach(r => {
+      totalEmp.add(r.nid);
+      totalMs += r.durationMs;
+
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${r.date}</td>
+        <td><b style="color:var(--primary-700)">${r.name}</b><br><small class="muted">${r.nid}</small></td>
+        <td>DAYTIME (${r.shiftEnd})</td>
+        <td>${r.actualOut}</td>
+        <td><span class="badgess green">${r.desc}</span></td>
+        <td>Lembur Harian</td>
+      `;
+      tbody.appendChild(tr);
+    });
+
+    // Summary
+    document.getElementById('otRepTotalEmp').textContent = totalEmp.size + ' Org';
+    const h = Math.floor(totalMs / 3600000);
+    const m = Math.floor((totalMs % 3600000) / 60000);
+    document.getElementById('otRepTotalHours').textContent = `${h}h ${m}m`;
+
+    if (list.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:20px;">Tidak ada data lembur Daytime pada periode ini.</td></tr>';
+    }
+  }
+
+  function exportPDF() {
+    const list = getOtReportData();
+    if (list.length === 0) { alert("Tidak ada data untuk diexport!"); return; }
+
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF('l', 'mm', 'a4');
+
+    // Simple Header
+    doc.setFontSize(16);
+    doc.text('Laporan Overtime (Daytime)', 14, 15);
+    doc.setFontSize(10);
+    doc.text(`Periode: ${document.getElementById('otRepStart').value} s.d ${document.getElementById('otRepEnd').value}`, 14, 22);
+
+    const data = list.map((r, i) => [
+      i + 1, r.date, r.name, r.nid, 'DAYTIME', r.actualOut, r.desc
+    ]);
+
+    doc.autoTable({
+      head: [['No', 'Tanggal', 'Nama', 'NID', 'Shift', 'Jam Pulang', 'Durasi']],
+      body: data,
+      startY: 30,
+      theme: 'grid',
+      headStyles: { fillColor: [220, 38, 38] } // Red header for overtime
+    });
+
+    doc.save('Laporan_Overtime_Daytime.pdf');
+  }
+
+  if (btnGen) btnGen.onclick = renderReport;
+  if (btnPdf) btnPdf.onclick = exportPDF;
+
+  // Expose for debugging if needed
+  window.renderOvertimeReport = renderReport;
+})();
+
 
 /* =========================================
    INVENTORY (KELUAR MASUK BARANG) LOGIC
