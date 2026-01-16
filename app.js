@@ -1478,16 +1478,18 @@ window.addEventListener('DOMContentLoaded', () => {
     }
 
     const hm = (ts) => ts ? new Date(ts).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : '...';
+    const dt = (ts) => ts ? new Date(ts).toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit' }) : '';
 
     tbody.innerHTML = sorted.map((row, i) => {
       const rank = i + 1;
       // Format sessions
       const details = row.sessions.map(s => {
+        const tDate = dt(s.out);
         const tOut = hm(s.out);
         const tIn = hm(s.in);
         const dur = (s.out && s.in) ? Math.round((s.in - s.out) / 60000) + 'm' : '?';
         return `<div class="chip-sm" style="margin-bottom:2px; font-size:0.75rem; display:inline-flex; align-items:center;">
-             ${tOut} - ${tIn} (${dur})
+             <span style="color:var(--primary-600); font-weight:600; margin-right:4px;">${tDate}:</span> ${tOut} - ${tIn} (${dur})
              <button onclick="deleteBreakSession(${s.out}, ${s.in || 'null'})" title="Hapus Sesi" style="background:none; border:none; color:var(--danger); cursor:pointer; margin-left:6px; font-size:1.1em; line-height:1;">&times;</button>
         </div>`;
       }).join('');
@@ -3298,9 +3300,35 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('otRepEnd').value = `${today.getFullYear()}-${pad(today.getMonth() + 1)}-${pad(today.getDate())}`;
   }
 
+  // Populate Company Filter (Robust: On Focus & Initial)
+  const elComp = document.getElementById('otRepCompany');
+
+  function populateCompDropdown() {
+    if (!elComp || !window.employees) return;
+    if (elComp.options.length > 1) return; // Already populated
+
+    const comps = [...new Set(window.employees.map(e => (e.company || '').trim()).filter(Boolean))].sort();
+    comps.forEach(c => {
+      const opt = document.createElement('option');
+      opt.value = c;
+      opt.textContent = c;
+      elComp.appendChild(opt);
+    });
+  }
+
+  // Try populate immediately if possible
+  populateCompDropdown();
+
+  // Also bind to focus/click in case data came late
+  if (elComp) {
+    elComp.addEventListener('focus', populateCompDropdown);
+    elComp.addEventListener('mousedown', populateCompDropdown);
+  }
+
   function getOtReportData() {
     const dStart = new Date(document.getElementById('otRepStart').value + 'T00:00:00');
     const dEnd = new Date(document.getElementById('otRepEnd').value + 'T23:59:59');
+    const fComp = document.getElementById('otRepCompany')?.value || '';
 
     // Cache employees
     const empMap = new Map((window.employees || []).map(e => [e.nid, e]));
@@ -3334,6 +3362,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
       const e = empMap.get(rec.nid);
       if (!e) return;
+
+      // Filter Company
+      if (fComp && (e.company || '').trim() !== fComp) return;
 
       // --- LOGIC FILTER STRICT DAYTIME (REUSED) ---
       const tDate = new Date(rec.datang);
