@@ -18,7 +18,7 @@ window.addEventListener('DOMContentLoaded', () => {
   const pad = n => String(n).padStart(2, '0');
   const fmtTs = ts => { const d = new Date(ts); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`; }
   const todayISO = () => { const d = now(); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; }
-  const capStatus = s => s === 'datang' ? 'Masuk' : 'Keluar';
+  const capStatus = s => { if (s === 'datang') return 'Masuk'; if (s === 'break_out') return 'Izin'; if (s === 'break_in') return 'Kembali'; if (s === 'alpha') return 'Tanpa Ket.'; return 'Keluar'; };
   const load = (k, f) => { try { return JSON.parse(localStorage.getItem(k)) ?? f; } catch { return f; } };
   const save = (k, v) => localStorage.setItem(k, JSON.stringify(v));
   const loadEdu = () => { try { return JSON.parse(localStorage.getItem(LS_EDU) || '[]'); } catch { return []; } };
@@ -2182,6 +2182,59 @@ window.addEventListener('DOMContentLoaded', () => {
     const gr = $('#attGroupFilter')?.value || '';
     const st = $('#attStatusFilter')?.value || '';
 
+    // === ABSENTEEISM LOGIC (Ghost Records) ===
+    if (st === 'UNKNOWN') {
+      const ghosts = [];
+      // Cache existing 'datang' records
+      const presenceMap = new Set();
+      atts.forEach(a => {
+        if (a.ts >= tFrom && a.ts <= tTo) {
+          const dateKey = new Date(a.ts).toISOString().slice(0, 10);
+          presenceMap.add(`${a.nid}|${dateKey}`);
+        }
+      });
+
+      let loop = new Date(dFrom);
+      while (loop <= dTo) {
+        const dateKey = loop.toISOString().slice(0, 10);
+
+        employees.forEach(e => {
+          // 1. Filter Check
+          if (q && !(e.name + ' ' + e.nid + ' ' + (e.company || '')).toLowerCase().includes(q)) return;
+          if (gr && e.shift !== gr) return;
+
+          // 2. Presence Check
+          if (presenceMap.has(`${e.nid}|${dateKey}`)) return;
+
+          // 3. Schedule Check (noon to avoid boundary issues)
+          const checkDate = new Date(loop); checkDate.setHours(12, 0, 0, 0);
+          const code = effectiveShiftFor(e, checkDate);
+
+          if (!code || code === 'OFF') return;
+
+          // 4. Create Ghost Record
+          const s = shfs[code] || { start: '08:00' };
+          const [hh, mm] = s.start.split(':').map(Number);
+          const ts = new Date(loop); ts.setHours(hh, mm, 0, 0);
+
+          ghosts.push({
+            ts: ts.getTime(),
+            status: 'alpha',
+            nid: e.nid,
+            name: e.name,
+            title: e.title,
+            company: e.company,
+            shift: code,
+            note: 'Tidak Hadir',
+            late: false,
+            isGhost: true
+          });
+        });
+        loop.setDate(loop.getDate() + 1);
+      }
+      return ghosts.sort((a, b) => b.ts - a.ts);
+    }
+
     return atts.filter(a => {
       // 1. Check Date Range
       if (a.ts < tFrom || a.ts > tTo) return false;
@@ -2199,31 +2252,19 @@ window.addEventListener('DOMContentLoaded', () => {
 
       // 4. Check Status
       if (st) {
-        if (st === 'LATE') {
-          return !!a.late;
-        }
-        if (st === 'ONTIME') {
-          return a.status === 'datang' && !a.late;
-        }
-        if (st === 'UNKNOWN') {
-          return a.status === 'datang' && typeof a.late === 'boolean';
-        }
+        if (st === 'LATE') return !!a.late;
+        if (st === 'ONTIME') return a.status === 'datang' && !a.late;
+        // Note: UNKNOWN handled above
         if (st === 'OVERTIME') {
           if (a.status !== 'pulang') return false;
-
           const sDef = shfs[a.shift];
           if (!sDef || !sDef.end) return false;
-
-          // Time Calc
           const d = new Date(a.ts);
           const scanMins = d.getHours() * 60 + d.getMinutes();
           const [h, m] = sDef.end.split(':').map(Number);
           const endMins = h * 60 + m;
-
-          // Strict Overtime (> 10 mins tolerance)
           return scanMins > (endMins + 10);
         }
-        // Unknown filter -> hide
         return false;
       }
       return true;
@@ -2240,11 +2281,14 @@ window.addEventListener('DOMContentLoaded', () => {
       tr.dataset.ts = r.ts;
 
       let statusLabel = 'Pulang';
-      let statusClass = 'status-pulang';
+      // let statusClass = 'status-pulang'; // Unused in HTML rendering logic below
 
-      if (r.status === 'datang') { statusLabel = 'Masuk'; statusClass = 'status-masuk'; }
-      else if (r.status === 'break_out') { statusLabel = 'Izin Keluar'; statusClass = 'status-pulang'; } // Re-use pulang style or custom
-      else if (r.status === 'break_in') { statusLabel = 'Kembali'; statusClass = 'status-masuk'; }
+      if (r.status === 'datang') statusLabel = 'Masuk';
+      else if (r.status === 'break_out') statusLabel = 'Izin Keluar';
+      else if (r.status === 'break_in') statusLabel = 'Kembali';
+      else if (r.status === 'alpha') statusLabel = 'Tanpa Keterangan';
+
+      const delBtn = r.isGhost ? '' : `<button class="btn small danger" data-act="del-att" style="padding:2px 8px; font-size:12px;">Hapus</button>`;
 
       tr.innerHTML = `
         <td>${fmtTs(r.ts)}</td>
@@ -2255,7 +2299,7 @@ window.addEventListener('DOMContentLoaded', () => {
         <td>${r.company}</td>
         <td>${CODE_TO_LABEL[r.shift] || r.shift || ''}</td>
         <td>${r.note || ''}</td>
-        <td style="text-align:center"><button class="btn small danger" data-act="del-att" style="padding:2px 8px; font-size:12px;">Hapus</button></td>`;
+        <td style="text-align:center">${delBtn}</td>`;
       tb.appendChild(tr);
     });
     $('#btnExportAtt').dataset.count = rows.length;
@@ -3332,6 +3376,233 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Expose for debugging if needed
   window.renderOvertimeReport = renderReport;
+})();
+
+
+
+/* =========================================
+   ATTENDANCE REPORT (24H) & ABSENTEEISM LOGIC
+   ========================================= */
+(function () {
+  const btnFilter = document.getElementById('btnFilterAtt');
+  const btnExport = document.getElementById('btnExportAtt');
+  const tableBody = document.querySelector('#tableAtt tbody');
+
+  // Helper: Format Time
+  const fmtTime = (ts) => {
+    if (!ts) return '-';
+    const d = new Date(ts);
+    return `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+  };
+  const pad = n => String(n).padStart(2, '0');
+
+  // Helper: Generate Date Range Array
+  const getDates = (start, end) => {
+    const dates = [];
+    let cur = new Date(start);
+    cur.setHours(0, 0, 0, 0);
+    const last = new Date(end);
+    last.setHours(0, 0, 0, 0);
+
+    while (cur <= last) {
+      dates.push(new Date(cur));
+      cur.setDate(cur.getDate() + 1);
+    }
+    return dates;
+  };
+
+  async function renderAttReport() {
+    if (!tableBody) return;
+    tableBody.innerHTML = '<tr><td colspan="9" style="text-align:center">Memuat data...</td></tr>';
+
+    // 1. Get Filter Values
+    const fFrom = document.getElementById('attFrom')?.value || todayISO();
+    const fTo = document.getElementById('attTo')?.value || todayISO();
+    const fGroup = document.getElementById('attGroupFilter')?.value || '';
+    const fStatus = document.getElementById('attStatusFilter')?.value || ''; // '', LATE, ONTIME, OVERTIME, UNKNOWN
+    const fSearch = document.getElementById('attSearch')?.value?.toLowerCase() || '';
+
+    // 2. Prepare Data Source
+    let allRecords = [];
+
+    // --- A. GET ACTUAL ATTENDANCE ---
+    // Filter by Date Range
+    const startMs = new Date(fFrom + 'T00:00:00').getTime();
+    const endMs = new Date(fTo + 'T23:59:59').getTime();
+    const scanRecords = attendance.filter(a => a.ts >= startMs && a.ts <= endMs);
+
+    // --- B. GENERATE ABSENTEE (GHOST) RECORDS ---
+    // Only if filter is ALL or UNKNOWN
+    if (fStatus === '' || fStatus === 'UNKNOWN') {
+      const dates = getDates(fFrom, fTo);
+      const emps = employees; // Global
+
+      dates.forEach(dObj => {
+        const dateStr = `${dObj.getFullYear()}-${pad(dObj.getMonth() + 1)}-${pad(dObj.getDate())}`; // YYYY-MM-DD
+        const nextDayStr = new Date(dObj.getTime() + 86400000).toISOString().split('T')[0];
+
+        emps.forEach(emp => {
+          // Check Schedule
+          let shiftCode = 'OFF';
+          if (window.effectiveShiftFor) {
+            shiftCode = window.effectiveShiftFor(emp, dObj.getTime());
+          } else {
+            shiftCode = emp.shift || 'OFF';
+          }
+
+          if (!shiftCode || shiftCode === 'OFF') return; // Scheduled Off
+
+          // Check if Scanned
+          // Logic checks if any record exists for this NID on this Date
+          const hasScan = scanRecords.some(r => {
+            if (r.nid !== emp.nid) return false;
+            const rDate = new Date(r.ts);
+            const rDateStr = `${rDate.getFullYear()}-${pad(rDate.getMonth() + 1)}-${pad(rDate.getDate())}`;
+            return rDateStr === dateStr;
+          });
+
+          if (!hasScan) {
+            // Create Ghost Record
+            allRecords.push({
+              isGhost: true,
+              ts: dObj.getTime(), // Sortable
+              dateStr: dateStr,
+              timeStr: '-',
+              status: 'UNKNOWN',
+              nid: emp.nid,
+              name: emp.name,
+              title: emp.title,
+              company: emp.company,
+              shift: shiftCode,
+              note: `Tidak Hadir (Jadwal: ${shiftCode})`,
+              late: false
+            });
+          }
+        });
+      });
+    }
+
+    // --- C. MERGE & FILTER STATUS ---
+    // Add real scans if allowed
+    if (fStatus !== 'UNKNOWN') {
+      const mappedScans = scanRecords.map(r => ({
+        ...r,
+        isGhost: false,
+        dateStr: fmtTs(r.ts).split(' ')[0],
+        timeStr: fmtTime(r.ts)
+      }));
+      allRecords = [...allRecords, ...mappedScans];
+    }
+
+    // --- D. APPLY FILTERS ---
+    let filtered = allRecords.filter(r => {
+      // Status Filter
+      if (fStatus) {
+        if (fStatus === 'LATE' && !r.late) return false;
+        if (fStatus === 'ONTIME' && (r.late || r.status !== 'datang')) return false;
+        if (fStatus === 'UNKNOWN' && r.status !== 'UNKNOWN') return false;
+      }
+
+      // Group Filter
+      if (fGroup && fGroup !== '') {
+        if (r.shift !== fGroup) return false;
+      }
+
+      // Search Filter
+      if (fSearch) {
+        const raw = `${r.name} ${r.nid} ${r.company} ${r.note}`.toLowerCase();
+        if (!raw.includes(fSearch)) return false;
+      }
+
+      return true;
+    });
+
+    // --- E. SORT ---
+    // Sort by TS descending
+    filtered.sort((a, b) => b.ts - a.ts);
+
+    // --- F. RENDER ---
+    if (filtered.length === 0) {
+      tableBody.innerHTML = '<tr><td colspan="9" style="text-align:center; padding:20px;" class="muted">Tidak ada data ditemukan.</td></tr>';
+      return;
+    }
+
+    tableBody.innerHTML = filtered.map(r => {
+      const rowClass = r.isGhost ? 'style="background-color:#fef2f2"' : ''; // Red tint for absent
+      const statusBadge = r.isGhost
+        ? `<span class="badge danger">Alpha / Tanpa Keterangan</span>`
+        : (r.status === 'datang' ? '<span class="badge success">Masuk</span>' : (r.status === 'break_out' ? '<span class="badge warning">Istirahat</span>' : '<span class="badge">Pulang</span>'));
+
+      const lateBadge = r.late ? `<span class="badge danger">Telat</span>` : '';
+      const noteAndLate = `<div>${r.note || '-'} ${lateBadge}</div>`;
+
+      // Use safe access for properties
+      const sNid = r.nid || '-';
+      const sName = r.name || '-';
+      const sTitle = r.title || '-';
+      const sComp = r.company || '-';
+      const sShift = r.shift || '-';
+
+      return `
+        <tr ${rowClass}>
+           <td>${fmtTs(r.ts)}</td>
+           <td>${statusBadge}</td>
+           <td>${sNid}</td>
+           <td><b>${sName}</b></td>
+           <td>${sTitle}</td>
+           <td>${sComp}</td>
+           <td>${sShift}</td>
+           <td>${noteAndLate}</td>
+           <td style="text-align:right">
+             ${!r.isGhost ? `<button class="btn small danger" onclick="deleteAttendance(${r.ts})">Hapus</button>` : ''}
+           </td>
+        </tr>
+      `;
+    }).join('');
+
+    // Save for Export reference
+    window.lastReportData = filtered;
+  }
+
+  // Bind Listener
+  if (btnFilter) {
+    const newBtn = btnFilter.cloneNode(true);
+    btnFilter.parentNode.replaceChild(newBtn, btnFilter);
+    newBtn.addEventListener('click', renderAttReport);
+  }
+
+  // Override Export
+  window.exportExcel = function () {
+    const data = window.lastReportData || attendance; // Fallback to all if no search done
+    if (!data || data.length === 0) { toast('Tidak ada data untuk diexport.'); return; }
+
+    if (typeof XLSX === 'undefined') { toast('Library Excel belum siap.'); return; }
+
+    const curTime = new Date().toISOString().replace(/[:.]/g, '-');
+
+    const rows = data.map(r => ({
+      "Waktu": fmtTs(r.ts),
+      "Status": r.status === 'UNKNOWN' ? 'TANPA KETERANGAN' : (r.status === 'datang' ? 'MASUK' : 'PULANG'),
+      "NID": r.nid,
+      "Nama": r.name,
+      "Jabatan": r.title,
+      "Perusahaan": r.company,
+      "Shift": r.shift,
+      "Keterangan": r.note + (r.late ? ' (Terlambat)' : '')
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Laporan Absensi");
+    XLSX.writeFile(wb, `SmartAttend_Report_${curTime}.xlsx`);
+  };
+
+  if (btnExport) {
+    const newBtn = btnExport.cloneNode(true);
+    btnExport.parentNode.replaceChild(newBtn, btnExport);
+    newBtn.addEventListener('click', window.exportExcel);
+  }
+
 })();
 
 
