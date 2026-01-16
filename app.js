@@ -265,6 +265,87 @@ window.addEventListener('DOMContentLoaded', () => {
     await sb.from('shift_monthly').upsert({ month: monthId, data: sched[monthId] }, { onConflict: 'month' });
   }
 
+  // === FITUR BARU: MANUAL BULK SYNC ===
+  window.manualSyncAttendance = async function () {
+    if (!sb) {
+      alert("Koneksi Supabase belum aktif. Pastikan config.local.js benar.");
+      return;
+    }
+
+    const btn = document.getElementById('btnSyncManual');
+    const originalText = btn ? btn.innerHTML : 'Sync Cloud';
+    if (btn) {
+      btn.innerHTML = '⏳ Mengirim...';
+      btn.disabled = true;
+    }
+    toast("Memulai sinkronisasi manual ke Cloud...");
+
+    try {
+      // 1. Sync Employees
+      if (employees.length > 0) {
+        // Map ke format DB
+        const empRows = employees.map(e => ({
+          nid: e.nid, name: e.name, title: e.title, company: e.company,
+          shift: e.shift, photo: e.photo, updated_at: new Date().toISOString()
+        }));
+
+        const { error: errEmp } = await sb.from('employees').upsert(empRows, { onConflict: 'nid' });
+        if (errEmp) throw new Error("Gagal sync Karyawan: " + errEmp.message);
+      }
+
+      // 2. Sync Attendance (Prioritaskan yg baru)
+      // Kita kirim 500 data terakhir saja agar tidak timeout jika data ribuan
+      const attData = attendance.slice().sort((a, b) => b.ts - a.ts).slice(0, 500);
+
+      if (attData.length > 0) {
+        const attRows = [];
+        const breakRows = [];
+
+        attData.forEach(r => {
+          // Pastikan field mandatory ada
+          if (!r.ts || !r.nid) return;
+
+          const createdAt = new Date(r.ts).toISOString();
+
+          if (r.status === 'break_out' || r.status === 'break_in') {
+            breakRows.push({
+              ts: r.ts, status: r.status, nid: r.nid, name: r.name,
+              company: r.company, created_at: createdAt
+            });
+          } else {
+            attRows.push({
+              ts: r.ts, status: r.status, nid: r.nid, name: r.name,
+              title: r.title, company: r.company, shift: r.shift,
+              note: r.note, late: !!r.late, ok_shift: !!r.okShift,
+              created_at: createdAt
+            });
+          }
+        });
+
+        if (attRows.length > 0) {
+          const { error: errAtt } = await sb.from('attendance').upsert(attRows, { onConflict: 'ts' });
+          if (errAtt) throw new Error("Gagal sync Absensi: " + errAtt.message);
+        }
+        if (breakRows.length > 0) {
+          const { error: errBreak } = await sb.from('breaks').upsert(breakRows, { onConflict: 'ts' });
+          if (errBreak) throw new Error("Gagal sync Breaks: " + errBreak.message);
+        }
+      }
+
+      toast("✅ Sync Selesai! Data berhasil dikirim ke Cloud.");
+      alert("Sukses! Semua data lokal (Karyawan & 500 Absensi terakhir) telah disinkronkan ke Cloud. Silakan cek di HP.");
+
+    } catch (e) {
+      console.error(e);
+      alert("Terjadi kesalahan saat Sync: " + e.message);
+    } finally {
+      if (btn) {
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+      }
+    }
+  };
+
   async function pullAll() {
     if (!sb) return;
     // Employees
