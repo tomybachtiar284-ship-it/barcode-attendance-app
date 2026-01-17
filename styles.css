@@ -3007,4 +3007,29 @@ h1.page-title {
       padding: 12px;
     }
   }
-}
+}/* MOBILE DASHBOARD NEW */
+.mob-stat-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+.mob-stat-card { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 12px 4px; text-align: center; border-radius: 16px; background: #fff; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
+.mob-stat-card.stat-red { border-bottom: 3px solid var(--danger); }
+.mob-stat-card.stat-blue { border-bottom: 3px solid var(--primary); }
+.mob-stat-card.stat-gray { border-bottom: 3px solid #64748b; }
+.mob-stat-card .lbl-sm { font-size: 0.7rem; font-weight: 700; color: #64748b; letter-spacing: 0.5px; margin-bottom: 4px; text-transform: uppercase; }
+.mob-stat-card .val { font-size: 1.6rem; font-weight: 800; line-height: 1; margin-bottom: 2px; color: #0f172a; }
+.mob-stat-card .lbl-xs { font-size: 0.7rem; color: #94a3b8; }
+/* Gauge styles */
+.gauge-simple { position: relative; width: 140px; height: 140px; margin: 0 auto; border-radius: 50%; background: conic-gradient(var(--primary) 0%, #e2e8f0 0%); display: flex; align-items: center; justify-content: center; }
+.gauge-simple::before { content: ''; position: absolute; width: 110px; height: 110px; background: #fff; border-radius: 50%; }
+.gauge-val { position: relative; z-index: 2; font-size: 2rem; font-weight: 800; color: var(--primary); }
+/* MOBILE DASHBOARD GAUGE FIX */
+.mob-stat-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+.mob-stat-card { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 12px 4px; text-align: center; border-radius: 16px; background: #fff; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
+.mob-stat-card.stat-red { border-bottom: 3px solid var(--danger); }
+.mob-stat-card.stat-blue { border-bottom: 3px solid var(--primary); }
+.mob-stat-card.stat-gray { border-bottom: 3px solid #64748b; }
+.mob-stat-card .lbl-sm { font-size: 0.7rem; font-weight: 700; color: #64748b; letter-spacing: 0.5px; margin-bottom: 4px; text-transform: uppercase; }
+.mob-stat-card .val { font-size: 1.6rem; font-weight: 800; line-height: 1; margin-bottom: 2px; color: #0f172a; }
+.mob-stat-card .lbl-xs { font-size: 0.7rem; color: #94a3b8; }
+/* Gauge styles for Mobile */
+.gauge-simple { position: relative; width: 140px; height: 140px; margin: 0 auto; border-radius: 50%; background: conic-gradient(var(--primary) 0%, #e2e8f0 0%); display: flex; align-items: center; justify-content: center; }
+.gauge-simple::before { content: ''; position: absolute; width: 110px; height: 110px; background: #fff; border-radius: 50%; }
+.gauge-val { position: relative; z-index: 2; font-size: 2rem; font-weight: 800; color: var(--primary); }

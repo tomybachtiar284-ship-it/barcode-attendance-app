@@ -1,4 +1,4 @@
-const CACHE_NAME = 'aman-s-v1';
+const CACHE_NAME = 'aman-s-v2';
 const ASSETS = [
     './',
     './index.html',
@@ -12,7 +12,8 @@ const ASSETS = [
 
 // Install Event
 self.addEventListener('install', (e) => {
-    console.log('[SW] Install');
+    console.log('[SW-v2] Install');
+    self.skipWaiting(); // Force activate new SW
     e.waitUntil(
         caches.open(CACHE_NAME).then((cache) => {
             console.log('[SW] Caching all assets');
@@ -41,6 +42,6 @@ self.addEventListener('activate', (e) => {
                     return caches.delete(key);
                 }
             }));
-        })
+        }).then(() => self.clients.claim()) // Take control immediately
     );
 });

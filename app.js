@@ -1148,7 +1148,15 @@ window.addEventListener('DOMContentLoaded', () => {
     if (elLate) elLate.textContent = late;
     if (elPres) elPres.textContent = present;
     if (elTot) elTot.textContent = total;
-    if (elGauge) elGauge.textContent = (total > 0 ? Math.round((present / total) * 100) : 0) + '%';
+
+    const pct = total > 0 ? Math.round((present / total) * 100) : 0;
+    if (elGauge) elGauge.textContent = pct + '%';
+
+    // Update Gauge Visual
+    const elGaugeBg = document.querySelector('.gauge-simple');
+    if (elGaugeBg) {
+      elGaugeBg.style.background = `conic-gradient(#0ea5e9 ${pct}%, #e2e8f0 ${pct}%)`;
+    }
   };
 
   // Auto-tick mobile clock
@@ -3286,7 +3294,7 @@ document.addEventListener('DOMContentLoaded', () => {
 /* =========================================
    OVERTIME REPORT LOGIC (DAYTIME SPECIAL)
    ========================================= */
-(function initOvertimeReport() {
+window.addEventListener('DOMContentLoaded', function initOvertimeReport() {
   const btnGen = document.getElementById('btnGenOtReport');
   const btnPdf = document.getElementById('btnExportOtPdf');
 
@@ -3488,7 +3496,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Expose for debugging if needed
   window.renderOvertimeReport = renderReport;
-})();
+});
 
 
 
@@ -4452,7 +4460,11 @@ function setupMobileListeners() {
   const elTot = document.getElementById('mobStatTotal');
 
   const getTodayAtts = () => {
-    const sod = new Date(new Date().getFullYear() + '-' + String(new Date().getMonth() + 1).padStart(2, '0') + '-' + String(new Date().getDate()).padStart(2, '0')).getTime();
+    // FIXED: Use explicit T00:00:00 to force Local Time (matches render logic)
+    const y = new Date().getFullYear();
+    const m = String(new Date().getMonth() + 1).padStart(2, '0');
+    const d = String(new Date().getDate()).padStart(2, '0');
+    const sod = new Date(`${y}-${m}-${d}T00:00:00`).getTime();
     return (window.attendance || []).filter(a => a.ts >= sod);
   };
 
