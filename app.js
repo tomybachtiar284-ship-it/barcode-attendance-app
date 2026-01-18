@@ -903,9 +903,26 @@ window.addEventListener('DOMContentLoaded', () => {
     const sod = new Date(todayISO() + 'T00:00:00').getTime();
     let list = [], title = '';
 
-    if (type === 'scan24h') {
-      title = 'Aktivitas Scan 24 Jam Terakhir';
-      list = attendance.filter(a => a.ts >= since24).sort((a, b) => b.ts - a.ts);
+    if (type === 'active_site') {
+      title = 'Personil Aktif Di Lokasi (Live)';
+      // 1. Get Today's Data
+      const todayData = attendance.filter(a => a.ts >= sod);
+      // 2. Map Status by NID
+      const statusMap = new Map(); // nid -> { lastStatus, record }
+      // Process chronologically to find LAST status
+      todayData.sort((a, b) => a.ts - b.ts).forEach(r => {
+        statusMap.set(r.nid, { status: r.status, rec: r });
+      });
+      // 3. Filter who is still 'datang'
+      list = [];
+      for (const [nid, val] of statusMap.entries()) {
+        if (val.status === 'datang') {
+          list.push(val.rec);
+        }
+      }
+      // Sort newest first
+      list.sort((a, b) => b.ts - a.ts);
+
     } else if (type === 'ontime') {
       title = 'Karyawan Tepat Waktu (Hari Ini)';
       list = attendance.filter(a => a.ts >= sod && a.status === 'datang' && !a.late).sort((a, b) => b.ts - a.ts);
@@ -1171,11 +1188,19 @@ window.addEventListener('DOMContentLoaded', () => {
     const elLate = document.getElementById('mobStatLate');
     const elPres = document.getElementById('mobStatPresent');
     const elTot = document.getElementById('mobStatTotal');
+    const elActive = document.getElementById('mobStatActive');
     const elGauge = document.getElementById('mobGaugeVal');
 
     if (elLate) elLate.textContent = late;
     if (elPres) elPres.textContent = present;
     if (elTot) elTot.textContent = total;
+
+    // === NEW LOGIC: Mobile Active On-Site ===
+    const uniqueIn = new Set(today.filter(a => a.status === 'datang').map(a => a.nid));
+    const uniqueOut = new Set(today.filter(a => a.status === 'pulang').map(a => a.nid));
+    let activeVal = uniqueIn.size - uniqueOut.size;
+    if (activeVal < 0) activeVal = 0;
+    if (elActive) elActive.textContent = activeVal;
 
     const pct = total > 0 ? Math.round((present / total) * 100) : 0;
     if (elGauge) elGauge.textContent = pct + '%';
