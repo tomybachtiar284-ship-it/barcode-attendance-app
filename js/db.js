@@ -6,14 +6,21 @@
 let sb = null;
 
 // INIT
+// INIT
 async function checkConn() {
     try {
         const { createClient } = window.supabase;
-        if (!window.SUPABASE_URL || !window.SUPABASE_KEY) {
+        // Fix: Use generic or SA_ prefix
+        const url = window.SA_SUPABASE_URL || window.SUPABASE_URL;
+        const key = window.SA_SUPABASE_ANON || window.SUPABASE_KEY;
+
+        if (!url || !key) {
             console.warn('Supabase creds missing in config.local.js');
             return false;
         }
-        sb = createClient(window.SUPABASE_URL, window.SUPABASE_KEY);
+        sb = createClient(url, key);
+        window.sb = sb; // Sync global
+
         const { data, error } = await sb.from('attendance').select('count', { count: 'exact', head: true });
         if (error) throw error;
         console.log('Supabase Connected. logic DB.');
@@ -263,6 +270,108 @@ async function pullAll() {
 }
 
 // Global Export
+// === REALTIME SUBSCRIPTION ===
+let rtSubscription = null;
+
+function subscribeToRealtime() {
+    const client = sb || window.sb;
+    if (!client) return;
+
+    // Prevent double subscription
+    if (rtSubscription) return;
+
+    console.log('📡 Starting Realtime Subscription...');
+
+    rtSubscription = client.channel('public-db-changes')
+        .on(
+            'postgres_changes',
+            { event: 'INSERT', schema: 'public', table: 'attendance' },
+            (payload) => handleRealtimeInsert(payload.new, 'attendance')
+        )
+        .on(
+            'postgres_changes',
+            { event: 'INSERT', schema: 'public', table: 'breaks' },
+            (payload) => handleRealtimeInsert(payload.new, 'breaks')
+        )
+        .subscribe((status) => {
+            console.log('Realtime Status:', status);
+        });
+}
+
+function handleRealtimeInsert(newRow, tableName) {
+    if (!newRow) return;
+
+    // 1. Normalisasi Data (Samakan format dengan local attendance)
+    // Note: Payload dari Realtime adalah Raw DB Columns
+    let rec = null;
+
+    // Helper parse TS
+    const parseTs = (t) => new Date(t).getTime();
+
+    if (tableName === 'attendance') {
+        rec = {
+            ts: parseTs(newRow.ts),
+            status: newRow.status,
+            nid: newRow.nid,
+            name: newRow.name,
+            title: newRow.title,
+            company: newRow.company,
+            shift: newRow.shift,
+            note: newRow.note,
+            late: newRow.late,
+            okShift: newRow.ok_shift
+        };
+    } else if (tableName === 'breaks') {
+        rec = {
+            ts: parseTs(newRow.ts),
+            status: newRow.status,
+            nid: newRow.nid,
+            name: newRow.name,
+            title: '', // Breaks usually don't have title/shift stored
+            company: newRow.company,
+            shift: '',
+            note: (newRow.status === 'break_out' ? 'Izin Keluar / Istirahat' : 'Kembali Masuk'),
+            late: false,
+            okShift: true
+        };
+    }
+
+    if (!rec) return;
+
+    // 2. Cek Duplikat di Window.Attendance
+    // Kita cek range waktu +- 1 detik untuk aman, atau exact match TS
+    const exists = window.attendance.some(a =>
+        a.nid === rec.nid &&
+        Math.abs(a.ts - rec.ts) < 2000 // Tolerance 2s (karena pembulatan ms di DB)
+    );
+
+    if (exists) {
+        // console.log('Skipping echo insert from realtime');
+        return;
+    }
+
+    console.log('⚡ New Data from Realtime:', rec);
+
+    // 3. Update Local Data
+    window.attendance.push(rec);
+    window.attendance.sort((a, b) => a.ts - b.ts);
+
+    // 4. Save to LocalStorage
+    // WARNING: "LS_ATT" variable is inside app.js scope, we cannot access it here easily 
+    // without passing it or assuming global.
+    // However, app.js logic exposes 'attendance' to window, but maybe not the SAVE function constant.
+    // We will use string literal 'SA_ATTENDANCE' to be safe.
+    localStorage.setItem('SA_ATTENDANCE', JSON.stringify(window.attendance));
+
+    // 5. Notify App to Re-render
+    // Gunakan event 'data:synced' yang sudah ada di app.js untuk trigger renderDashboard() dll
+    window.dispatchEvent(new Event('data:synced'));
+
+    // Optional: Toast notif
+    // window.dispatchEvent(new CustomEvent('realtime:toast', { detail: `Data baru: ${rec.name} (${rec.status})` }));
+}
+
+// Global Export
 window.sb = sb;
 window.checkConn = checkConn;
 window.pushEmployee = pushEmployee;
@@ -278,3 +387,4 @@ window.delInventory = delInventory;
 window.pushShifts = pushShifts;
 window.pushSched = pushSched;
 window.pullAll = pullAll;
+window.subscribeToRealtime = subscribeToRealtime;

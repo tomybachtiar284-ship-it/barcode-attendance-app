@@ -108,6 +108,17 @@ window.addEventListener('DOMContentLoaded', () => {
         else console.log('✅ Supabase Connected (Test Ping OK)');
       });
       console.log('✅ Supabase Client Initialized!', sb);
+      if (window.subscribeToRealtime) window.subscribeToRealtime();
+
+      // Listener Agnostic untuk Refresh UI
+      window.addEventListener('data:synced', () => {
+        console.log('🔄 UI Refresh triggered by Sync/Realtime');
+        if (typeof renderDashboard === 'function') renderDashboard();
+        if (typeof renderEmployees === 'function' && !document.getElementById('route-employees').classList.contains('hidden')) renderEmployees();
+        if (typeof renderAttendance === 'function' && !document.getElementById('route-attendance').classList.contains('hidden')) renderAttendance();
+        if (typeof renderLatest === 'function' && !document.getElementById('route-latest').classList.contains('hidden')) renderLatest();
+      });
+
       return sb;
     } catch (err) {
       alert('Supabase init Exception: ' + err.message);
