@@ -1094,8 +1094,25 @@ window.addEventListener('DOMContentLoaded', () => {
     $('#statShiftBreakdown') && ($('#statShiftBreakdown').textContent = breakdown);
 
     const since = Date.now() - 24 * 3600 * 1000; const last24 = attendance.filter(a => a.ts >= since);
-    setTextAndBump('#statScan24h', last24.length);
-    setTextAndBump('#statScan24hScan', last24.length);
+
+    // === NEW LOGIC: Active On-Site (Realtime Estimate) ===
+    const sodToday = new Date(todayISO() + 'T00:00:00').getTime();
+    const attToday = attendance.filter(a => a.ts >= sodToday);
+
+    // Count Unique People IN
+    const uniqueIn = new Set(attToday.filter(a => a.status === 'datang').map(a => a.nid));
+    // Count Unique People OUT
+    const uniqueOut = new Set(attToday.filter(a => a.status === 'pulang').map(a => a.nid));
+
+    // Active = (Unique IN) - (Unique OUT)
+    // Note: This logic assumes if you scan OUT, you are gone. 
+    // Ideally we should track "Last Status per Person" but this simple math is robust enough for daily flows.
+    let activeOnSite = uniqueIn.size - uniqueOut.size;
+    if (activeOnSite < 0) activeOnSite = 0; // Safety
+
+    setTextAndBump('#statScan24h', activeOnSite);
+    setTextAndBump('#statScan24hScan', activeOnSite);
+
     setTextAndBump('#statIn24h', last24.filter(a => a.status === 'datang').length);
     setTextAndBump('#statOut24h', last24.filter(a => a.status === 'pulang').length);
 
