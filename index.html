@@ -2418,6 +2418,26 @@
   </script>
   <script src="app.js"></script>
   <script src="mobile-camera.js"></script>
+  <!-- Modal: Active Personnel List -->
+  <dialog id="activePersonnelModal" class="modal">
+    <div class="modal-content"
+      style="max-width: 500px; width: 90%; max-height: 80vh; display: flex; flex-direction: column;">
+      <h3
+        style="margin-top:0; border-bottom:1px solid #eee; padding-bottom:10px; display:flex; justify-content:space-between; align-items:center;">
+        Personil Aktif (Live)
+        <button onclick="document.getElementById('activePersonnelModal').close()"
+          style="background:none; border:none; font-size:1.2rem; cursor:pointer;">&times;</button>
+      </h3>
+      <div id="activePersonnelList" style="overflow-y: auto; flex: 1; padding: 5px 0;">
+        <!-- List injected by JS -->
+      </div>
+      <div style="margin-top:10px; text-align:right; border-top:1px solid #eee; padding-top:10px;">
+        <button class="btn primary small"
+          onclick="document.getElementById('activePersonnelModal').close()">Tutup</button>
+      </div>
+    </div>
+  </dialog>
+
 </body>
 
 </html>

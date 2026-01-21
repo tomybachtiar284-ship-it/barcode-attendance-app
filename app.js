@@ -916,7 +916,7 @@ window.addEventListener('DOMContentLoaded', () => {
       // 3. Filter who is still 'datang'
       list = [];
       for (const [nid, val] of statusMap.entries()) {
-        if (val.status === 'datang') {
+        if (val.status === 'datang' || val.status === 'break_in') {
           list.push(val.rec);
         }
       }
@@ -936,18 +936,51 @@ window.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
-    // Prepare display list with name lookup
-    const lines = list.map((r, i) => {
-      let name = r.name;
-      if (!name) {
-        const emp = employees.find(e => e.nid === r.nid);
-        name = emp ? emp.name : r.nid;
+    // Modal Display Logic
+    const modal = document.getElementById('activePersonnelModal');
+    if (modal) {
+      // Update Title
+      const h3 = modal.querySelector('h3');
+      if (h3) {
+        h3.innerHTML = `${esc(title)} <button onclick="document.getElementById('activePersonnelModal').close()" style="background:none; border:none; font-size:1.2rem; cursor:pointer;">&times;</button>`;
       }
-      const timeStr = new Date(r.ts).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
-      return `${i + 1}. ${name} (${r.status.toUpperCase()} - ${timeStr})`;
-    });
 
-    alert(title + "\n\n" + lines.join('\n'));
+      // Generate List HTML
+      const html = list.map((r, i) => {
+        let name = r.name;
+        if (!name) {
+          const emp = employees.find(e => e.nid === r.nid);
+          name = emp ? emp.name : r.nid;
+        }
+        const d = new Date(r.ts);
+        const timeStr = d.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+
+        return `
+            <div style="padding: 10px; border-bottom: 1px solid #f1f5f9; display: flex; align-items: center; justify-content: space-between;">
+              <div>
+                <div style="font-weight: 600; color: #1e293b;">${i + 1}. ${esc(name)}</div>
+                <div style="font-size: 0.85rem; color: #64748b;">${esc(r.company || '—')} • ${esc(r.title || '—')}</div>
+              </div>
+              <div style="text-align: right;">
+                 <span class="badge ${r.late ? 'danger' : (r.status === 'datang' ? 'success' : 'light')}" style="font-size: 0.75rem;">${r.status === 'datang' ? 'MASUK' : r.status.toUpperCase()}</span>
+                 <div style="font-size: 0.8rem; font-weight: 500; margin-top: 4px; color: #334155;">${timeStr}</div>
+              </div>
+            </div>
+           `;
+      }).join('');
+
+      document.getElementById('activePersonnelList').innerHTML = html;
+      modal.showModal();
+
+    } else {
+      // Fallback to Alert if modal missing
+      const lines = list.map((r, i) => {
+        let name = r.name || r.nid;
+        const timeStr = new Date(r.ts).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+        return `${i + 1}. ${name} (${r.status.toUpperCase()} - ${timeStr})`;
+      });
+      alert(title + "\n\n" + lines.join('\n'));
+    }
   };
 
   // Helper for collapsible sections (fixing inline script lint errors)
@@ -1113,19 +1146,19 @@ window.addEventListener('DOMContentLoaded', () => {
     const since = Date.now() - 24 * 3600 * 1000; const last24 = attendance.filter(a => a.ts >= since);
 
     // === NEW LOGIC: Active On-Site (Realtime Estimate) ===
+    // FIXED: Use "Last Status" logic instead of simple "UniqueIn - UniqueOut" to handle multiple entries per day
     const sodToday = new Date(todayISO() + 'T00:00:00').getTime();
     const attToday = attendance.filter(a => a.ts >= sodToday);
 
-    // Count Unique People IN
-    const uniqueIn = new Set(attToday.filter(a => a.status === 'datang').map(a => a.nid));
-    // Count Unique People OUT
-    const uniqueOut = new Set(attToday.filter(a => a.status === 'pulang').map(a => a.nid));
+    const activeMap = new Map();
+    attToday.sort((a, b) => a.ts - b.ts).forEach(r => {
+      activeMap.set(r.nid, r.status);
+    });
 
-    // Active = (Unique IN) - (Unique OUT)
-    // Note: This logic assumes if you scan OUT, you are gone. 
-    // Ideally we should track "Last Status per Person" but this simple math is robust enough for daily flows.
-    let activeOnSite = uniqueIn.size - uniqueOut.size;
-    if (activeOnSite < 0) activeOnSite = 0; // Safety
+    let activeOnSite = 0;
+    activeMap.forEach(status => {
+      if (status === 'datang' || status === 'break_in') activeOnSite++;
+    });
 
     setTextAndBump('#statScan24h', activeOnSite);
     setTextAndBump('#statScan24hScan', activeOnSite);
@@ -1196,9 +1229,17 @@ window.addEventListener('DOMContentLoaded', () => {
     if (elTot) elTot.textContent = total;
 
     // === NEW LOGIC: Mobile Active On-Site ===
-    const uniqueIn = new Set(today.filter(a => a.status === 'datang').map(a => a.nid));
-    const uniqueOut = new Set(today.filter(a => a.status === 'pulang').map(a => a.nid));
-    let activeVal = uniqueIn.size - uniqueOut.size;
+    // FIXED: Match Desktop Logic (Last Status)
+    const activeMapMobile = new Map();
+    today.sort((a, b) => a.ts - b.ts).forEach(r => {
+      activeMapMobile.set(r.nid, r.status);
+    });
+
+    let activeVal = 0;
+    activeMapMobile.forEach(status => {
+      if (status === 'datang' || status === 'break_in') activeVal++;
+    });
+
     if (activeVal < 0) activeVal = 0;
     if (elActive) elActive.textContent = activeVal;
 
