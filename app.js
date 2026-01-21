@@ -593,7 +593,7 @@ window.addEventListener('DOMContentLoaded', () => {
     'b': 'B', 's': 'B', 'sore': 'B', 'group b': 'B',
     'c': 'C', 'm': 'C', 'malam': 'C', 'group c': 'C',
     'd': 'D', 'shift d': 'D', 'group d': 'D',
-    'day': 'DAYTIME', 'daytime': 'DAYTIME', 'siang': 'DAYTIME',
+    'day': 'DAYTIME', 'daytime': 'DAYTIME', 'siang': 'DAYTIME', 'group daytime': 'DAYTIME',
     'off': 'OFF', 'l': 'OFF', 'libur': 'OFF'
   };
   function normalizeTime(s) {
@@ -618,19 +618,17 @@ window.addEventListener('DOMContentLoaded', () => {
     const override = sched[id]?.[emp.shift]?.[day];
     if (override) return override;
 
-    // 2. Default: Map Group Name -> Shift Code? 
-    // Usually Group A works Shift A, Group B works Shift B.
-    // If emp.shift is 'A', default is 'A'.
-    // If emp.shift is 'D', default SHOULD BE 'D' but D is removed.
-    // So if no override, and code D is gone, return null?
-    // CODE_TO_LABEL has no D.
-    // So 'D' logic is only valid if overridden in sched?
-    // Or does Group D have a default? 
-    // The previous logic was: return emp.shift (as Code). 
-    // But Code 'D' is invalid. 
-    // So for Group D, they MUST have a schedule override to work P/S/M.
-    // If not, they have no effective shift (OFF).
-    return (shifts[emp.shift]) ? emp.shift : 'OFF';
+    // 2. Default: Map Code directly or via Alias?
+    let code = emp.shift;
+    if (shifts[code]) return code; // Direct match (e.g. 'A', 'DAYTIME')
+
+    // Try alias lookup (e.g. 'DAY' -> 'DAYTIME')
+    // We reverse LABEL_TO_CODE or just map common aliases manually?
+    // LABEL_TO_CODE: 'day' -> 'DAYTIME'
+    const alias = LABEL_TO_CODE[code.toLowerCase()];
+    if (alias && shifts[alias]) return alias;
+
+    return 'OFF';
   }
 
   // Helper utils
