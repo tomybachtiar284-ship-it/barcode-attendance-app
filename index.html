@@ -2155,6 +2155,46 @@
     </form>
   </dialog>
 
+  <!-- MODAL: VIEW EMPLOYEE (READ ONLY) -->
+  <dialog id="viewEmpModal">
+    <form method="dialog" class="modal">
+      <button type="button" class="modal-close" onclick="this.closest('dialog').close()" aria-label="Tutup">×</button>
+      <h3>Detail Karyawan</h3>
+
+      <div style="display:flex; flex-direction:column; align-items:center; margin-bottom:20px;">
+        <div id="vPhotoWrap"
+          style="width:120px; height:120px; border-radius:50%; background:#f1f5f9; overflow:hidden; border:3px solid white; box-shadow:0 4px 6px -1px rgba(0,0,0,0.1); margin-bottom:12px; display:flex; justify-content:center; align-items:center;">
+          <img id="vPhoto" src="" alt="Foto" style="width:100%; height:100%; object-fit:cover; display:none;">
+          <span id="vPhotoPlaceholder" style="font-size:3rem;">👤</span>
+        </div>
+        <h2 id="vName" style="margin:0; font-size:1.4rem; text-align:center;"></h2>
+        <div id="vNid" style="color:#64748b; font-size:0.95rem; font-weight:600;"></div>
+      </div>
+
+      <div class="grid-2" style="background:#f8fafc; padding:15px; border-radius:12px;">
+        <div style="display:flex; flex-direction:column;">
+          <small
+            style="color:#64748b; font-size:0.8rem; text-transform:uppercase; letter-spacing:0.5px;">Jabatan</small>
+          <span id="vTitle" style="font-weight:600; font-size:1.05rem;">-</span>
+        </div>
+        <div style="display:flex; flex-direction:column;">
+          <small style="color:#64748b; font-size:0.8rem; text-transform:uppercase; letter-spacing:0.5px;">Shift</small>
+          <span id="vShift" style="font-weight:600; font-size:1.05rem;">-</span>
+        </div>
+        <div style="display:flex; flex-direction:column; grid-column:1/-1;">
+          <small
+            style="color:#64748b; font-size:0.8rem; text-transform:uppercase; letter-spacing:0.5px;">Perusahaan</small>
+          <span id="vCompany" style="font-weight:600; font-size:1.05rem;">-</span>
+        </div>
+      </div>
+
+      <div class="modal-actions" style="margin-top:20px;">
+        <button class="btn primary" onclick="this.closest('dialog').close()" type="button"
+          style="width:100%">Tutup</button>
+      </div>
+    </form>
+  </dialog>
+
   <!-- MODAL: INFO -->
   <dialog id="newsModal">
     <form method="dialog" class="modal">

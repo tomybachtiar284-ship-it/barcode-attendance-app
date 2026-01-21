@@ -1826,9 +1826,10 @@ window.addEventListener('DOMContentLoaded', () => {
             <td data-label="Shift"><span style="background:var(--surface-2); padding:4px 8px; border-radius:6px; font-size:0.85rem; font-weight:600; color:var(--primary-700)">Group ${e.shift || '-'}</span></td>
             <td data-label="Aksi">
               <div style="display:flex; justify-content:flex-end; gap:6px;">
+                <button class='btn small' data-act='view' data-id='${e.nid}' title="Lihat Detail" style="padding:4px;width:28px;height:28px;display:grid;place-items:center;">👁️</button>
                 <button class='btn small' data-act='edit' data-id='${e.nid}' title="Edit" style="padding:4px;width:28px;height:28px;display:grid;place-items:center;">✏️</button>
                 <button class='btn small' data-act='barcode' data-id='${e.nid}' title="ID Card" style="padding:4px;width:28px;height:28px;display:grid;place-items:center;">🏷️</button>
-                <button class='btn small ghost' data-act='del' data-id='${e.nid}' title="Hapus" style="padding:4px;width:28px;height:28px;display:grid;place-items:center;">🗑️</button>
+                <button class='btn small ghost' data-act='del' data-id='${e.nid}' title="Hapus" style="padding:4px;width:28px;height:28px;display:grid;place-items:center;color:var(--danger)">🗑️</button>
               </div>
             </td>
           </tr>
@@ -1876,6 +1877,8 @@ window.addEventListener('DOMContentLoaded', () => {
 
     if (act === 'edit') {
       openEmp(emp, idx);
+    } else if (act === 'view') {
+      showEmployeeDetail(emp);
     } else if (act === 'del') {
       if (confirm(`Hapus karyawan ${emp.name}?`)) {
         employees.splice(idx, 1);
@@ -4825,3 +4828,46 @@ if (document.readyState === 'loading') {
 } else {
   setupMobileListeners();
 }
+
+// ==========================================
+// VIEW EMPLOYEE (READ ONLY)
+// ==========================================
+function showEmployeeDetail(emp) {
+  if (!emp) return;
+  const modal = document.getElementById('viewEmpModal');
+  if (!modal) return;
+
+  // 1. Populate Photo
+  const imgEl = document.getElementById('vPhoto');
+  const phEl = document.getElementById('vPhotoPlaceholder');
+  if (emp.photo && emp.photo.trim() !== '') {
+    imgEl.src = emp.photo;
+    imgEl.style.display = 'block';
+    phEl.style.display = 'none';
+  } else {
+    imgEl.src = '';
+    imgEl.style.display = 'none';
+    phEl.style.display = 'block';
+  }
+
+  // 2. Populate Text
+  document.getElementById('vName').textContent = emp.name || '-';
+  document.getElementById('vNid').textContent = emp.nid || '-';
+  document.getElementById('vTitle').textContent = emp.title || '-';
+
+  // Safe Shift Label (Scope protection)
+  let sLabel = emp.shift;
+  if (typeof CODE_TO_LABEL !== 'undefined' && CODE_TO_LABEL[emp.shift]) {
+    sLabel = CODE_TO_LABEL[emp.shift];
+  } else {
+    const localMap = { A: 'Group A', B: 'Group B', C: 'Group C', D: 'Group D', DAYTIME: 'Daytime', OFF: 'Libur' };
+    sLabel = localMap[emp.shift] || emp.shift;
+  }
+  document.getElementById('vShift').textContent = sLabel || '-';
+
+  document.getElementById('vCompany').textContent = emp.company || '-';
+
+  // 3. Show
+  modal.showModal();
+}
+window.showEmployeeDetail = showEmployeeDetail;
