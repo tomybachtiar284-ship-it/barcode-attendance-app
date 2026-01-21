@@ -1991,6 +1991,18 @@
                 style="display:flex; align-items:center; gap:5px; color:#059669; border-color:#059669;">
                 🔄 Sync
               </button>
+              <button id="btnInvTemplate" class="btn small outline" onclick="window.downloadInventoryTemplate()"
+                title="Download Template Excel"
+                style="display:flex; align-items:center; gap:5px; color:#2563eb; border-color:#2563eb;">
+                📄 Template
+              </button>
+              <input type="file" id="fileInvImport" accept=".xlsx,.xls" hidden
+                onchange="window.importInventoryExcel(this)">
+              <button id="btnInvImport" class="btn small outline"
+                onclick="document.getElementById('fileInvImport').click()" title="Import data dari Excel"
+                style="display:flex; align-items:center; gap:5px; color:#2563eb; border-color:#2563eb;">
+                ⬆️ Import
+              </button>
               <button id="btnBackupInv" class="btn small outline" onclick="window.backupInventoryCSV()"
                 title="Download data untuk upload manual"
                 style="display:flex; align-items:center; gap:5px; color:#d97706; border-color:#d97706;">

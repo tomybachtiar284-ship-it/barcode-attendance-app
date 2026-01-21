@@ -3803,9 +3803,8 @@ window.checkoutInventory = async function (id) {
 
   if (confirm('Apakah barang ini akan check-out (Keluar) sekarang?')) {
     const now = new Date();
-    // Adjust to local ISO
-    now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
-    item.timeOut = now.toISOString(); // Full ISO for sorting/DB
+    // Use standard UTC ISO. The render function handles locale conversion.
+    item.timeOut = now.toISOString();
 
     // Optimistic Update
     saveInventory();
@@ -3967,6 +3966,139 @@ window.editInventory = function (id) {
 
 // Action: Delete Inventory
 // Action: Delete Inventory
+// Action: Excel Template Download
+window.downloadInventoryTemplate = function () {
+  if (typeof XLSX === 'undefined') { alert('Library Excel belum dimuat.'); return; }
+
+  // 1. Define Headers & Example
+  const headers = ['TANGGAL (YYYY-MM-DD)', 'JAM_MASUK (HH:MM)', 'JAM_KELUAR (HH:MM)', 'PEMBAWA', 'PERUSAHAAN', 'BARANG', 'TUJUAN', 'PETUGAS', 'STATUS (IN/OUT)'];
+  const example = ['2026-01-20', '08:00', '17:00', 'Budi Santoso', 'PT ABC Logistics', 'Laptop Dell Latitude', 'Divisi IT', 'Security A', 'IN'];
+
+  // 2. Create Sheet
+  const ws = XLSX.utils.aoa_to_sheet([headers, example]);
+
+  // Adjust column width
+  ws['!cols'] = [{ wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 20 }, { wch: 20 }, { wch: 30 }, { wch: 15 }, { wch: 15 }, { wch: 10 }];
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Template_Logistik");
+
+  // 3. Download
+  XLSX.writeFile(wb, "Template_Logistik_AmanS.xlsx");
+};
+
+// Action: Import Excel
+window.importInventoryExcel = async function (input) {
+  if (!input.files || input.files.length === 0) return;
+  if (typeof XLSX === 'undefined') { alert('Library Excel belum dimuat.'); return; }
+
+  const file = input.files[0];
+  const reader = new FileReader();
+
+  reader.onload = async function (e) {
+    try {
+      const data = new Uint8Array(e.target.result);
+      const workbook = XLSX.read(data, { type: 'array' });
+
+      const sheetName = workbook.SheetNames[0];
+      const sheet = workbook.Sheets[sheetName];
+      const jsonData = XLSX.utils.sheet_to_json(sheet, { header: 1 }); // Array of Arrays
+
+      if (jsonData.length < 2) { alert("File kosong atau format salah."); return; }
+
+      // Skip Header (row 0), process row 1..n
+      let successCount = 0;
+      let skippedCount = 0;
+
+      for (let i = 1; i < jsonData.length; i++) {
+        const row = jsonData[i];
+        if (!row || row.length === 0) continue;
+
+        // Map Cols (0..8)
+        // ['TANGGAL', 'JAM_MASUK', 'JAM_KELUAR', 'PEMBAWA', 'PERUSAHAAN', 'BARANG', 'TUJUAN', 'PETUGAS', 'STATUS']
+
+        const dateStr = row[0]; // expecting YYYY-MM-DD or Excel Date Code
+        const timeInStr = row[1]; // HH:MM
+        const timeOutStr = row[2]; // HH:MM
+        const carrier = row[3];
+        const company = row[4];
+        const item = row[5];
+        const dest = row[6];
+        const officer = row[7];
+        const type = (row[8] || 'IN').toUpperCase();
+
+        if (!carrier || !item) { skippedCount++; continue; }
+
+        // Time Parsing (Basic)
+        // Helper to combine Date + Time
+        const parseDateTime = (dStr, tStr) => {
+          if (!dStr || !tStr) return null;
+          let baseDate;
+          // Check if dStr is Excel serial number (number type)
+          if (typeof dStr === 'number') {
+            // Excel date epoch: 1900-01-01 generally, minus 1 day bug usually handled by libs, 
+            // but typically logic: new Date(Math.round((n - 25569)*86400*1000)) ? 
+            // Simplest: use string format in template instructions to avoid timezone hell.
+            // Verify if XLSX.utils.sheet_to_json({raw:false}) solves this, but we used header:1 (raw).
+            // Let's assume user inputs TEXT YYYY-MM-DD
+            baseDate = new Date((dStr - (25567 + 2)) * 86400 * 1000); // Rough approximation if number
+          } else {
+            baseDate = new Date(dStr);
+          }
+
+          if (isNaN(baseDate.getTime())) return null; // Invalid date
+
+          // Parse Time HH:MM
+          const [hh, mm] = String(tStr).split(':').map(Number);
+          baseDate.setHours(hh || 0, mm || 0, 0, 0);
+          return baseDate.toISOString();
+        };
+
+        const tInISO = parseDateTime(dateStr, timeInStr);
+        let tOutISO = null;
+
+        if (type === 'OUT' || type === 'IN') {
+          // If OUT provided
+          tOutISO = parseDateTime(dateStr, timeOutStr);
+        }
+
+        // Create Object
+        const newRec = {
+          id: Date.now().toString(36) + Math.random().toString(36).substr(2, 5),
+          carrier: String(carrier),
+          company: String(company || ''),
+          item: String(item),
+          dest: String(dest || ''),
+          officer: String(officer || ''),
+          type: (type === 'OUT' || type === 'KELUAR') ? 'OUT' : 'IN',
+          timeIn: tInISO || new Date().toISOString(), // Fallback now
+          timeOut: tOutISO
+        };
+
+        inventoryData.push(newRec);
+        // Explicitly sync individually? No, batch sync is better but existing func `forceSyncInventory` handles ALL.
+        // We will just save locally then autosync implicitly later or user clicks sync.
+        // Or we can try to pushInventory(item) one by one?
+        // Let's just push to local array first.
+        successCount++;
+
+        // Background sync attempt (fire & forget to avoid UI freeze on loop?)
+        // Better: let user click "Sync Cloud" after import or auto-trigger once.
+        pushInventory(newRec);
+      }
+
+      saveInventory();
+      alert(`Import Selesai!\nSukses: ${successCount}\nSkipped: ${skippedCount}\nData telah disimpan lokal & background sync dimulai.`);
+      input.value = ''; // Reset
+
+    } catch (e) {
+      console.error(e);
+      alert('Gagal memproses file: ' + e.message);
+    }
+  };
+  reader.readAsArrayBuffer(file);
+};
+
 window.deleteInventory = async function (id) {
   if (!confirm('⚠️ YAKIN INGIN MENGHAPUS DATA INI?\nData yang dihapus akan hilang permanen dari server juga.')) return;
 
@@ -3992,6 +4124,89 @@ window.deleteInventory = async function (id) {
   if (window.sb) if (window.toast) toast('Data berhasil dihapus dari Cloud.');
 };
 
+
+// Action: Export Inventory PDF
+window.exportInventoryPDF = function () {
+  const data = inventoryData; // Uses global filtered/active data if possible, or just all
+  // Note: ideally we should respect the current filter. 
+  // Let's re-run filter logic or assumes inventoryData is valid.
+  // But wait, renderInventory uses specific filter.
+  // Let's replicate strict filter logic for PDF to match visuals.
+
+  const { start, end } = getInventoryFilterDates();
+  const searchQ = document.getElementById('invSearch')?.value?.toLowerCase() || '';
+
+  let filtered = [...inventoryData];
+  if (start || end || searchQ) {
+    filtered = filtered.filter(item => {
+      const t = item.timeIn || item.time || item.timeOut;
+      if (!t) return false;
+      const d = new Date(t);
+      d.setHours(0, 0, 0, 0);
+
+      if (start) {
+        const s = new Date(start); s.setHours(0, 0, 0, 0);
+        if (d < s) return false;
+      }
+      if (end) {
+        const e = new Date(end); e.setHours(0, 0, 0, 0);
+        if (d > e) return false;
+      }
+      if (searchQ) {
+        const raw = [item.carrier, item.company, item.item, item.dest, item.officer].join(' ').toLowerCase();
+        if (!raw.includes(searchQ)) return false;
+      }
+      return true;
+    });
+  }
+
+  // Sort
+  filtered.sort((a, b) => new Date(b.timeIn || 0) - new Date(a.timeIn || 0));
+
+  if (filtered.length === 0) {
+    alert("Tidak ada data untuk diexport!");
+    return;
+  }
+
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF('l', 'mm', 'a4'); // Landscape
+
+  // Helper
+  const fmt = (ts) => {
+    if (!ts) return '-';
+    return new Date(ts).toLocaleString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+  };
+
+  // Header
+  doc.setFontSize(14);
+  doc.text('Laporan Keluar Masuk Barang', 14, 15);
+  doc.setFontSize(10);
+  doc.text(`Dicetak pada: ${new Date().toLocaleString('id-ID')}`, 14, 22);
+
+  // Table
+  const rows = filtered.map((item, i) => [
+    i + 1,
+    fmt(item.timeIn || item.time).split(' ')[0], // Tanggal
+    fmt(item.timeIn || item.time).split(' ')[1] || '-', // Jam Masuk
+    item.timeOut ? fmt(item.timeOut).split(' ')[1] : '-', // Jam Keluar
+    item.carrier || '-',
+    item.company || '-',
+    item.item || '-',
+    item.dest || '-',
+    item.officer || '-'
+  ]);
+
+  doc.autoTable({
+    head: [['No', 'Tanggal', 'Masuk', 'Keluar', 'Pembawa', 'Perusahaan', 'Barang', 'Tujuan', 'Petugas']],
+    body: rows,
+    startY: 28,
+    theme: 'grid',
+    styles: { fontSize: 8 },
+    headStyles: { fillColor: [22, 163, 74] } // Green header
+  });
+
+  doc.save(`Laporan_Logistik_${new Date().toISOString().slice(0, 10)}.pdf`);
+};
 
 // ... (PDF logic remains) ...
 
