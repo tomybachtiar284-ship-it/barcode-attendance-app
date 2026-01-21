@@ -589,11 +589,11 @@ window.addEventListener('DOMContentLoaded', () => {
   const SHIFT_KEYS = ['A', 'B', 'C', 'D', 'DAYTIME'];
   const CODE_TO_LABEL = { A: 'P', B: 'S', C: 'M', D: 'D', DAYTIME: 'DAY', OFF: 'L' };
   const LABEL_TO_CODE = {
-    'a': 'A', 'p': 'A', 'pagi': 'A', 'group a': 'A',
-    'b': 'B', 's': 'B', 'sore': 'B', 'group b': 'B',
-    'c': 'C', 'm': 'C', 'malam': 'C', 'group c': 'C',
-    'd': 'D', 'shift d': 'D', 'group d': 'D',
-    'day': 'DAYTIME', 'daytime': 'DAYTIME', 'siang': 'DAYTIME', 'group daytime': 'DAYTIME',
+    'a': 'A', 'p': 'A', 'pagi': 'A', 'group a': 'A', 'grup a': 'A',
+    'b': 'B', 's': 'B', 'sore': 'B', 'group b': 'B', 'grup b': 'B',
+    'c': 'C', 'm': 'C', 'malam': 'C', 'group c': 'C', 'grup c': 'C',
+    'd': 'D', 'shift d': 'D', 'group d': 'D', 'grup d': 'D',
+    'day': 'DAYTIME', 'daytime': 'DAYTIME', 'siang': 'DAYTIME', 'group daytime': 'DAYTIME', 'grup daytime': 'DAYTIME',
     'off': 'OFF', 'l': 'OFF', 'libur': 'OFF'
   };
   function normalizeTime(s) {
