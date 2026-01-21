@@ -612,21 +612,28 @@ window.addEventListener('DOMContentLoaded', () => {
   };
 
   function effectiveShiftFor(emp, date) {
-    // 1. Check override
     if (!emp || !emp.shift) return null;
+
+    // 1. Normalize Group Name to Shift Code (e.g. 'Group A' -> 'A')
+    let group = emp.shift;
+    const groupAlias = LABEL_TO_CODE[group.toLowerCase()];
+    if (groupAlias) group = groupAlias;
+
+    // 2. Check Monthly Schedule (Jadwal Bulanan)
+    // The schedule is stored by Internal Code (A, B, C, D, DAYTIME)
     const id = monthKey(date), day = date.getDate();
-    const override = sched[id]?.[emp.shift]?.[day];
-    if (override) return override;
+    const dailyCode = sched[id]?.[group]?.[day];
 
-    // 2. Default: Map Code directly or via Alias?
-    let code = emp.shift;
-    if (shifts[code]) return code; // Direct match (e.g. 'A', 'DAYTIME')
+    if (dailyCode) {
+      if (dailyCode === 'L' || dailyCode === 'OFF') return 'OFF';
+      // Normalize cell value (e.g. 'DAY' -> 'DAYTIME', 'P' -> 'A')
+      const valAlias = LABEL_TO_CODE[dailyCode.toLowerCase()];
+      return valAlias || dailyCode;
+    }
 
-    // Try alias lookup (e.g. 'DAY' -> 'DAYTIME')
-    // We reverse LABEL_TO_CODE or just map common aliases manually?
-    // LABEL_TO_CODE: 'day' -> 'DAYTIME'
-    const alias = LABEL_TO_CODE[code.toLowerCase()];
-    if (alias && shifts[alias]) return alias;
+    // 3. Fallback: If no schedule entry, assume the Group Code itself is the Shift
+    // (e.g. Group A works Shift A by default, unless overriden)
+    if (shifts[group]) return group;
 
     return 'OFF';
   }
