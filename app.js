@@ -1303,6 +1303,57 @@ window.addEventListener('DOMContentLoaded', () => {
       tb.appendChild(tr);
     });
   }
+  function renderMobileScanFeed() {
+    const feed = $('#mobScanFeed'); if (!feed) return;
+    const sod = new Date(todayISO() + 'T00:00:00').getTime();
+    const rows = attendance.filter(a => a.ts >= sod).sort((a, b) => b.ts - a.ts).slice(0, 5);
+
+    if (rows.length === 0) {
+      feed.innerHTML = '<div style="text-align:center; padding:20px; color:#94a3b8; font-size:0.85rem;">Belum ada riwayat scan hari ini.</div>';
+      return;
+    }
+
+    feed.innerHTML = rows.map(r => {
+      const emp = employees.find(e => e.nid === r.nid);
+      const photo = emp?.photo || 'assets/default-user.png'; // Fallback image if needed
+      const timeStr = new Date(r.ts).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }).replace('.', ':');
+
+      let statusClass = 'in'; // default green
+      let statusText = 'MASUK';
+
+      if (r.status === 'pulang') { statusClass = 'out'; statusText = 'PULANG'; }
+      else if (r.status === 'break_out') { statusClass = 'out'; statusText = 'IZIN KELUAR'; }
+      else if (r.status === 'break_in') { statusClass = 'in'; statusText = 'KEMBALI'; }
+      else if (r.late) { statusClass = 'out'; statusText = 'TERLAMBAT'; } // Visual alert for late
+
+      return `
+      <div class="mob-feed-card">
+        <img src="${photo}" onerror="this.src='assets/default-user.png'" style="background:#eee; object-fit:cover;">
+        <div class="info">
+          <h4>${r.name}</h4>
+          <p>${timeStr} • ${r.company || '-'}</p>
+        </div>
+        <div class="status ${statusClass}">${statusText}</div>
+      </div>
+      `;
+    }).join('');
+  }
+  function renderScanTable() {
+    const tb = $('#tableScan tbody');
+    if (tb) {
+      const sod = new Date(todayISO() + 'T00:00:00').getTime();
+      const rows = attendance.filter(a => a.ts >= sod).sort((a, b) => b.ts - a.ts).slice(0, 5);
+      tb.innerHTML = ''; rows.forEach(r => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td>${fmtTs(r.ts)}</td><td>${capStatus(r.status)}</td><td>${r.nid}</td>
+                      <td>${r.name}</td><td>${r.title}</td><td>${r.company}</td>
+                      <td>${CODE_TO_LABEL[r.shift] || r.shift || ''}</td><td>${r.note || ''}</td>`;
+        tb.appendChild(tr);
+      });
+    }
+    // Also update mobile feed whenever desktop table is updated
+    renderMobileScanFeed();
+  }
   function renderScanPreview(emp, rec) {
     $('#scanName') && ($('#scanName').textContent = emp?.name || '—');
     $('#scanNID') && ($('#scanNID').textContent = emp?.nid || '—');
