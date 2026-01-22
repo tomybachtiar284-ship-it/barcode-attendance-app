@@ -556,6 +556,10 @@ window.addEventListener('DOMContentLoaded', () => {
       isSyncing = false;
       console.log('Sync Lock Released.');
       window.dispatchEvent(new Event('data:synced'));
+
+      // Explicitly remove loader if exists
+      const loader = document.getElementById('loadingOverlay') || document.getElementById('loader');
+      if (loader) loader.style.display = 'none';
     }
   }
 
@@ -2670,7 +2674,41 @@ window.addEventListener('DOMContentLoaded', () => {
     // Populate Form
     const d = new Date(rec.ts);
     $('#editAttOriginalTs').value = rec.ts;
-    $('#editAttName').value = rec.name;
+
+    // --- POPULATE DROPDOWNS ---
+    const nameSel = $('#editAttName');
+    const titleSel = $('#editAttTitle');
+    const compSel = $('#editAttCompany');
+
+    // 1. Names (Value = NID)
+    const sortedEmps = [...employees].sort((a, b) => a.name.localeCompare(b.name));
+    nameSel.innerHTML = sortedEmps.map(e => `<option value="${e.nid}">${esc(e.name)}</option>`).join('');
+    nameSel.value = rec.nid; // Select current
+
+    // 2. Titles (Unique)
+    const titles = [...new Set(employees.map(e => e.title).filter(Boolean))].sort();
+    titleSel.innerHTML = titles.map(t => `<option value="${esc(t)}">${esc(t)}</option>`).join('');
+    titleSel.value = rec.title || (titles[0] || ''); // Try to match or default
+
+    // 3. Companies (Unique)
+    const comps = [...new Set(employees.map(e => e.company).filter(Boolean))].sort();
+    compSel.innerHTML = comps.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join('');
+    compSel.value = rec.company || (comps[0] || '');
+
+    // NID (Auto-filled but show current)
+    $('#editAttNid').value = rec.nid;
+
+    // EVENT LISTENER: Change Name -> Auto Update Details
+    nameSel.onchange = () => {
+      const selectedNid = nameSel.value;
+      const emp = employees.find(e => e.nid === selectedNid);
+      if (emp) {
+        $('#editAttNid').value = emp.nid;
+        $('#editAttTitle').value = emp.title || '';
+        $('#editAttCompany').value = emp.company || '';
+        $('#editAttShift').value = emp.shift || 'A';
+      }
+    };
 
     // Split Date & Time for inputs
     // Local Time format required for inputs
@@ -2686,6 +2724,9 @@ window.addEventListener('DOMContentLoaded', () => {
     $('#editAttStatus').value = rec.status;
     $('#editAttNote').value = rec.note;
 
+    // Set Shift (Fallback to A if missing)
+    $('#editAttShift').value = rec.shift || 'A';
+
     document.getElementById('modalEditAtt').showModal();
   }
 
@@ -2695,6 +2736,7 @@ window.addEventListener('DOMContentLoaded', () => {
     const timeStr = $('#editAttTime').value;
     const newStatus = $('#editAttStatus').value;
     const newNote = $('#editAttNote').value;
+    const newShift = $('#editAttShift').value; // Read New Shift
 
     if (!dateStr || !timeStr) return toast('Tanggal dan Jam wajib diisi.');
 
@@ -2707,12 +2749,23 @@ window.addEventListener('DOMContentLoaded', () => {
     // Clone record
     const rec = { ...attendance[idx] };
 
+    // Updated save logic to grab values from Selects
+    // Name Select value is NID, so we get text from selected option or find emp
+    const nid = $('#editAttNid').value; // Valid NID from change event or initial
+    const emp = employees.find(e => e.nid === nid);
+    const name = emp ? emp.name : $('#editAttName option:checked').text;
+
     // Update fields
     rec.ts = newTs;
     rec.status = newStatus;
     rec.note = newNote;
+    rec.shift = newShift;
+    rec.nid = nid; // Allow changing person
+    rec.name = name;
+    rec.title = $('#editAttTitle').value;
+    rec.company = $('#editAttCompany').value;
 
-    // Recalculate Late Logic if changing time
+    // Recalculate Late Logic if changing time OR shift
     // For simplicity, we trust the manual edit, but ideally we re-run effectiveShiftFor logic.
     // Let's just keep simple update for now.
 

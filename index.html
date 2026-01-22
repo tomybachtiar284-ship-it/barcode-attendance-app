@@ -2463,41 +2463,77 @@
   <script src="mobile-camera.js"></script>
   <!-- EDIT ATTENDANCE MODAL -->
   <dialog id="modalEditAtt" class="modal">
-    <div class="modal-content" style="max-width: 400px;">
-      <h3>Edit Data Absensi</h3>
+    <div class="modal-content" style="max-width: 500px;">
+      <h3 style="margin-top:0">Edit Data Absensi</h3>
       <input type="hidden" id="editAttOriginalTs">
 
-      <div class="form-group">
-        <label>Nama Karyawan</label>
-        <input type="text" id="editAttName" readonly style="background:#f3f4f6; color:#666">
-      </div>
+      <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px;">
+        <!-- WAKTU -->
+        <div class="form-group" style="grid-column: 1 / -1;">
+          <label>Waktu (Tanggal & Jam)</label>
+          <div style="display:flex; gap:8px;">
+            <input type="date" id="editAttDate" class="input-field" style="flex:1">
+            <input type="time" id="editAttTime" class="input-field" style="width:120px">
+          </div>
+        </div>
 
-      <div class="form-group">
-        <label>Tanggal & Jam</label>
-        <div style="display:flex; gap:8px;">
-          <input type="date" id="editAttDate" class="input-field" style="flex:1">
-          <input type="time" id="editAttTime" class="input-field" style="width:110px">
+        <!-- STATUS -->
+        <div class="form-group" style="grid-column: 1 / -1;">
+          <label>Status</label>
+          <select id="editAttStatus" class="input-field">
+            <option value="datang">Masuk (Datang)</option>
+            <option value="pulang">Pulang</option>
+            <option value="break_out">Izin Keluar / Istirahat</option>
+            <option value="break_in">Kembali Masuk</option>
+            <option value="alpha">Tanpa Keterangan (Alpha)</option>
+          </select>
+        </div>
+
+        <!-- NID -->
+        <div class="form-group">
+          <label>NID</label>
+          <input type="text" id="editAttNid" readonly style="background:#f3f4f6; color:#666">
+        </div>
+
+        <!-- NAMA (DROPDOWN) -->
+        <div class="form-group">
+          <label>Nama</label>
+          <select id="editAttName" class="input-field"></select>
+        </div>
+
+        <!-- JABATAN (DROPDOWN) -->
+        <div class="form-group">
+          <label>Jabatan</label>
+          <select id="editAttTitle" class="input-field"></select>
+        </div>
+
+        <!-- PERUSAHAAN (DROPDOWN) -->
+        <div class="form-group">
+          <label>Perusahaan</label>
+          <select id="editAttCompany" class="input-field"></select>
+        </div>
+
+        <!-- SHIFT -->
+        <div class="form-group" style="grid-column: 1 / -1;">
+          <label>Shift (Group)</label>
+          <select id="editAttShift" class="input-field">
+            <option value="A">Group A</option>
+            <option value="B">Group B</option>
+            <option value="C">Group C</option>
+            <option value="D">Group D</option>
+            <option value="DAYTIME">Daytime</option>
+            <option value="OFF">Libur / Off</option>
+          </select>
+        </div>
+
+        <!-- KETERANGAN -->
+        <div class="form-group" style="grid-column: 1 / -1;">
+          <label>Keterangan</label>
+          <textarea id="editAttNote" class="input-field" rows="2" placeholder="Keterangan tambahan..."></textarea>
         </div>
       </div>
 
-      <div class="form-group">
-        <label>Status</label>
-        <select id="editAttStatus" class="input-field">
-          <option value="datang">Masuk (Datang)</option>
-          <option value="pulang">Pulang</option>
-          <option value="break_out">Izin Keluar / Istirahat</option>
-          <option value="break_in">Kembali Masuk</option>
-          <option value="alpha">Tanpa Keterangan (Alpha)</option>
-        </select>
-      </div>
-
-      <div class="form-group">
-        <label>Keterangan / Note</label>
-        <textarea id="editAttNote" class="input-field" rows="3"
-          placeholder="Contoh: Sakit, Izin, Lupa Absen..."></textarea>
-      </div>
-
-      <div class="modal-actions">
+      <div class="modal-actions" style="margin-top:20px;">
         <button onclick="document.getElementById('modalEditAtt').close()" class="btn ghost">Batal</button>
         <button id="btnSaveEditAtt" class="btn primary">Simpan Perubahan</button>
       </div>
@@ -2525,6 +2561,35 @@
   </dialog>
 
 
+  <!-- EMERGENCY SPINNER KILLER -->
+  <script>
+    (function () {
+      // Fallback: If app.js fails, this ensures the screen is usable
+      setTimeout(() => {
+        const ids = ['loadingOverlay', 'loader', 'spinner', 'loading'];
+        ids.forEach(id => {
+          const el = document.getElementById(id);
+          if (el) {
+            console.log('Force removing loader:', id);
+            el.style.display = 'none';
+            el.remove();
+          }
+        });
+        // Also try class
+        document.querySelectorAll('.loading-overlay, .loader').forEach(el => {
+          el.style.display = 'none';
+          el.remove();
+        });
+
+        // NUCLEAR OPTION: Force Browser to stop "Loading" state (Spinning Tab)
+        // This stops any hanging resource or socket
+        if (window.stop) {
+          console.log('Nuclear Option: window.stop() triggered.');
+          window.stop();
+        }
+      }, 5000); // 5 Seconds max wait
+    })();
+  </script>
 </body>
 
 </html>
