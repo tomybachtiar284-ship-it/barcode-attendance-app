@@ -1,47 +1,18 @@
-const CACHE_NAME = 'aman-s-v2';
-const ASSETS = [
-    './',
-    './index.html',
-    './styles.css',
-    './app.js',
-    './config.local.js',
-    './js/report.js',
-    './assets/AMAN-S-Logo.jpg',
-    './assets/bg-new.jpg'
-];
+// SERVICE WORKER KILL-SWITCH
+// This script replaces the old Service Worker to force unregistration
+// and clear any aggressive caching that causes infinite loading loops.
 
-// Install Event
 self.addEventListener('install', (e) => {
-    console.log('[SW-v2] Install');
-    self.skipWaiting(); // Force activate new SW
-    e.waitUntil(
-        caches.open(CACHE_NAME).then((cache) => {
-            console.log('[SW] Caching all assets');
-            return cache.addAll(ASSETS);
-        })
-    );
+    self.skipWaiting();
 });
 
-// Fetch Event
-self.addEventListener('fetch', (e) => {
-    e.respondWith(
-        caches.match(e.request).then((r) => {
-            // Return cache or fetch from network
-            return r || fetch(e.request);
-        })
-    );
-});
-
-// Activate Event (Cleanup)
 self.addEventListener('activate', (e) => {
-    e.waitUntil(
-        caches.keys().then((keyList) => {
-            return Promise.all(keyList.map((key) => {
-                if (key !== CACHE_NAME) {
-                    console.log('[SW] Removing old cache', key);
-                    return caches.delete(key);
-                }
-            }));
-        }).then(() => self.clients.claim()) // Take control immediately
-    );
+    // Force unregister this SW
+    self.registration.unregister()
+        .then(() => {
+            return self.clients.matchAll();
+        })
+        .then((clients) => {
+            clients.forEach(client => client.navigate(client.url));
+        });
 });

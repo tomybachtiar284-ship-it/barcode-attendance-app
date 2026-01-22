@@ -150,7 +150,7 @@
   <script src="js/translation.js"></script>
   <script src="config.local.js"></script>
   <script>
-    if (!localStorage.getItem('SA_SESSION')) { window.location.replace('login.html'); }
+    // if (!localStorage.getItem('SA_SESSION')) { window.location.replace('login.html'); }
   </script>
 
   <!-- Helper style kecil (tidak bentrok) -->
@@ -2324,15 +2324,10 @@
     });
   </script>
 
-  <!-- DEDUPE judul statistik di Dashboard -->
-  <script>
-    document.addEventListener('DOMContentLoaded', () => {
-      const root = document.getElementById('route-dashboard'); if (!root) return;
-      const normalize = s => (s || '').replace(/\s+/g, ' ').trim().toLowerCase();
-      const dedupe = () => { const nodes = [...root.querySelectorAll('h1,h2,h3,.card-title,.card-title-light,b,strong,span,div')]; let kept = false; nodes.forEach(el => { const txt = normalize(el.textContent); if (txt.startsWith('statistik kehadiran')) { if (!kept) { kept = true } else { if (el.parentElement && el.parentElement.children.length === 1 && normalize(el.parentElement.textContent).startsWith('statistik kehadiran')) { el.parentElement.remove() } else { el.remove() } } } }) };
-      dedupe(); new MutationObserver(dedupe).observe(root, { childList: true, subtree: true });
-    });
-  </script>
+  <!-- DEDUPE judul statistik di Dashboard (DISABLED) -->
+  <!-- <script>
+    // MutationObserver deduping disabled as it may cause infinite loops
+  </script> -->
 
 
 
@@ -2381,7 +2376,9 @@
   <script src="config.local.js"></script>
   <script src="js/report.js"></script>
   <script src="js/db.js"></script>
-  <script src="app.js"></script>
+  <!-- App utama -->
+  <!-- Script App utama dipindah ke paling bawah agar tidak double load -->
+
 
   <!-- MODAL: INVENTORY -->
   <dialog id="invModal" class="modal">
@@ -2446,17 +2443,18 @@
   </nav>
 
 
-  <!-- Service Worker Registration for PWA -->
   <script>
+    // FIX: Force Unregister Service Worker to prevent loading loop
     if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('serviceWorker.js')
-          .then(reg => console.log('SW Registered!', reg.scope))
-          .catch(err => console.log('SW Failed:', err));
+      navigator.serviceWorker.getRegistrations().then(function (registrations) {
+        for (let registration of registrations) {
+          registration.unregister();
+        }
       });
     }
   </script>
   <script src="app.js"></script>
+
   <script src="mobile-camera.js"></script>
   <!-- Modal: Active Personnel List -->
   <dialog id="activePersonnelModal" class="modal">
@@ -2477,6 +2475,7 @@
       </div>
     </div>
   </dialog>
+
 
 </body>
 
