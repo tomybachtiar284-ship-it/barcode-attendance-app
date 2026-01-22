@@ -1816,7 +1816,12 @@
             <option value="B">Group B</option>
             <option value="C">Group C</option>
             <option value="D">Group D</option>
+            <option value="D">Group D</option>
             <option value="DAYTIME">Group DAYTIME</option>
+          </select>
+          <!-- Filter Company -->
+          <select id="attCompanyFilter" class="input" style="width:auto; padding:8px 10px;">
+            <option value="">Semua Perusahaan</option>
           </select>
           <!-- Filter Status -->
           <select id="attStatusFilter" class="input" style="width:auto; padding:8px 10px;">
@@ -2453,9 +2458,52 @@
       });
     }
   </script>
-  <script src="app.js"></script>
+  <script src="app.js?v=force_fix_3"></script>
 
   <script src="mobile-camera.js"></script>
+  <!-- EDIT ATTENDANCE MODAL -->
+  <dialog id="modalEditAtt" class="modal">
+    <div class="modal-content" style="max-width: 400px;">
+      <h3>Edit Data Absensi</h3>
+      <input type="hidden" id="editAttOriginalTs">
+
+      <div class="form-group">
+        <label>Nama Karyawan</label>
+        <input type="text" id="editAttName" readonly style="background:#f3f4f6; color:#666">
+      </div>
+
+      <div class="form-group">
+        <label>Tanggal & Jam</label>
+        <div style="display:flex; gap:8px;">
+          <input type="date" id="editAttDate" class="input-field" style="flex:1">
+          <input type="time" id="editAttTime" class="input-field" style="width:110px">
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>Status</label>
+        <select id="editAttStatus" class="input-field">
+          <option value="datang">Masuk (Datang)</option>
+          <option value="pulang">Pulang</option>
+          <option value="break_out">Izin Keluar / Istirahat</option>
+          <option value="break_in">Kembali Masuk</option>
+          <option value="alpha">Tanpa Keterangan (Alpha)</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label>Keterangan / Note</label>
+        <textarea id="editAttNote" class="input-field" rows="3"
+          placeholder="Contoh: Sakit, Izin, Lupa Absen..."></textarea>
+      </div>
+
+      <div class="modal-actions">
+        <button onclick="document.getElementById('modalEditAtt').close()" class="btn ghost">Batal</button>
+        <button id="btnSaveEditAtt" class="btn primary">Simpan Perubahan</button>
+      </div>
+    </div>
+  </dialog>
+
   <!-- Modal: Active Personnel List -->
   <dialog id="activePersonnelModal" class="modal">
     <div class="modal-content"

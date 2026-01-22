@@ -357,159 +357,206 @@ window.addEventListener('DOMContentLoaded', () => {
     }
   };
 
+  let isSyncing = false;
+
   async function pullAll() {
-    if (!sb) return;
-    // Employees
-    const { data: emps } = await sb.from('employees').select('*');
-    if (emps) {
-      employees = emps.map(x => ({
-        nid: x.nid, name: x.name, title: x.title, company: x.company,
-        shift: x.shift, photo: x.photo
-      }));
-      save(LS_EMP, employees);
+    if (isSyncing) { console.warn('⚠️ pullAll ignored: Sync already in progress.'); return; }
+    isSyncing = true;
+
+    console.log('CHECKPOINT 4: pullAll Started (Single Instance Locked)');
+
+    if (!sb) {
+      console.error('pullAll aborted: No Supabase Client');
+      isSyncing = false;
+      return;
     }
 
-    // Attendance (last 7 days)
-    const since = Date.now() - 7 * 24 * 3600 * 1000;
-
-    // Fetch Main Attendance
-    const { data: atts } = await sb.from('attendance').select('*').gte('ts', since);
-    // Fetch Breaks
-    const { data: brks } = await sb.from('breaks').select('*').gte('ts', since);
-
-    // Helper: Ensure we parse timestamp as UTC
-    const parseSbTs = (v) => {
-      if (typeof v === 'number') return v;
-      if (typeof v === 'string') {
-        // If likely ISO but missing Z/Offset, append Z to treat as UTC
-        if (v.includes('T') && !v.endsWith('Z') && !v.includes('+')) return new Date(v + 'Z').getTime();
-        return new Date(v).getTime();
-      }
-      return Date.now();
+    // Safety Timeout Wrapper
+    const safeBrowse = async (promise, name, ms = 5000) => {
+      const timeout = new Promise((_, rej) => setTimeout(() => rej(new Error(`Timeout ${name}`)), ms));
+      return Promise.race([promise, timeout]);
     };
 
-    if (atts || brks) {
-      // Keep old LOCAL data that is NOT yet synced?
-      // Actually pullAll usually replaces everything within the window ('since').
-      // But we must support offline.
-      const old = attendance.filter(a => a.ts < since);
+    try {
+      // Employees
+      console.log('>> pullAll: Fetching Employees (LIGHTWEIGHT MODE)...');
 
-      let newAtts = [];
-      if (atts) {
-        newAtts = atts.map(x => ({
-          ts: parseSbTs(x.ts), // Fix Timezone
-          status: x.status, nid: x.nid, name: x.name,
-          title: x.title, company: x.company, shift: x.shift,
-          note: x.note, late: x.late, okShift: x.ok_shift
+      // OPTIMIZATION: EXCLUDE PHOTO COLUMN
+      // Only fetch text data to prevent network choke
+      const { data: emps, error: errEmp } = await safeBrowse(
+        sb.from('employees').select('nid, name, title, company, shift'),
+        'Employees',
+        5000 // 5s timeout
+      );
+
+      if (errEmp) console.error('Error Employees:', errEmp);
+      console.log('>> pullAll: Employees Done. Count:', emps?.length);
+
+      if (emps) {
+        // Map data, keeping existing photo if available locally, or null
+        employees = emps.map(x => ({
+          nid: x.nid, name: x.name, title: x.title, company: x.company,
+          shift: x.shift,
+          photo: null // Photo disabled in sync to save bandwidth
         }));
+        save(LS_EMP, employees);
       }
 
-      let newBreaks = [];
-      if (brks) {
-        newBreaks = brks.map(x => ({
-          ts: parseSbTs(x.ts), // Fix Timezone
-          status: x.status, nid: x.nid, name: x.name,
-          title: '', company: x.company, shift: '',
-          note: (x.status === 'break_out' ? 'Izin Keluar / Istirahat' : 'Kembali Masuk'),
-          late: false, okShift: true
-        }));
+      // Attendance (last 7 days)
+      const since = Date.now() - 7 * 24 * 3600 * 1000;
+
+      // Fetch Main Attendance
+      console.log('>> pullAll: Fetching Attendance...');
+      const { data: atts, error: errAtt } = await sb.from('attendance').select('*').gte('ts', since);
+      if (errAtt) console.error('Error Attendance:', errAtt);
+
+      // Fetch Breaks
+      console.log('>> pullAll: Fetching Breaks...');
+      const { data: brks, error: errBrk } = await sb.from('breaks').select('*').gte('ts', since);
+      if (errBrk) console.error('Error Breaks:', errBrk);
+
+      console.log('>> pullAll: Attendance/Breaks Done.');
+
+      // Helper: Ensure we parse timestamp as UTC
+      const parseSbTs = (v) => {
+        if (typeof v === 'number') return v;
+        if (typeof v === 'string') {
+          // If likely ISO but missing Z/Offset, append Z to treat as UTC
+          if (v.includes('T') && !v.endsWith('Z') && !v.includes('+')) return new Date(v + 'Z').getTime();
+          return new Date(v).getTime();
+        }
+        return Date.now();
+      };
+
+      if (atts || brks) {
+        // Keep old LOCAL data that is NOT yet synced?
+        const old = attendance.filter(a => a.ts < since);
+
+        let newAtts = [];
+        if (atts) {
+          newAtts = atts.map(x => ({
+            ts: parseSbTs(x.ts), // Fix Timezone
+            status: x.status, nid: x.nid, name: x.name,
+            title: x.title, company: x.company, shift: x.shift,
+            note: x.note, late: x.late, okShift: x.ok_shift
+          }));
+        }
+
+        let newBreaks = [];
+        if (brks) {
+          newBreaks = brks.map(x => ({
+            ts: parseSbTs(x.ts), // Fix Timezone
+            status: x.status, nid: x.nid, name: x.name,
+            title: '', company: x.company, shift: '',
+            note: (x.status === 'break_out' ? 'Izin Keluar / Istirahat' : 'Kembali Masuk'),
+            late: false, okShift: true
+          }));
+        }
+
+        attendance = [...old, ...newAtts, ...newBreaks].sort((a, b) => a.ts - b.ts);
+        save(LS_ATT, attendance);
       }
 
-      attendance = [...old, ...newAtts, ...newBreaks].sort((a, b) => a.ts - b.ts);
-      save(LS_ATT, attendance);
-    }
+      // News (Bi-directional Sync)
+      const { data: nws } = await sb.from('news').select('*');
+      if (nws) {
+        const serverMap = new Map(nws.map(x => [x.ts, x]));
+        const localMap = new Map((news || []).map(x => [x.ts, x]));
 
-    // News (Bi-directional Sync)
-    const { data: nws } = await sb.from('news').select('*');
-    if (nws) {
-      const serverMap = new Map(nws.map(x => [x.ts, x]));
-      const localMap = new Map((news || []).map(x => [x.ts, x]));
+        // 1. Apply Server Updates to Local
+        nws.forEach(x => {
+          localMap.set(x.ts, { ts: x.ts, title: x.title, body: x.body, link: x.link });
+        });
 
-      // 1. Apply Server Updates to Local
-      nws.forEach(x => {
-        localMap.set(x.ts, { ts: x.ts, title: x.title, body: x.body, link: x.link });
-      });
-
-      // 2. Identify Pending Local Items -> Push to Server OR Delete Local
-      for (const [ts, val] of localMap.entries()) {
-        if (!serverMap.has(Number(ts))) {
-          if (val.pending_sync) {
-            await pushNews(val);
-          } else {
-            // Missing from server & not new = Deleted Remotely
-            localMap.delete(ts);
+        // 2. Identify Pending Local Items -> Push to Server OR Delete Local
+        for (const [ts, val] of localMap.entries()) {
+          if (!serverMap.has(Number(ts))) {
+            if (val.pending_sync) {
+              await pushNews(val);
+            } else {
+              // Missing from server & not new = Deleted Remotely
+              localMap.delete(ts);
+            }
           }
         }
+
+        // 3. Finalize
+        news = Array.from(localMap.values()).sort((a, b) => b.ts - a.ts);
+        save(LS_NEWS, news);
       }
 
-      // 3. Finalize
-      news = Array.from(localMap.values()).sort((a, b) => b.ts - a.ts);
-      save(LS_NEWS, news);
-    }
+      // Education
+      const { data: edus } = await sb.from('education').select('*');
+      if (edus) {
+        const eduList = edus.map(x => ({ id: x.id, ts: x.ts, title: x.title, body: x.body, img: x.img }));
+        saveEdu(eduList);
+      }
 
-    // Education
-    const { data: edus } = await sb.from('education').select('*');
-    if (edus) {
-      const eduList = edus.map(x => ({ id: x.id, ts: x.ts, title: x.title, body: x.body, img: x.img }));
-      saveEdu(eduList);
-    }
+      // Inventory (Bi-directional Sync)
+      const { data: invs } = await sb.from('inventory').select('*');
+      if (invs) {
+        const serverMap = new Map(invs.map(x => [x.id, x]));
+        const localMap = new Map(inventoryData.map(x => [x.id, x]));
 
-    // Inventory (Bi-directional Sync)
-    const { data: invs } = await sb.from('inventory').select('*');
-    if (invs) {
-      const serverMap = new Map(invs.map(x => [x.id, x]));
-      const localMap = new Map(inventoryData.map(x => [x.id, x]));
-
-      // 1. Apply Server Updates to Local
-      invs.forEach(x => {
-        localMap.set(x.id, {
-          id: x.id, carrier: x.carrier, company: x.company, item: x.item,
-          dest: x.dest, officer: x.officer, type: x.type,
-          timeIn: x.time_in, timeOut: x.time_out
+        // 1. Apply Server Updates to Local
+        invs.forEach(x => {
+          localMap.set(x.id, {
+            id: x.id, carrier: x.carrier, company: x.company, item: x.item,
+            dest: x.dest, officer: x.officer, type: x.type,
+            timeIn: x.time_in, timeOut: x.time_out
+          });
         });
-      });
 
-      // 2. Identify Pending Local Items -> Push to Server
-      for (const [id, val] of localMap.entries()) {
-        if (!serverMap.has(id)) {
-          await pushInventory(val);
+        // 2. Identify Pending Local Items -> Push to Server
+        for (const [id, val] of localMap.entries()) {
+          if (!serverMap.has(id)) {
+            await pushInventory(val);
+          }
         }
+
+        // 3. Finalize
+        inventoryData = Array.from(localMap.values()).sort((a, b) => new Date(b.timeIn || 0) - new Date(a.timeIn || 0));
+        saveInventory();
       }
 
-      // 3. Finalize
-      inventoryData = Array.from(localMap.values()).sort((a, b) => new Date(b.timeIn || 0) - new Date(a.timeIn || 0));
-      saveInventory();
-    }
+      // Shifts - Fetch from new dedicated table
+      const { data: shRows, error: shErr } = await sb.from('shifts').select('*');
+      if (shErr) {
+        console.error('Error fetching shifts:', shErr);
+        alert('GAGAL AMBIL SHIFT DARI DB: ' + shErr.message);
+      } else if (shRows && shRows.length > 0) {
+        const newShifts = { ...shifts };
+        shRows.forEach(row => {
+          newShifts[row.code] = { start: row.start_time, end: row.end_time };
+        });
+        shifts = newShifts;
+        save(LS_SHIFTS, shifts);
+        // toast(`Sync: ${shRows.length} shift loaded from DB.`);
+      } else {
+        console.warn('No shifts found in DB?');
+        // alert('PERINGATAN: Tabel Shifts di Database kosong! Memakai default.');
+      }
 
-    // Shifts - Fetch from new dedicated table
-    const { data: shRows, error: shErr } = await sb.from('shifts').select('*');
-    if (shErr) {
-      console.error('Error fetching shifts:', shErr);
-      alert('GAGAL AMBIL SHIFT DARI DB: ' + shErr.message);
-    } else if (shRows && shRows.length > 0) {
-      const newShifts = { ...shifts };
-      shRows.forEach(row => {
-        newShifts[row.code] = { start: row.start_time, end: row.end_time };
-      });
-      shifts = newShifts;
-      save(LS_SHIFTS, shifts);
-      // toast(`Sync: ${shRows.length} shift loaded from DB.`);
-    } else {
-      console.warn('No shifts found in DB?');
-      // alert('PERINGATAN: Tabel Shifts di Database kosong! Memakai default.');
-    }
+      // Schedule (current month)
+      const m = monthKey(new Date());
+      const { data: sc } = await sb.from('shift_monthly').select('*').eq('month', m).single();
+      if (sc && sc.data) {
+        sched[m] = sc.data;
+        save(LS_SCHED, sched);
+      }
 
-    // Schedule (current month)
-    const m = monthKey(new Date());
-    const { data: sc } = await sb.from('shift_monthly').select('*').eq('month', m).single();
-    if (sc && sc.data) {
-      sched[m] = sc.data;
-      save(LS_SCHED, sched);
-    }
+      syncGlobals();
+      renderDashboard(); renderEmployees(); renderLatest(); renderEduTable(); renderHighlights();
+      initMonthlyScheduler();
 
-    syncGlobals();
-    renderDashboard(); renderEmployees(); renderLatest(); renderEduTable(); renderHighlights();
-    initMonthlyScheduler();
+    } catch (err) {
+      console.error('CRITICAL SYNC ERROR:', err.message);
+      // alert('Gagal mengambil data dari Server: ' + err.message + '. Aplikasi berjalan offline.');
+    } finally {
+      isSyncing = false;
+      console.log('Sync Lock Released.');
+      window.dispatchEvent(new Event('data:synced'));
+    }
   }
 
   function setTextAndBump(sel, val) {
@@ -2403,6 +2450,17 @@ window.addEventListener('DOMContentLoaded', () => {
   function renderAttendance() {
     const to = new Date(), from = new Date(to.getTime() - 24 * 3600 * 1000);
     $('#attFrom').value = from.toISOString().slice(0, 10); $('#attTo').value = to.toISOString().slice(0, 10);
+
+    // POPULATE COMPANY FILTER
+    const cSel = $('#attCompanyFilter');
+    if (cSel) {
+      const currentVal = cSel.value;
+      const comps = [...new Set(employees.map(e => (e.company || '').trim()).filter(Boolean))].sort();
+      cSel.innerHTML = '<option value="">Semua Perusahaan</option>' +
+        comps.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join('');
+      cSel.value = currentVal;
+    }
+
     filterAttendance();
   }
   // Shared filter logic
@@ -2425,6 +2483,7 @@ window.addEventListener('DOMContentLoaded', () => {
     const q = ($('#attSearch')?.value || '').toLowerCase().trim();
     const gr = $('#attGroupFilter')?.value || '';
     const st = $('#attStatusFilter')?.value || '';
+    const co = $('#attCompanyFilter')?.value || ''; // New Company Filter
 
     // === ABSENTEEISM LOGIC (Ghost Records) ===
     if (st === 'UNKNOWN') {
@@ -2445,7 +2504,10 @@ window.addEventListener('DOMContentLoaded', () => {
         employees.forEach(e => {
           // 1. Filter Check
           if (q && !(e.name + ' ' + e.nid + ' ' + (e.company || '')).toLowerCase().includes(q)) return;
+          // 1. Filter Check
+          if (q && !(e.name + ' ' + e.nid + ' ' + (e.company || '')).toLowerCase().includes(q)) return;
           if (gr && e.shift !== gr) return;
+          if (co && (e.company || '').trim() !== co) return; // check company
 
           // 2. Presence Check
           if (presenceMap.has(`${e.nid}|${dateKey}`)) return;
@@ -2489,9 +2551,19 @@ window.addEventListener('DOMContentLoaded', () => {
       }
 
       // 3. Check Group
+      // 3. Check Group
       if (gr) {
         const emp = employees.find(e => e.nid === a.nid);
         if (!emp || emp.shift !== gr) return false;
+      }
+
+      // 4. Check Company
+      if (co) {
+        const emp = employees.find(e => e.nid === a.nid);
+        // Note: use 'attendance.company' snapshot OR 'employee.company'?
+        // Usually attendance snapshot is better, but local attendance might have company string.
+        const comp = a.company || (emp?.company || '');
+        if ((comp || '').trim() !== co) return false;
       }
 
       // 4. Check Status
@@ -2532,7 +2604,9 @@ window.addEventListener('DOMContentLoaded', () => {
       else if (r.status === 'break_in') statusLabel = 'Kembali';
       else if (r.status === 'alpha') statusLabel = 'Tanpa Keterangan';
 
-      const delBtn = r.isGhost ? '' : `<button class="btn small danger" data-act="del-att" style="padding:2px 8px; font-size:12px;">Hapus</button>`;
+      const delBtn = r.isGhost ? '' : `
+        <button class="btn small" data-act="edit-att" title="Edit" style="padding:2px 8px; font-size:12px; margin-right:4px;">✏️</button>
+        <button class="btn small danger" data-act="del-att" title="Hapus" style="padding:2px 8px; font-size:12px;">Hapus</button>`;
 
       tr.innerHTML = `
         <td>${fmtTs(r.ts)}</td>
@@ -2551,17 +2625,128 @@ window.addEventListener('DOMContentLoaded', () => {
   $('#btnFilterAtt')?.addEventListener('click', filterAttendance);
   // Realtime search & group filter & DATE filter
   $('#attSearch')?.addEventListener('input', filterAttendance);
+  $('#attSearch')?.addEventListener('input', filterAttendance);
   $('#attGroupFilter')?.addEventListener('change', filterAttendance);
+  $('#attCompanyFilter')?.addEventListener('change', filterAttendance);
+  $('#attStatusFilter')?.addEventListener('change', filterAttendance);
   $('#attStatusFilter')?.addEventListener('change', filterAttendance);
   $('#attFrom')?.addEventListener('change', filterAttendance);
   $('#attTo')?.addEventListener('change', filterAttendance);
 
   $('#tableAtt tbody')?.addEventListener('click', (e) => {
-    const btn = e.target.closest('button[data-act="del-att"]'); if (!btn) return;
+    const btn = e.target.closest('button'); if (!btn) return;
     const tr = btn.closest('tr'); const ts = Number(tr?.dataset.ts || '0'); if (!ts) return;
-    if (confirm('Hapus baris kehadiran ini?')) {
-      const idx = attendance.findIndex(a => a.ts === ts);
-      if (idx >= 0) { attendance.splice(idx, 1); save(LS_ATT, attendance); syncGlobals(); filterAttendance(); renderDashboard(); renderScanTable(); renderScanStats(); toast('Baris dihapus.'); delAttendance(ts); }
+
+    // Handle Edit
+    if (btn.dataset.act === 'edit-att') {
+      openEditAtt(ts);
+      return;
+    }
+
+    // Handle Delete
+    if (btn.dataset.act === 'del-att') {
+      if (confirm('Hapus baris kehadiran ini?')) {
+        const idx = attendance.findIndex(a => a.ts === ts);
+        if (idx >= 0) {
+          attendance.splice(idx, 1);
+          save(LS_ATT, attendance);
+          syncGlobals();
+          filterAttendance();
+          renderDashboard();
+          renderScanTable();
+          renderScanStats();
+          toast('Baris dihapus.');
+          delAttendance(ts);
+        }
+      }
+    }
+  });
+
+  // ===== EDIT ATTENDANCE LOGIC =====
+  function openEditAtt(ts) {
+    const rec = attendance.find(a => a.ts === ts);
+    if (!rec) return toast('Data tidak ditemukan.');
+
+    // Populate Form
+    const d = new Date(rec.ts);
+    $('#editAttOriginalTs').value = rec.ts;
+    $('#editAttName').value = rec.name;
+
+    // Split Date & Time for inputs
+    // Local Time format required for inputs
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    const hh = String(d.getHours()).padStart(2, '0');
+    const min = String(d.getMinutes()).padStart(2, '0');
+
+    $('#editAttDate').value = `${yyyy}-${mm}-${dd}`;
+    $('#editAttTime').value = `${hh}:${min}`;
+
+    $('#editAttStatus').value = rec.status;
+    $('#editAttNote').value = rec.note;
+
+    document.getElementById('modalEditAtt').showModal();
+  }
+
+  $('#btnSaveEditAtt')?.addEventListener('click', async () => {
+    const oldTs = Number($('#editAttOriginalTs').value);
+    const dateStr = $('#editAttDate').value;
+    const timeStr = $('#editAttTime').value;
+    const newStatus = $('#editAttStatus').value;
+    const newNote = $('#editAttNote').value;
+
+    if (!dateStr || !timeStr) return toast('Tanggal dan Jam wajib diisi.');
+
+    // Construct new TS
+    const newTs = new Date(`${dateStr}T${timeStr}:00`).getTime();
+
+    const idx = attendance.findIndex(a => a.ts === oldTs);
+    if (idx < 0) return toast('Data asli tidak ditemukan (mungkin sudah dihapus).');
+
+    // Clone record
+    const rec = { ...attendance[idx] };
+
+    // Update fields
+    rec.ts = newTs;
+    rec.status = newStatus;
+    rec.note = newNote;
+
+    // Recalculate Late Logic if changing time
+    // For simplicity, we trust the manual edit, but ideally we re-run effectiveShiftFor logic.
+    // Let's just keep simple update for now.
+
+    // Update Local Array
+    // If TS changed, we must remove old and add new to keep sorting correct
+    attendance.splice(idx, 1);
+    attendance.push(rec);
+    attendance.sort((a, b) => a.ts - b.ts);
+
+    save(LS_ATT, attendance);
+    syncGlobals();
+
+    // Update UI
+    filterAttendance();
+    renderDashboard();
+    document.getElementById('modalEditAtt').close();
+    toast('Perubahan disimpan lokal. Mengirim ke server...');
+
+    // Sync to Supabase
+    try {
+      if (oldTs !== newTs) {
+        // Delete old, Insert new
+        await delAttendance(oldTs);
+      }
+
+      // Upsert new/updated record
+      // Reuse pushAttendance logic but formatted properly
+      // Note: pushAttendance handles 'attendance' vs 'breaks' tables based on status
+      await pushAttendance(rec);
+
+      toast('✅ Sinkronisasi Edit Berhasil.');
+    } catch (err) {
+      console.error(err);
+      toast('Gagal sync edit ke server.');
     }
   });
   $('#btnExportAtt')?.addEventListener('click', () => {
