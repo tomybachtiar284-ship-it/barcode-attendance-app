@@ -8,13 +8,71 @@
     // Private Scope for Report Logic
     let grCharts = {};
 
-    function renderGeneralReport() {
+    async function renderGeneralReport() {
         console.log('Rendering General Report safely...');
 
         // Ensure Global Data Exists
         const employees = window.employees || [];
-        const attendance = window.attendance || [];
+        let attendance = window.attendance || [];
         const shifts = window.shifts || {};
+
+        // --- OPTIMIZATION STEP: ENSURE HISTORY (30 DAYS) ---
+        const thirtyDaysAgo = Date.now() - (30 * 24 * 3600 * 1000);
+
+        // Check if we need to fetch history?
+        // Simpler check: If we have Supabase connected, and we don't seem to have old data (e.g. min TS > 30 days ago)
+        // But since we only load "Today" by default now, we almost certainly need to fetch.
+        // We use a flag to avoid re-fetching multiple times in one session if possible?
+        // Or just rely on SB cache? Let's fetch if needed.
+
+        if (window.sb) {
+            const minTs = attendance.length > 0 ? attendance[0].ts : Date.now();
+            if (minTs > thirtyDaysAgo) {
+                const btn = document.getElementById('btnRouteGeneral'); // heuristic button
+                // console.log('Fetching 30 days history for report...');
+                try {
+                    // Fetch Attendance
+                    const { data: atts } = await window.sb.from('attendance')
+                        .select('*')
+                        .gte('ts', thirtyDaysAgo); // >= 30 days ago
+
+                    // Fetch Breaks
+                    const { data: brks } = await window.sb.from('breaks')
+                        .select('*')
+                        .gte('ts', thirtyDaysAgo);
+
+                    if (atts || brks) {
+                        const newItems = [];
+                        if (atts) atts.forEach(x => {
+                            newItems.push({
+                                ts: new Date(x.ts).getTime(),
+                                status: x.status, nid: x.nid, name: x.name,
+                                title: x.title, company: x.company, shift: x.shift,
+                                note: x.note, late: x.late, okShift: x.ok_shift
+                            });
+                        });
+                        if (brks) brks.forEach(x => {
+                            newItems.push({
+                                ts: new Date(x.ts).getTime(),
+                                status: x.status, nid: x.nid, name: x.name,
+                                title: '', company: x.company, shift: '',
+                                note: (x.status === 'break_out' ? 'Izin Keluar / Istirahat' : 'Kembali Masuk'),
+                                late: false, okShift: true
+                            });
+                        });
+
+                        // Merge
+                        const merged = new Map();
+                        window.attendance.forEach(a => merged.set(a.ts, a));
+                        newItems.forEach(a => merged.set(a.ts, a));
+                        window.attendance = Array.from(merged.values()).sort((a, b) => a.ts - b.ts);
+                        attendance = window.attendance; // Update local ref
+                    }
+                } catch (e) {
+                    console.warn('Report history fetch failed:', e);
+                }
+            }
+        }
 
         // 1. Calculate Summary Stats
         const nowTs = Date.now();

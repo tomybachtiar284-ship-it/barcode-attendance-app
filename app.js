@@ -40,6 +40,9 @@ window.addEventListener('DOMContentLoaded', () => {
   /* Cleanup removed */
   // if (shifts.D) { delete shifts.D; save(LS_SHIFTS, shifts); }
 
+  // FIX: Declare isSyncing here to avoid ReferenceError in pullAll (TDZ)
+  let isSyncing = false;
+
   // expose ke window agar script lain dapat ikut pakai
   function syncGlobals() {
     window.employees = employees;
@@ -357,7 +360,7 @@ window.addEventListener('DOMContentLoaded', () => {
     }
   };
 
-  let isSyncing = false;
+
 
   async function pullAll() {
     if (isSyncing) { console.warn('⚠️ pullAll ignored: Sync already in progress.'); return; }
@@ -402,8 +405,10 @@ window.addEventListener('DOMContentLoaded', () => {
         save(LS_EMP, employees);
       }
 
-      // Attendance (last 7 days)
-      const since = Date.now() - 7 * 24 * 3600 * 1000;
+      // Attendance (TODAY ONLY for performance)
+      const now = new Date();
+      now.setHours(0, 0, 0, 0);
+      const since = now.getTime(); // Today 00:00
 
       // Fetch Main Attendance
       console.log('>> pullAll: Fetching Attendance...');
@@ -3922,7 +3927,76 @@ window.addEventListener('DOMContentLoaded', function initOvertimeReport() {
     return dates;
   };
 
-  async function renderAttReport() {
+  // Helper: Fetch History if Needed
+  async function ensureHistory(startMs, endMs) {
+    if (!window.sb) return;
+
+    // Check if we have data covering this range. 
+    // Simplified heuristic: If looking for past data (before Today), 
+    // and we haven't fetched it yet, then fetch.
+    // Better: Keep track of fetched ranges?
+    // SIMPLEST: Just fetch. Supabase is fast. Overlap is handled by uniqueness check.
+
+    const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
+    if (startMs >= todayStart.getTime()) return; // Today's data is already auto-synced
+
+    const btn = document.getElementById('btnFilterAtt');
+    if (btn) { btn.disabled = true; btn.textContent = 'loading...'; }
+
+    try {
+      console.log(`Fetch History: ${new Date(startMs).toLocaleDateString()} - ${new Date(endMs).toLocaleDateString()}`);
+
+      // Fetch Attendance
+      const { data: atts } = await window.sb.from('attendance')
+        .select('*')
+        .gte('ts', startMs)
+        .lte('ts', endMs);
+
+      // Fetch Breaks
+      const { data: brks } = await window.sb.from('breaks')
+        .select('*')
+        .gte('ts', startMs)
+        .lte('ts', endMs);
+
+      // Merge to window.attendance
+      if (atts || brks) {
+        const newItems = [];
+
+        if (atts) atts.forEach(x => {
+          newItems.push({
+            ts: new Date(x.ts).getTime(), // Fix TZ
+            status: x.status, nid: x.nid, name: x.name,
+            title: x.title, company: x.company, shift: x.shift,
+            note: x.note, late: x.late, okShift: x.ok_shift
+          });
+        });
+
+        if (brks) brks.forEach(x => {
+          newItems.push({
+            ts: new Date(x.ts).getTime(),
+            status: x.status, nid: x.nid, name: x.name,
+            title: '', company: x.company, shift: '',
+            note: (x.status === 'break_out' ? 'Izin Keluar / Istirahat' : 'Kembali Masuk'),
+            late: false, okShift: true
+          });
+        });
+
+        // Merge avoiding duplicates (by TS)
+        // Use Map for O(N)
+        const merged = new Map();
+        window.attendance.forEach(a => merged.set(a.ts, a));
+        newItems.forEach(a => merged.set(a.ts, a));
+
+        window.attendance = Array.from(merged.values()).sort((a, b) => a.ts - b.ts);
+      }
+    } catch (e) {
+      console.error("History fetch error:", e);
+    } finally {
+      if (btn) { btn.disabled = false; btn.textContent = 'Tampilkan'; }
+    }
+  }
+
+  window.renderAttReport = async function () { // Exposed globally
     if (!tableBody) return;
     tableBody.innerHTML = '<tr><td colspan="9" style="text-align:center">Memuat data...</td></tr>';
 
@@ -3930,16 +4004,20 @@ window.addEventListener('DOMContentLoaded', function initOvertimeReport() {
     const fFrom = document.getElementById('attFrom')?.value || todayISO();
     const fTo = document.getElementById('attTo')?.value || todayISO();
     const fGroup = document.getElementById('attGroupFilter')?.value || '';
-    const fStatus = document.getElementById('attStatusFilter')?.value || ''; // '', LATE, ONTIME, OVERTIME, UNKNOWN
+    const fStatus = document.getElementById('attStatusFilter')?.value || '';
     const fSearch = document.getElementById('attSearch')?.value?.toLowerCase() || '';
 
-    // 2. Prepare Data Source
+    // 2. FETCH HISTORY IF NEEDED
+    const startMs = new Date(fFrom + 'T00:00:00').getTime();
+    const endMs = new Date(fTo + 'T23:59:59').getTime();
+
+    await ensureHistory(startMs, endMs);
+
+    // 3. Prepare Data Source
     let allRecords = [];
 
     // --- A. GET ACTUAL ATTENDANCE ---
     // Filter by Date Range
-    const startMs = new Date(fFrom + 'T00:00:00').getTime();
-    const endMs = new Date(fTo + 'T23:59:59').getTime();
     const scanRecords = attendance.filter(a => a.ts >= startMs && a.ts <= endMs);
 
     // --- B. GENERATE ABSENTEE (GHOST) RECORDS ---
@@ -4004,6 +4082,9 @@ window.addEventListener('DOMContentLoaded', function initOvertimeReport() {
       }));
       allRecords = [...allRecords, ...mappedScans];
     }
+
+
+
 
     // --- D. APPLY FILTERS ---
     let filtered = allRecords.filter(r => {

@@ -1129,10 +1129,56 @@
 
           <!-- Kanan: Jam & Button -->
           <div class="header-right">
-            <div class="header-clock" id="liveClock">--:--</div>
+            <!-- Clock -->
+            <div class="header-clock" id="clockDisplay">00:00:00</div>
+
+            <!-- Network Indicator (New) -->
+            <div id="netStatus"
+              style="display:none; font-size:0.8rem; font-weight:700; padding:6px 12px; border-radius:12px; margin-left:10px; z-index:999; box-shadow:0 2px 5px rgba(0,0,0,0.2);">
+              Offline
+            </div>
+
             <button id="btnFullDash" class="header-btn" data-i18n="btn_fullscreen">⛶ Layar Penuh</button>
           </div>
         </div>
+
+        <!-- Network Listeners -->
+        <script>
+          (function () {
+            const el = document.getElementById('netStatus');
+
+            function updateNet(status) {
+              if (!el) return;
+              if (status === 'offline') {
+                el.style.display = 'block';
+                el.style.background = '#fee2e2';
+                el.style.color = '#ef4444';
+                el.innerHTML = '🔌 OFFLINE (Data Antri)';
+                el.style.border = '1px solid #fecaca';
+              } else if (status === 'online') {
+                // Show Green PERSISTENTLY
+                el.style.display = 'block';
+                el.style.background = '#dcfce7';
+                el.style.color = '#16a34a';
+                el.style.border = '1px solid #bbf7d0';
+                el.innerHTML = '🌐 ONLINE';
+                // setTimeout removed to keep it visible
+              }
+            }
+
+            window.addEventListener('network:offline', () => updateNet('offline'));
+            window.addEventListener('network:online', () => updateNet('online'));
+            window.addEventListener('offline', () => updateNet('offline'));
+            window.addEventListener('online', () => updateNet('online'));
+
+            // Initial Check
+            if (!navigator.onLine) {
+              updateNet('offline');
+            } else {
+              updateNet('online'); // Force show "Online" on load
+            }
+          })();
+        </script>
 
         <!-- Kartu statistik -->
         <!-- Kartu statistik (V2 Solid Color) -->

@@ -5,6 +5,112 @@
 
 let sb = null;
 
+// === OFFLINE QUEUE SYSTEM ===
+const LS_QUEUE = 'SA_OFFLINE_QUEUE';
+let offlineQueue = JSON.parse(localStorage.getItem(LS_QUEUE)) || [];
+let isOnline = navigator.onLine;
+let isProcessingQueue = false;
+
+window.addEventListener('online', () => {
+    console.log('🌐 Online detected. Process queue...');
+    isOnline = true;
+    processQueue();
+    // Dispatch event for UI
+    window.dispatchEvent(new Event('network:online'));
+});
+
+window.addEventListener('offline', () => {
+    console.log('🔌 Offline detected.');
+    isOnline = false;
+    window.dispatchEvent(new Event('network:offline'));
+});
+
+function saveQueue() {
+    localStorage.setItem(LS_QUEUE, JSON.stringify(offlineQueue));
+}
+
+function addToQueue(action, payload) {
+    const item = {
+        id: Date.now() + Math.random().toString(36).substr(2, 5),
+        ts: Date.now(),
+        action,
+        payload,
+        retry: 0
+    };
+    offlineQueue.push(item);
+    saveQueue();
+    console.log(`📥 Added to Queue [${action}]:`, payload);
+    return true; // Simulate success
+}
+
+async function processQueue() {
+    if (!isOnline || offlineQueue.length === 0 || isProcessingQueue) return;
+
+    isProcessingQueue = true;
+    console.log(`🔄 Processing Queue (${offlineQueue.length} items)...`);
+
+    // Process one by one FIFO
+    // Note: We clone the array to iterate safely, but modifying the real array on success
+    // Actually, better to shift() one by one.
+
+    // Limit max attempts per run to avoid infinite loops if something is stuck
+    let processed = 0;
+
+    while (offlineQueue.length > 0 && isOnline) {
+        const item = offlineQueue[0]; // Peek
+
+        try {
+            console.log(`🚀 Sending [${item.action}]...`);
+            let success = false;
+
+            // Execute Action
+            if (item.action === 'PUSH_ATTENDANCE') {
+                if (item.payload.type === 'BREAK') {
+                    const { error } = await sb.from('breaks').insert(item.payload.data);
+                    if (!error) success = true; else throw error;
+                } else {
+                    const { error } = await sb.from('attendance').insert(item.payload.data);
+                    if (!error) success = true; else throw error;
+                }
+            }
+            else if (item.action === 'PUSH_INVENTORY') {
+                const { error } = await sb.from('inventory').upsert(item.payload.data, { onConflict: 'id' });
+                if (!error) success = true; else throw error;
+            }
+            // Add other actions if needed
+
+            if (success) {
+                console.log(`✅ Sent Success.`);
+                offlineQueue.shift(); // Remove from queue
+                saveQueue();
+                processed++;
+            }
+
+        } catch (err) {
+            console.error('❌ Sync Failed:', err);
+            item.retry++;
+            if (item.retry > 5) {
+                console.warn('🗑️ Item dropped after 5 retries:', item);
+                offlineQueue.shift(); // Drop if too many fails
+                saveQueue();
+            } else {
+                saveQueue(); // Save retry count
+                isProcessingQueue = false;
+                return; // Stop processing to wait for better connection
+            }
+        }
+    }
+
+    isProcessingQueue = false;
+    if (processed > 0) {
+        console.log(`🎉 Queue Batch Done. Processed: ${processed}`);
+        if (window.pullAll) window.pullAll(); // Refresh data to be sure
+    }
+}
+
+// Auto-process on load if online
+setTimeout(processQueue, 3000);
+
 // INIT
 // INIT
 async function checkConn() {
@@ -53,14 +159,45 @@ async function delEmployee(nid) {
 
 // === ATTENDANCE (Dual Table Support) ===
 async function pushAttendance(r) {
-    if (!sb) return;
-    // Check status to decide table
+    if (!sb || !isOnline) {
+        // OFFLINE HANDLING
+        const isBreak = (r.status === 'break_out' || r.status === 'break_in');
+        let dataPayload = {};
+
+        if (isBreak) {
+            dataPayload = {
+                ts: r.ts, status: r.status, nid: r.nid, name: r.name,
+                company: r.company, created_at: new Date(r.ts).toISOString()
+            };
+        } else {
+            dataPayload = {
+                ts: r.ts, status: r.status, nid: r.nid, name: r.name,
+                title: r.title, company: r.company, shift: r.shift,
+                note: r.note, late: r.late, ok_shift: r.okShift,
+                created_at: new Date(r.ts).toISOString()
+            };
+        }
+
+        addToQueue('PUSH_ATTENDANCE', { type: isBreak ? 'BREAK' : 'ATT', data: dataPayload });
+        return;
+    }
+
+    // ONLINE HANDLING
     if (r.status === 'break_out' || r.status === 'break_in') {
         const { error } = await sb.from('breaks').insert({
             ts: r.ts, status: r.status, nid: r.nid, name: r.name,
             company: r.company, created_at: new Date(r.ts).toISOString()
         });
-        if (error) console.error('Push break error:', error);
+        if (error) {
+            console.error('Push break error (will queue):', error);
+            // Fallback to Queue if server error (e.g. timeout)
+            addToQueue('PUSH_ATTENDANCE', {
+                type: 'BREAK', data: {
+                    ts: r.ts, status: r.status, nid: r.nid, name: r.name,
+                    company: r.company, created_at: new Date(r.ts).toISOString()
+                }
+            });
+        }
     } else {
         const { error } = await sb.from('attendance').insert({
             ts: r.ts, status: r.status, nid: r.nid, name: r.name,
@@ -68,7 +205,17 @@ async function pushAttendance(r) {
             note: r.note, late: r.late, ok_shift: r.okShift,
             created_at: new Date(r.ts).toISOString()
         });
-        if (error) console.error('Push att error:', error);
+        if (error) {
+            console.error('Push att error (will queue):', error);
+            addToQueue('PUSH_ATTENDANCE', {
+                type: 'ATT', data: {
+                    ts: r.ts, status: r.status, nid: r.nid, name: r.name,
+                    title: r.title, company: r.company, shift: r.shift,
+                    note: r.note, late: r.late, ok_shift: r.okShift,
+                    created_at: new Date(r.ts).toISOString()
+                }
+            });
+        }
     }
 }
 
@@ -114,15 +261,22 @@ async function delEdu(id) {
 }
 
 async function pushInventory(inv) {
-    if (!sb) { console.warn('Skip push inventory: no sb'); return; }
-    const { error } = await sb.from('inventory').upsert({
+    const payload = {
         id: inv.id, carrier: inv.carrier, company: inv.company,
         item: inv.item, dest: inv.dest, officer: inv.officer, type: inv.type,
         time_in: inv.timeIn, time_out: inv.timeOut
-    }, { onConflict: 'id' });
+    };
+
+    if (!sb || !isOnline) {
+        console.warn('Offline: Queueing Inventory Push');
+        addToQueue('PUSH_INVENTORY', { data: payload });
+        return;
+    }
+
+    const { error } = await sb.from('inventory').upsert(payload, { onConflict: 'id' });
     if (error) {
-        console.error('Push inv error:', error);
-        alert('Gagal Push Inventory: ' + error.message);
+        console.error('Push inv error (will queue):', error);
+        addToQueue('PUSH_INVENTORY', { data: payload });
     }
 }
 
@@ -280,95 +434,148 @@ function subscribeToRealtime() {
     // Prevent double subscription
     if (rtSubscription) return;
 
-    console.log('📡 Starting Realtime Subscription...');
+    console.log('📡 Starting Realtime Subscription (FULL SYNC)...');
 
+    // Subscribe to ALL events for attendance and breaks
     rtSubscription = client.channel('public-db-changes')
         .on(
             'postgres_changes',
-            { event: 'INSERT', schema: 'public', table: 'attendance' },
-            (payload) => handleRealtimeInsert(payload.new, 'attendance')
+            { event: '*', schema: 'public', table: 'attendance' },
+            (payload) => handleRealtimeEvent(payload, 'attendance')
         )
         .on(
             'postgres_changes',
-            { event: 'INSERT', schema: 'public', table: 'breaks' },
-            (payload) => handleRealtimeInsert(payload.new, 'breaks')
+            { event: '*', schema: 'public', table: 'breaks' },
+            (payload) => handleRealtimeEvent(payload, 'breaks')
         )
         .subscribe((status) => {
             console.log('Realtime Status:', status);
         });
 }
 
+function handleRealtimeEvent(payload, tableName) {
+    console.log(`⚡ Realtime Event [${payload.eventType}] on ${tableName}:`, payload);
+
+    if (payload.eventType === 'INSERT') {
+        handleRealtimeInsert(payload.new, tableName);
+    } else if (payload.eventType === 'UPDATE') {
+        handleRealtimeUpdate(payload.new, tableName);
+    } else if (payload.eventType === 'DELETE') {
+        handleRealtimeDelete(payload.old, tableName);
+    }
+}
+
+// --- INSERT HANDLER ---
 function handleRealtimeInsert(newRow, tableName) {
     if (!newRow) return;
 
-    // 1. Normalisasi Data (Samakan format dengan local attendance)
-    // Note: Payload dari Realtime adalah Raw DB Columns
-    let rec = null;
+    const rec = normalizeRecord(newRow, tableName);
+    if (!rec) return;
 
-    // Helper parse TS
+    // Check Duplicate +- 2s tolerance
+    const exists = window.attendance.some(a =>
+        a.nid === rec.nid &&
+        Math.abs(a.ts - rec.ts) < 2000
+    );
+
+    if (exists) return;
+
+    console.log('⚡ RT Insert Applied:', rec);
+    window.attendance.push(rec);
+    window.attendance.sort((a, b) => a.ts - b.ts);
+    saveToStorage();
+    triggerRefresh();
+}
+
+// --- UPDATE HANDLER ---
+function handleRealtimeUpdate(newRow, tableName) {
+    if (!newRow) return;
+
+    // Note: Normalize first to ensure consistent format
+    const rec = normalizeRecord(newRow, tableName);
+    if (!rec) return;
+
+    // Find matching record by TS (assuming TS is primary key or unique enough)
+    // If TS was updated, this might fail, but TS usually doesn't change in this app.
+    const index = window.attendance.findIndex(a => a.ts === rec.ts);
+
+    if (index !== -1) {
+        console.log('⚡ RT Update Applied:', rec);
+        window.attendance[index] = rec; // Replace
+        window.attendance.sort((a, b) => a.ts - b.ts);
+        saveToStorage();
+        triggerRefresh();
+    } else {
+        // If not found, treat as Insert? Or ignore?
+        // Let's treat as Insert to be safe (maybe we missed the initial insert)
+        console.warn('⚡ RT Update Record Not Found, treating as Insert:', rec);
+        handleRealtimeInsert(newRow, tableName);
+    }
+}
+
+// --- DELETE HANDLER ---
+function handleRealtimeDelete(oldRow, tableName) {
+    if (!oldRow) return;
+
+    // Supabase DELETE payload usually contains the Primary Key. 
+    // Ideally 'ts' is the identifier.
+    // We need to handle potential time format differences if 'ts' comes as string.
+
+    const targetTs = new Date(oldRow.ts).getTime();
+    if (!targetTs) return;
+
+    const index = window.attendance.findIndex(a => Math.abs(a.ts - targetTs) < 100); // Exact match tolerance
+
+    if (index !== -1) {
+        console.log('⚡ RT Delete Applied:', oldRow);
+        window.attendance.splice(index, 1);
+        saveToStorage();
+        triggerRefresh();
+    } else {
+        console.warn('⚡ RT Delete Record Not Found:', oldRow);
+    }
+}
+
+// --- HELPERS ---
+function normalizeRecord(row, tableName) {
     const parseTs = (t) => new Date(t).getTime();
 
     if (tableName === 'attendance') {
-        rec = {
-            ts: parseTs(newRow.ts),
-            status: newRow.status,
-            nid: newRow.nid,
-            name: newRow.name,
-            title: newRow.title,
-            company: newRow.company,
-            shift: newRow.shift,
-            note: newRow.note,
-            late: newRow.late,
-            okShift: newRow.ok_shift
+        return {
+            ts: parseTs(row.ts),
+            status: row.status,
+            nid: row.nid,
+            name: row.name,
+            title: row.title,
+            company: row.company,
+            shift: row.shift,
+            note: row.note,
+            late: row.late,
+            okShift: row.ok_shift
         };
     } else if (tableName === 'breaks') {
-        rec = {
-            ts: parseTs(newRow.ts),
-            status: newRow.status,
-            nid: newRow.nid,
-            name: newRow.name,
-            title: '', // Breaks usually don't have title/shift stored
-            company: newRow.company,
+        return {
+            ts: parseTs(row.ts),
+            status: row.status,
+            nid: row.nid,
+            name: row.name,
+            title: '',
+            company: row.company,
             shift: '',
-            note: (newRow.status === 'break_out' ? 'Izin Keluar / Istirahat' : 'Kembali Masuk'),
+            note: (row.status === 'break_out' ? 'Izin Keluar / Istirahat' : 'Kembali Masuk'),
             late: false,
             okShift: true
         };
     }
+    return null;
+}
 
-    if (!rec) return;
-
-    // 2. Cek Duplikat di Window.Attendance
-    // Kita cek range waktu +- 1 detik untuk aman, atau exact match TS
-    const exists = window.attendance.some(a =>
-        a.nid === rec.nid &&
-        Math.abs(a.ts - rec.ts) < 2000 // Tolerance 2s (karena pembulatan ms di DB)
-    );
-
-    if (exists) {
-        // console.log('Skipping echo insert from realtime');
-        return;
-    }
-
-    console.log('⚡ New Data from Realtime:', rec);
-
-    // 3. Update Local Data
-    window.attendance.push(rec);
-    window.attendance.sort((a, b) => a.ts - b.ts);
-
-    // 4. Save to LocalStorage
-    // WARNING: "LS_ATT" variable is inside app.js scope, we cannot access it here easily 
-    // without passing it or assuming global.
-    // However, app.js logic exposes 'attendance' to window, but maybe not the SAVE function constant.
-    // We will use string literal 'SA_ATTENDANCE' to be safe.
+function saveToStorage() {
     localStorage.setItem('SA_ATTENDANCE', JSON.stringify(window.attendance));
+}
 
-    // 5. Notify App to Re-render
-    // Gunakan event 'data:synced' yang sudah ada di app.js untuk trigger renderDashboard() dll
+function triggerRefresh() {
     window.dispatchEvent(new Event('data:synced'));
-
-    // Optional: Toast notif
-    // window.dispatchEvent(new CustomEvent('realtime:toast', { detail: `Data baru: ${rec.name} (${rec.status})` }));
 }
 
 // Global Export
