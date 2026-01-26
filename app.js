@@ -120,6 +120,7 @@ window.addEventListener('DOMContentLoaded', () => {
         if (typeof renderEmployees === 'function' && !document.getElementById('route-employees').classList.contains('hidden')) renderEmployees();
         if (typeof renderAttendance === 'function' && !document.getElementById('route-attendance').classList.contains('hidden')) renderAttendance();
         if (typeof renderLatest === 'function' && !document.getElementById('route-latest').classList.contains('hidden')) renderLatest();
+        if (typeof renderMusterList === 'function' && !document.getElementById('route-emergency').classList.contains('hidden')) renderMusterList();
       });
 
       return sb;
