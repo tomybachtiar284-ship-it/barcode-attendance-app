@@ -1435,7 +1435,6 @@ window.addEventListener('DOMContentLoaded', () => {
     const todays = attendance.filter(a => a.nid === nid && a.ts >= sod && (a.status === 'datang' || a.status === 'pulang'));
 
     if (todays.length === 0) {
-      alert(`DEBUG: No previous scan found today for ${nid}. Returning 'datang'. (SOD: ${sod})`);
       return 'datang';
     }
 
@@ -1444,7 +1443,6 @@ window.addEventListener('DOMContentLoaded', () => {
     const last = todays[0];
 
     const next = last.status === 'datang' ? 'pulang' : 'datang';
-    alert(`DEBUG: Found ${todays.length} scans. Last: ${last.status} at ${fmtTs(last.ts)}. Next: ${next}`);
     return next;
   }
   function parseRaw(s) { if (!s) return null; const p = s.split('|'); return (p.length >= 4) ? { nid: p[0], name: p[1], title: p[2], company: p[3] } : { nid: s }; }
