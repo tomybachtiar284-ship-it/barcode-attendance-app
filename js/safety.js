@@ -107,11 +107,13 @@ function renderMusterList() {
     }
 
     // Helper time formatter
-    const pad = n => String(n).padStart(2, '0');
+    // Updated Format: "26 Jan 20:02" to clarify multi-day entries
     const fmtTime = (ts) => {
         if (!ts) return '-';
         const d = new Date(ts);
-        return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+        const dateStr = d.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' });
+        const timeStr = d.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }).replace('.', ':');
+        return `<span style="font-size:0.7em; color:#64748b; display:block; margin-bottom:-4px;">${dateStr}</span> ${timeStr}`;
     };
 
     activeList.forEach(p => {
