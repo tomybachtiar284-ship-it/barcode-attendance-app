@@ -612,6 +612,9 @@ window.addEventListener('DOMContentLoaded', () => {
     if (route === 'general-report') {
       if (window.renderGeneralReport) window.renderGeneralReport();
     }
+    if (route === 'emergency') {
+      if (window.renderMusterList) window.renderMusterList();
+    }
   };
 
   // Bind existing sidebar links
@@ -1207,9 +1210,9 @@ window.addEventListener('DOMContentLoaded', () => {
     const since = Date.now() - 24 * 3600 * 1000; const last24 = attendance.filter(a => a.ts >= since);
 
     // === NEW LOGIC: Active On-Site (Realtime Estimate) ===
-    // FIXED: Use "Last Status" logic instead of simple "UniqueIn - UniqueOut" to handle multiple entries per day
-    const sodToday = new Date(todayISO() + 'T00:00:00').getTime();
-    const attToday = attendance.filter(a => a.ts >= sodToday);
+    // UPDATED: Rolling Window 24 Hours (to include Night Shifts from yesterday)
+    const rollingStart = Date.now() - (24 * 60 * 60 * 1000);
+    const attToday = attendance.filter(a => a.ts >= rollingStart);
 
     const activeMap = new Map();
     attToday.sort((a, b) => a.ts - b.ts).forEach(r => {
@@ -1273,9 +1276,9 @@ window.addEventListener('DOMContentLoaded', () => {
     // 2. Stats
     const total = employees.length;
     // Calc logic
-    // FIXED: Use todayISO() + T00:00:00 to match Desktop logic (Local Time)
-    const sod = new Date(todayISO() + 'T00:00:00').getTime();
-    const today = attendance.filter(a => a.ts >= sod);
+    // FIXED: Use Rolling Window 24h to match Desktop
+    const rollingStart = Date.now() - (24 * 60 * 60 * 1000);
+    const today = attendance.filter(a => a.ts >= rollingStart);
     const present = today.filter(a => a.status === 'datang').length;
     const late = today.filter(a => a.status === 'datang' && a.late).length;
 
@@ -3541,11 +3544,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Init user in report if not exists
         if (!report[a.nid]) {
+          // FIX: Look up latest employee data to fill gaps in historical records
+          const emp = window.employees ? window.employees.find(e => e.nid === a.nid) : null;
+
           report[a.nid] = {
             nid: a.nid,
-            name: a.name || '(Unknown)',
-            company: a.company || '-',
-            shift: a.shift || '-',
+            name: emp?.name || a.name || '(Unknown)',
+            company: emp?.company || a.company || '-',
+            shift: emp?.shift || a.shift || '-',
             presentDates: new Set(),
             lateCount: 0,
             overtimeMins: 0
@@ -4129,11 +4135,13 @@ window.addEventListener('DOMContentLoaded', function initOvertimeReport() {
       const noteAndLate = `<div>${r.note || '-'} ${lateBadge}</div>`;
 
       // Use safe access for properties
+      // FIX: Lookup employee master data to ensure fields are populated
+      const empMaster = window.employees?.find(e => e.nid === r.nid);
       const sNid = r.nid || '-';
-      const sName = r.name || '-';
-      const sTitle = r.title || '-';
-      const sComp = r.company || '-';
-      const sShift = r.shift || '-';
+      const sName = empMaster?.name || r.name || '-';
+      const sTitle = empMaster?.title || r.title || '-';
+      const sComp = empMaster?.company || r.company || '-';
+      const sShift = empMaster?.shift || r.shift || '-';
 
       return `
         <tr ${rowClass}>

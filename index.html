@@ -1013,6 +1013,8 @@
       <button class="navlink" data-route="inventory">📦 <span>Keluar Masuk Barang</span></button>
       <button class="navlink" data-route="analysis" style="color:var(--orange-600)">☕ <span>Analisis
           Izin</span></button>
+      <button class="navlink" data-route="emergency" onclick="renderMusterList()"
+        style="color:var(--danger); font-weight:700;">🚨 <span>Emergency Muster</span></button>
 
       <hr style="border:0; border-top:1px solid var(--line); margin:8px 0;">
 
@@ -1338,6 +1340,47 @@
         </div>
       </div>
 
+      <!-- Filter Toolbar -->
+      <div class="card toolbar" style="margin-bottom: 20px;">
+        <div style="display:flex; flex-wrap:wrap; gap:12px; align-items:center; width:100%;">
+
+          <!-- Periode -->
+          <div style="display:flex; align-items:center; gap:8px;">
+            <label style="font-weight:600; font-size:0.9rem;">Periode:</label>
+            <input type="date" id="repStartDate" class="input small">
+            <span>-</span>
+            <input type="date" id="repEndDate" class="input small">
+          </div>
+
+          <!-- Perusahaan -->
+          <div style="display:flex; align-items:center; gap:8px;">
+            <label style="font-weight:600; font-size:0.9rem;">Perusahaan:</label>
+            <select id="repCompanyFilter" class="input small" style="min-width:150px;">
+              <option value="">Semua Perusahaan</option>
+            </select>
+          </div>
+
+          <!-- Shift -->
+          <div style="display:flex; align-items:center; gap:8px;">
+            <label style="font-weight:600; font-size:0.9rem;">Shift:</label>
+            <select id="repShiftFilter" class="input small" style="min-width:120px;">
+              <option value="">Semua Shift</option>
+              <option value="A">Group A</option>
+              <option value="B">Group B</option>
+              <option value="C">Group C</option>
+              <option value="D">Group D</option>
+              <option value="DAYTIME">Daytime</option>
+            </select>
+          </div>
+
+          <!-- Button -->
+          <button onclick="renderGeneralReport()" class="btn primary small" style="margin-left:auto;">
+            🔍 Tampilkan
+          </button>
+
+        </div>
+      </div>
+
       <!-- Summary Stats Row -->
       <div class="grid-4" style="margin-bottom:20px;">
         <div class="card-solid stat-blue">
@@ -1406,6 +1449,31 @@
           <div class="card-title">Top 5 Karyawan Paling Rajin Lembur (30 Hari)</div>
           <div style="position:relative; height:300px; width:100%;">
             <canvas id="chartTopOvertime"></canvas>
+          </div>
+        </div>
+
+        <!-- NEW CHARTS -->
+        <!-- Chart 7: Top 5 Late -->
+        <div class="card">
+          <div class="card-title">Top 5 Karyawan Sering Terlambat (30 Hari)</div>
+          <div style="position:relative; height:300px; width:100%;">
+            <canvas id="chartTopLate"></canvas>
+          </div>
+        </div>
+
+        <!-- Chart 8: Late Trend by Day -->
+        <div class="card">
+          <div class="card-title">Tren Keterlambatan per Hari (30 Hari)</div>
+          <div style="position:relative; height:300px; width:100%;">
+            <canvas id="chartLateByDay"></canvas>
+          </div>
+        </div>
+
+        <!-- Chart 9: Shift Distribution -->
+        <div class="card">
+          <div class="card-title">Distribusi Shift Hari Ini</div>
+          <div style="position:relative; height:300px; width:100%; display:flex; justify-content:center;">
+            <canvas id="chartShiftDistribution"></canvas>
           </div>
         </div>
 
@@ -2142,6 +2210,56 @@
         </div>
       </div>
     </section>
+
+    <!-- EMERGENCY MUSTER LIST (SAFETY) -->
+    <section class="route hidden" id="route-emergency">
+      <div class="header-modern"
+        style="margin-bottom:20px; background: linear-gradient(135deg, #ef4444 0%, #b91c1c 100%); color:white;">
+        <div class="header-content">
+          <h1 class="header-title" style="font-size:1.8rem; font-weight:900; letter-spacing:1px;">DAFTAR TITIK KUMPUL
+            (MUSTER POINT)</h1>
+          <div class="header-subtitle" style="color:rgba(255,255,255,0.9);">
+            DAFTAR PERSONIL AKTIF DI LOKASI UNTUK EVAKUASI DARURAT
+          </div>
+        </div>
+        <div class="header-right">
+          <div style="text-align:right;">
+            <div style="font-size:0.8rem; font-weight:600; text-transform:uppercase;">Total Jiwa (Live)</div>
+            <div id="musterTotalCount" style="font-size:2.5rem; font-weight:800; line-height:1;">0</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card toolbar" style="margin-bottom:20px; border-left: 5px solid #ef4444;">
+        <div class="left" style="display:flex; align-items:center; gap:15px;">
+          <h3 id="musterDate" style="margin:0; color:#333;">-</h3>
+        </div>
+        <div class="right">
+          <button onclick="renderMusterList()" class="btn" style="border:1px solid #ccc;">🔃 Refresh</button>
+          <button onclick="printMusterList()" class="btn primary" style="background:#ef4444; border-color:#ef4444;">🖨️
+            CETAK DAFTAR (PRINT)</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="table-wrap">
+          <table class="table" id="tableMuster">
+            <thead style="background:#fecaca;">
+              <tr>
+                <th style="color:#7f1d1d;">JAM MASUK</th>
+                <th style="color:#7f1d1d;">NAMA & ID</th>
+                <th style="color:#7f1d1d;">PERUSAHAAN</th>
+                <th style="color:#7f1d1d;">SHIFT</th>
+                <th style="color:#7f1d1d;">LOKASI TERAKHIR</th>
+              </tr>
+            </thead>
+            <tbody id="musterListBody">
+              <!-- Injected by js/safety.js -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
   </main>
 
   <!-- MODAL: EMPLOYEES -->
@@ -2426,6 +2544,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="config.local.js"></script>
   <script src="js/report.js"></script>
+  <script src="js/safety.js"></script>
   <script src="js/db.js"></script>
   <!-- App utama -->
   <!-- Script App utama dipindah ke paling bawah agar tidak double load -->
