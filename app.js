@@ -1431,15 +1431,21 @@ window.addEventListener('DOMContentLoaded', () => {
     const sod = new Date(todayISO() + 'T00:00:00').getTime();
     // Filter ONLY 'datang' and 'pulang' to toggle main shift status
     // Use "Last Status" logic instead of "Count % 2" to avoid "Double Masuk" death spiral
+    // DEBUG: Filter for today's records
     const todays = attendance.filter(a => a.nid === nid && a.ts >= sod && (a.status === 'datang' || a.status === 'pulang'));
 
-    if (todays.length === 0) return 'datang';
+    if (todays.length === 0) {
+      alert(`DEBUG: No previous scan found today for ${nid}. Returning 'datang'. (SOD: ${sod})`);
+      return 'datang';
+    }
 
     // Sort desc to get latest
     todays.sort((a, b) => b.ts - a.ts);
     const last = todays[0];
 
-    return last.status === 'datang' ? 'pulang' : 'datang';
+    const next = last.status === 'datang' ? 'pulang' : 'datang';
+    alert(`DEBUG: Found ${todays.length} scans. Last: ${last.status} at ${fmtTs(last.ts)}. Next: ${next}`);
+    return next;
   }
   function parseRaw(s) { if (!s) return null; const p = s.split('|'); return (p.length >= 4) ? { nid: p[0], name: p[1], title: p[2], company: p[3] } : { nid: s }; }
   function findEmp(p) { if (!p) return null; let e = employees.find(x => x.nid == p.nid); if (!e && p.name) { e = employees.find(x => x.name.toLowerCase() === p.name.toLowerCase()); } return e; }
