@@ -502,6 +502,54 @@
                             });
                         }
                     },
+                    // Chart 9: Shift Distribution (Pie)
+                    () => {
+                        const ctx = document.getElementById('chartShiftDistribution')?.getContext('2d');
+                        if (ctx) {
+                            // Use FILTERED data (Kehadiran "Datang" only)
+                            const shiftCounts = {};
+                            const dataRange = attendance.filter(a => a.status === 'datang');
+
+                            dataRange.forEach(a => {
+                                let s = a.shift || 'Unassigned';
+                                // Normalize
+                                if (s === 'DAYTIME') s = 'DAY';
+                                shiftCounts[s] = (shiftCounts[s] || 0) + 1;
+                            });
+
+                            const labels = Object.keys(shiftCounts);
+                            const vals = Object.values(shiftCounts);
+
+                            // Update Title Dynamic
+                            const titleEl = ctx.canvas.parentElement.previousElementSibling;
+                            if (titleEl) {
+                                // Simple heuristic: if range > 1 day, change title
+                                const uniqueDates = new Set(dataRange.map(x => new Date(x.ts).toDateString())).size;
+                                titleEl.textContent = `Distribusi Shift (${uniqueDates > 1 ? 'Rentang Ini' : 'Hari Ini'})`;
+                            }
+
+                            grCharts['chartShiftDistribution'] = new Chart(ctx, {
+                                type: 'pie',
+                                data: {
+                                    labels: labels,
+                                    datasets: [{
+                                        label: 'Total',
+                                        data: vals,
+                                        backgroundColor: ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#64748b'],
+                                        borderWidth: 1
+                                    }]
+                                },
+                                options: {
+                                    responsive: true,
+                                    maintainAspectRatio: false,
+                                    animation: false,
+                                    plugins: {
+                                        legend: { position: 'right' }
+                                    }
+                                }
+                            });
+                        }
+                    },
                 ];
 
                 // Execute Queue
