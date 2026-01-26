@@ -1430,8 +1430,16 @@ window.addEventListener('DOMContentLoaded', () => {
   function nextStatusFor(nid) {
     const sod = new Date(todayISO() + 'T00:00:00').getTime();
     // Filter ONLY 'datang' and 'pulang' to toggle main shift status
-    const cnt = attendance.filter(a => a.nid === nid && a.ts >= sod && (a.status === 'datang' || a.status === 'pulang')).length;
-    return (cnt % 2 === 0) ? 'datang' : 'pulang';
+    // Use "Last Status" logic instead of "Count % 2" to avoid "Double Masuk" death spiral
+    const todays = attendance.filter(a => a.nid === nid && a.ts >= sod && (a.status === 'datang' || a.status === 'pulang'));
+
+    if (todays.length === 0) return 'datang';
+
+    // Sort desc to get latest
+    todays.sort((a, b) => b.ts - a.ts);
+    const last = todays[0];
+
+    return last.status === 'datang' ? 'pulang' : 'datang';
   }
   function parseRaw(s) { if (!s) return null; const p = s.split('|'); return (p.length >= 4) ? { nid: p[0], name: p[1], title: p[2], company: p[3] } : { nid: s }; }
   function findEmp(p) { if (!p) return null; let e = employees.find(x => x.nid == p.nid); if (!e && p.name) { e = employees.find(x => x.name.toLowerCase() === p.name.toLowerCase()); } return e; }
@@ -1590,6 +1598,32 @@ window.addEventListener('DOMContentLoaded', () => {
       noteOverride = 'Kembali dari Istirahat';
     } else {
       status = nextStatusFor(emp.nid);
+
+      // === CONTEXT AWARE LOGIC: Night Shift Detection (UPDATED) ===
+      // Check if this scan is likely a "Pulang" for Yesterday's Night Shift
+      const yesterday = new Date(ts);
+      yesterday.setDate(yesterday.getDate() - 1);
+      const shiftYesterday = effectiveShiftFor(emp, yesterday);
+
+      // Robust Check: Is yesterday Shift C? OR is their default group C?
+      // And allow Checkout until 18:00 (covers extreme overtime or double shift)
+      const likelyNightShift = shiftYesterday === 'C' || (shiftYesterday === 'OFF' && emp.shift === 'C');
+
+      if (likelyNightShift && ts.getHours() < 18) {
+        // Check last attendance record globally (ignore "today" restriction)
+        const lastRec = attendance.slice().reverse().find(a => a.nid === emp.nid);
+
+        if (lastRec && lastRec.status === 'datang') {
+          // They are currently IN from yesterday. This MUST be a checkout.
+          // Logic Check: Is the last record from within reasonable time? (e.g. < 24h)
+          if (ts.getTime() - lastRec.ts < 24 * 3600 * 1000) {
+            status = 'pulang';
+            effShift = 'C'; // Force shift to be Yesterday's Shift C
+            noteOverride = 'Pulang Shift C (Context Aware)';
+            console.log('Context-Aware: Detected Night Shift Checkout for', emp.name);
+          }
+        }
+      }
     }
 
     const sWin = effShift === 'OFF' ? null : shiftWindow(effShift);
