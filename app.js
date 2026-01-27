@@ -1259,7 +1259,7 @@ window.addEventListener('DOMContentLoaded', () => {
       </div>`;
     }).join('');
 
-    ['#companyPresenceGrid', '#companyPresenceGridScan'].forEach(sel => {
+    ['#companyPresenceGrid', '#companyPresenceGridScan', '#companyPresenceGridMobile'].forEach(sel => {
       const grid = $(sel);
       if (grid) {
         if (companies.length === 0) grid.innerHTML = '<div class="muted">Belum ada data karyawan.</div>';

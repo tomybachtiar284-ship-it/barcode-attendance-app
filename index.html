@@ -135,6 +135,62 @@
       font-weight: 800;
       color: #0ea5e9;
     }
+
+    /* Mobile Company Grid */
+    .company-grid-mobile {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 4px;
+    }
+
+    .company-grid-mobile .company-card {
+      padding: 4px 6px !important;
+      border-radius: 8px !important;
+      flex-direction: column !important;
+      align-items: flex-start !important;
+      text-align: left !important;
+      border: 1px solid #e2e8f0;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+      background: #fff;
+    }
+
+    .company-grid-mobile .company-card .name {
+      font-size: 0.65rem !important;
+      margin-bottom: 2px;
+      white-space: normal !important;
+      /* Allow wrapping */
+      line-height: 1.1;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 100%;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      /* Limit to 2 lines */
+      line-clamp: 2;
+      /* Standard property */
+      -webkit-box-orient: vertical;
+    }
+
+    .company-grid-mobile .company-card .sub {
+      display: none !important;
+    }
+
+    .company-grid-mobile .company-card .badge {
+      font-size: 1rem !important;
+      font-weight: 800;
+      color: var(--primary-600);
+      align-self: flex-end;
+      margin-top: -4px;
+    }
+
+    .company-grid-mobile .company-card.live {
+      background: #f0f9ff;
+      border-color: #bae6fd;
+    }
+
+    .company-grid-mobile .company-card.live .badge {
+      color: #0284c7;
+    }
   </style>
 
   <!-- Libraries -->
@@ -1102,6 +1158,13 @@
               <div class="gauge-val" id="mobGaugeVal">0%</div>
             </div>
           </div>
+        </div>
+
+        <!-- 5. Live Presence Stats (MOBILE) -->
+        <div class="mob-gauge-card" style="margin: 8px 12px 12px; padding: 10px;">
+          <div style="font-weight:700; margin-bottom:6px; font-size:0.85rem; color:#1e293b;">Statistik Kehadiran
+            Langsung</div>
+          <div id="companyPresenceGridMobile" class="company-grid-mobile"></div>
         </div>
       </div>
 

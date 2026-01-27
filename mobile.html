@@ -990,6 +990,13 @@
             <div class="gauge-val" id="mobGaugeVal">0%</div>
           </div>
         </div>
+
+        <!-- 5. Live Presence Stats -->
+        <div class="mob-gauge-card" style="margin-top:16px;">
+          <div style="font-weight:700; margin-bottom:12px; font-size:0.95rem; color:#1e293b;">Statistik Kehadiran
+            Langsung</div>
+          <div id="companyPresenceGridMobile" class="company-grid-mobile"></div>
+        </div>
       </div>
 
       <!-- DESKTOP DASHBOARD (Hidden on Mobile) -->
@@ -1399,6 +1406,56 @@
             align-items: center;
             justify-content: center;
           }
+
+          /* Mobile Company Grid */
+          .company-grid-mobile {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 8px;
+          }
+
+          .company-grid-mobile .company-card {
+            padding: 10px !important;
+            border-radius: 12px !important;
+            flex-direction: column !important;
+            align-items: flex-start !important;
+            text-align: left !important;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+          }
+
+          .company-grid-mobile .company-card .name {
+            font-size: 0.8rem !important;
+            margin-bottom: 4px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 100%;
+          }
+
+          .company-grid-mobile .company-card .sub {
+            display: none !important;
+            /* Hide sub-text on mobile for valid space */
+          }
+
+          .company-grid-mobile .company-card .badge {
+            font-size: 1.4rem !important;
+            font-weight: 800;
+            color: var(--primary-600);
+            align-self: flex-end;
+            margin-top: -10px;
+          }
+
+          .company-grid-mobile .company-card.live {
+            background: #f0f9ff;
+            border-color: #bae6fd;
+          }
+
+          .company-grid-mobile .company-card.live .badge {
+            color: #0284c7;
+          }
+
+
 
           .gauge-simple::before {
             content: "";
