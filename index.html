@@ -18,7 +18,7 @@
     rel="stylesheet">
 
   <!-- Styles -->
-  <link rel="stylesheet" href="styles.css?v=3.3" />
+  <link rel="stylesheet" href="styles.css?v=modal_fix_2" />
   <style>
     /* Styling for Inventory, Latest Info, Education, Attendance & Employee Table Borders */
     #route-inventory table,
@@ -2623,9 +2623,29 @@
       });
     }
   </script>
-  <script src="app.js?v=force_debug_1"></script>
+  <script src="app.js?v=modal_fix_2"></script>
 
   <script src="mobile-camera.js"></script>
+
+  <!-- Company Detail Modal -->
+  <div id="companyDetailModal" class="modal-overlay">
+    <div class="modal-card modal-lg">
+      <div class="modal-header">
+        <h3 id="compDetailTitle">Personil Aktif Di Lokasi (Live)</h3>
+        <button class="close-btn" onclick="closeCompanyDetail()">×</button>
+      </div>
+      <div class="modal-body" style="padding: 0;">
+        <div id="compDetailList" class="comp-detail-list">
+          <!-- Items injected here -->
+        </div>
+      </div>
+      <div class="modal-footer" style="justify-content: center; padding-top: 12px;">
+        <button class="btn-primary" onclick="closeCompanyDetail()"
+          style="width: 100%; max-width: 120px; border-radius: 20px;">Tutup</button>
+      </div>
+    </div>
+  </div>
+
   <!-- EDIT ATTENDANCE MODAL -->
   <dialog id="modalEditAtt" class="modal">
     <div class="modal-content" style="max-width: 500px;">
@@ -2755,6 +2775,25 @@
       }, 5000); // 5 Seconds max wait
     })();
   </script>
+
+  <!-- Company Detail Modal -->
+  <div id="companyDetailModal" class="modal-overlay">
+    <div class="modal-card modal-lg">
+      <div class="modal-header">
+        <h3 id="compDetailTitle">Personil Aktif Di Lokasi (Live)</h3>
+        <button class="close-btn" onclick="closeCompanyDetail()">×</button>
+      </div>
+      <div class="modal-body" style="padding: 0;">
+        <div id="compDetailList" class="comp-detail-list">
+          <!-- Items injected here -->
+        </div>
+      </div>
+      <div class="modal-footer" style="justify-content: center; padding-top: 12px;">
+        <button class="btn-primary" onclick="closeCompanyDetail()"
+          style="width: 100%; max-width: 120px; border-radius: 20px;">Tutup</button>
+      </div>
+    </div>
+  </div>
 </body>
 
 </html>

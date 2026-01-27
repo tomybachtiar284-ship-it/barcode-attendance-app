@@ -1,4 +1,4 @@
-/* ============================================================================
+﻿/* ============================================================================
    AREA 1: KONFIGURASI ROOT (VARIABLES)
    ========================================================================== */
 :root {
@@ -1632,7 +1632,7 @@ dialog.camdlg::backdrop {
 }
 
 /* =========================
-   FINAL PATCH — DASHBOARD & LIST PANEL
+   FINAL PATCH â€” DASHBOARD & LIST PANEL
    ========================= */
 
 /* 1) Sembunyikan mini calendar lama (tahun & bulan) */
@@ -1695,7 +1695,7 @@ dialog.camdlg::backdrop {
   }
 }
 
-/* 3) Kalender Bulan Ini (month-view) – konsisten */
+/* 3) Kalender Bulan Ini (month-view) â€“ konsisten */
 #monthCalendar {
   --mc-cell-h: 42px;
 }
@@ -1809,7 +1809,7 @@ dialog.camdlg::backdrop {
 }
 
 /* =========================
-   FINAL PATCH — BRAND / LOGO PANEL PERSISTEN
+   FINAL PATCH â€” BRAND / LOGO PANEL PERSISTEN
    (letakkan di paling bawah agar menang melawan style sebelumnya)
    ========================= */
 
@@ -3007,29 +3007,342 @@ h1.page-title {
       padding: 12px;
     }
   }
-}/* MOBILE DASHBOARD NEW */
-.mob-stat-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
-.mob-stat-card { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 12px 4px; text-align: center; border-radius: 16px; background: #fff; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
-.mob-stat-card.stat-red { border-bottom: 3px solid var(--danger); }
-.mob-stat-card.stat-blue { border-bottom: 3px solid var(--primary); }
-.mob-stat-card.stat-gray { border-bottom: 3px solid #64748b; }
-.mob-stat-card .lbl-sm { font-size: 0.7rem; font-weight: 700; color: #64748b; letter-spacing: 0.5px; margin-bottom: 4px; text-transform: uppercase; }
-.mob-stat-card .val { font-size: 1.6rem; font-weight: 800; line-height: 1; margin-bottom: 2px; color: #0f172a; }
-.mob-stat-card .lbl-xs { font-size: 0.7rem; color: #94a3b8; }
+}
+
+/* MOBILE DASHBOARD NEW */
+.mob-stat-grid-3 {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 8px;
+}
+
+.mob-stat-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 4px;
+  text-align: center;
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+.mob-stat-card.stat-red {
+  border-bottom: 3px solid var(--danger);
+}
+
+.mob-stat-card.stat-blue {
+  border-bottom: 3px solid var(--primary);
+}
+
+.mob-stat-card.stat-gray {
+  border-bottom: 3px solid #64748b;
+}
+
+.mob-stat-card .lbl-sm {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #64748b;
+  letter-spacing: 0.5px;
+  margin-bottom: 4px;
+  text-transform: uppercase;
+}
+
+.mob-stat-card .val {
+  font-size: 1.6rem;
+  font-weight: 800;
+  line-height: 1;
+  margin-bottom: 2px;
+  color: #0f172a;
+}
+
+.mob-stat-card .lbl-xs {
+  font-size: 0.7rem;
+  color: #94a3b8;
+}
+
 /* Gauge styles */
-.gauge-simple { position: relative; width: 140px; height: 140px; margin: 0 auto; border-radius: 50%; background: conic-gradient(var(--primary) 0%, #e2e8f0 0%); display: flex; align-items: center; justify-content: center; }
-.gauge-simple::before { content: ''; position: absolute; width: 110px; height: 110px; background: #fff; border-radius: 50%; }
-.gauge-val { position: relative; z-index: 2; font-size: 2rem; font-weight: 800; color: var(--primary); }
+.gauge-simple {
+  position: relative;
+  width: 140px;
+  height: 140px;
+  margin: 0 auto;
+  border-radius: 50%;
+  background: conic-gradient(var(--primary) 0%, #e2e8f0 0%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.gauge-simple::before {
+  content: '';
+  position: absolute;
+  width: 110px;
+  height: 110px;
+  background: #fff;
+  border-radius: 50%;
+}
+
+.gauge-val {
+  position: relative;
+  z-index: 2;
+  font-size: 2rem;
+  font-weight: 800;
+  color: var(--primary);
+}
+
 /* MOBILE DASHBOARD GAUGE FIX */
-.mob-stat-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
-.mob-stat-card { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 12px 4px; text-align: center; border-radius: 16px; background: #fff; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
-.mob-stat-card.stat-red { border-bottom: 3px solid var(--danger); }
-.mob-stat-card.stat-blue { border-bottom: 3px solid var(--primary); }
-.mob-stat-card.stat-gray { border-bottom: 3px solid #64748b; }
-.mob-stat-card .lbl-sm { font-size: 0.7rem; font-weight: 700; color: #64748b; letter-spacing: 0.5px; margin-bottom: 4px; text-transform: uppercase; }
-.mob-stat-card .val { font-size: 1.6rem; font-weight: 800; line-height: 1; margin-bottom: 2px; color: #0f172a; }
-.mob-stat-card .lbl-xs { font-size: 0.7rem; color: #94a3b8; }
-/* Gauge styles for Mobile */
-.gauge-simple { position: relative; width: 140px; height: 140px; margin: 0 auto; border-radius: 50%; background: conic-gradient(var(--primary) 0%, #e2e8f0 0%); display: flex; align-items: center; justify-content: center; }
-.gauge-simple::before { content: ''; position: absolute; width: 110px; height: 110px; background: #fff; border-radius: 50%; }
-.gauge-val { position: relative; z-index: 2; font-size: 2rem; font-weight: 800; color: var(--primary); }
+.mob-stat-grid-3 {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 8px;
+}
+
+.mob-stat-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 4px;
+  text-align: center;
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+/* ============================================================================ 
+   AREA: DATA HOVER INTERACTIONS (Tooltip & Focus)
+   ========================================================================== */
+/* Generic Data Panel Hover Effect */
+[data-hover-card] {
+  position: relative;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  cursor: help;
+}
+
+[data-hover-card="interactive"] {
+  cursor: pointer;
+}
+
+[data-hover-card]:hover {
+  transform: translateY(-4px) scale(1.01);
+  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.15);
+  z-index: 10;
+}
+
+/* Tooltip Implementation using ::after (and ::before for arrow) */
+[data-tooltip] {
+  position: relative;
+}
+
+[data-tooltip]::before,
+[data-tooltip]::after {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  z-index: 9999;
+  visibility: hidden;
+}
+
+/* The arrow */
+[data-tooltip]::before {
+  content: "";
+  border: 6px solid transparent;
+  border-top-color: #1e293b;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%) translateY(4px);
+  margin-bottom: -12px;
+}
+
+/* The body */
+[data-tooltip]::after {
+  content: attr(data-tooltip);
+  background: #1e293b;
+  color: #fff;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  white-space: pre-wrap;
+  /* Critical for newlines */
+  width: max-content;
+  max-width: 260px;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%) translateY(8px);
+  margin-bottom: 8px;
+  text-align: left;
+  /* Critical for readability */
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  line-height: 1.4;
+}
+
+/* Hover State */
+[data-tooltip]:hover::before,
+[data-tooltip]:hover::after {
+  opacity: 1;
+  visibility: visible;
+  transform: translateX(-50%) translateY(0);
+}
+
+
+
+/* ============================================================================ 
+   AREA: MODALS (Generic & Company Detail)
+   ========================================================================== */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.6);
+  z-index: 10000;
+  display: none;
+  /* START HIDDEN */
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(2px);
+}
+
+.modal-overlay.active {
+  display: flex;
+  /* Show flex on active */
+}
+
+.modal-card {
+  background: #fff;
+  width: 90%;
+  max-width: 450px;
+  border-radius: 16px;
+  display: flex;
+  flex-direction: column;
+  max-height: 85vh;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+}
+
+.modal-header {
+  padding: 16px 20px;
+  border-bottom: 1px solid #e2e8f0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.modal-header h3 {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.close-btn {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  color: #64748b;
+  padding: 0 4px;
+}
+
+.modal-body {
+  padding: 0;
+  overflow-y: auto;
+}
+
+.modal-footer {
+  padding: 16px;
+  border-top: 1px solid #e2e8f0;
+  display: flex;
+  justify-content: center;
+}
+
+.btn-primary {
+  background-color: var(--primary, #0f766e);
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  font-weight: 600;
+  cursor: pointer;
+  border-radius: 8px;
+}
+
+/* Company Detail Modal List Styles */
+.comp-detail-list {
+  display: flex;
+  flex-direction: column;
+  max-height: 60vh;
+  overflow-y: auto;
+  padding: 0 16px;
+}
+
+.comp-detail-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 12px 0;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.comp-detail-item:last-child {
+  border-bottom: none;
+}
+
+.comp-detail-left {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.comp-detail-name {
+  font-weight: 700;
+  color: #0f172a;
+  font-size: 0.95rem;
+}
+
+.comp-detail-sub {
+  font-size: 0.75rem;
+  color: #64748b;
+  text-transform: uppercase;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.comp-detail-right {
+  text-align: right;
+  min-width: 60px;
+}
+
+.comp-detail-lbl {
+  font-size: 0.65rem;
+  color: #64748b;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  margin-bottom: 2px;
+}
+
+.comp-detail-time {
+  font-weight: 700;
+  color: #0f172a;
+  font-size: 0.9rem;
+}
+
+/* Scrollbar for modal list */
+.comp-detail-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.comp-detail-list::-webkit-scrollbar-track {
+  background: #f1f5f9;
+}
+
+.comp-detail-list::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 3px;
+}

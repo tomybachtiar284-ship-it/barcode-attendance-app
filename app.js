@@ -1084,16 +1084,18 @@ window.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+
   // ===== Company Presence today (map) =====
   function presentMapToday() {
     const sod = new Date(todayISO() + 'T00:00:00').getTime();
     const todays = attendance.filter(a => a.ts >= sod).sort((a, b) => a.ts - b.ts);
 
     const lastByNid = new Map();
+    // Keep only the latest record for status checking
     todays.forEach(r => lastByNid.set(r.nid, r));
 
     const presentNids = [];
-    lastByNid.forEach((rec, nid) => { if (rec.status === 'datang') presentNids.push(nid); });
+    lastByNid.forEach((rec, nid) => { if (rec.status === 'datang' || rec.status === 'break_in') presentNids.push(nid); });
 
     const totals = {};
     employees.forEach(e => {
@@ -1101,14 +1103,33 @@ window.addEventListener('DOMContentLoaded', () => {
     });
 
     const counts = {};
+    const detailsByComp = {}; // Richer objects for modal
+    const namesByComp = {}; // Keep for legacy/debug
+
     presentNids.forEach(nid => {
       const emp = employees.find(e => e.nid === nid);
       const last = lastByNid.get(nid);
       const comp = (emp?.company || last?.company || '—').trim();
       counts[comp] = (counts[comp] || 0) + 1;
+
+      const compKey = comp;
+      if (!detailsByComp[compKey]) detailsByComp[compKey] = [];
+      if (!namesByComp[compKey]) namesByComp[compKey] = [];
+
+      const name = emp ? emp.name : (last?.name || nid);
+      namesByComp[compKey].push(name);
+
+      detailsByComp[compKey].push({
+        name: name,
+        company: comp,
+        title: emp?.title || 'Employee', // fallback title
+        ts: last.ts,
+        // formatted time
+        timeStr: new Date(last.ts).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }).replace('.', ':')
+      });
     });
 
-    return { counts, totals };
+    return { counts, totals, namesByComp, detailsByComp };
   }
 
   // Live stats renderer for multiple targets
@@ -1163,8 +1184,57 @@ window.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  // --- NEW: Company Detail Modal Logic ---
+  window.openCompanyDetail = function (companyName) {
+    const { detailsByComp } = presentMapToday();
+    const list = detailsByComp[companyName] || [];
+
+    // Sort by time (latest first? or earliest? Screenshot implies numerical list, maybe by arrival?)
+    // Screenshot: 09.42, 09.29... Seems latest first.
+    list.sort((a, b) => b.ts - a.ts);
+
+    const container = $('#compDetailList');
+    if (!container) return;
+
+    if (list.length === 0) {
+      container.innerHTML = `<div style="padding: 20px; text-align: center; color: #64748b;">Tidak ada personil aktif saat ini.</div>`;
+    } else {
+      container.innerHTML = list.map((item, idx) => `
+        <div class="comp-detail-item">
+          <div class="comp-detail-left">
+            <div class="comp-detail-name">${idx + 1}. ${esc(item.name)}</div>
+            <div class="comp-detail-sub">
+              ${esc(item.company)} • ${esc(item.title)}
+            </div>
+          </div>
+          <div class="comp-detail-right">
+            <div class="comp-detail-lbl">MASUK</div>
+            <div class="comp-detail-time">${item.timeStr}</div>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    // Show
+    const modal = $('#companyDetailModal');
+    if (modal) {
+      modal.style.display = 'flex';
+      // Animate?
+      setTimeout(() => modal.classList.add('active'), 10);
+    }
+  };
+
+  window.closeCompanyDetail = function () {
+    const modal = $('#companyDetailModal');
+    if (modal) {
+      modal.classList.remove('active');
+      setTimeout(() => modal.style.display = 'none', 200);
+    }
+  };
+
+
   function renderCompanyPresence() {
-    const { counts, totals } = presentMapToday();
+    const { counts, totals, namesByComp } = presentMapToday();
     const companies = Object.keys(totals);
 
     companies.sort((a, b) => (counts[b] || 0) - (counts[a] || 0));
@@ -1176,9 +1246,11 @@ window.addEventListener('DOMContentLoaded', () => {
       // Logic: if hadir > 0, give it a 'live' class for pulse effect
       const isLive = hadir > 0 ? 'live' : (total === 0 ? 'empty' : '');
 
+      // Removed tooltip logic as requested (user relies on click modal now)
+
       return `
       <div class="company-card ${isLive}" data-company="${esc(c)}"
-           onclick="$('.navlink[data-route=\\'employees\\']').click(); setTimeout(()=>{$('#searchEmployee').value='${esc(c)}'; filterEmployees()}, 300)">
+           onclick="openCompanyDetail('${esc(c)}');">
         <div>
           <div class="name">${esc(c)}</div>
           <div class="sub">${total} Employee(s)</div>
