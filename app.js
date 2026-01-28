@@ -1550,6 +1550,15 @@ window.addEventListener('DOMContentLoaded', () => {
   });
   window.addEventListener('load', () => { $('#scanInput')?.focus(); });
 
+  // Update UI on successful scan
+  window.addEventListener('scan:success', (e) => {
+    // e.detail contains {emp, rec}
+    const { emp, rec } = e.detail;
+    renderScanPreview(emp, rec);
+    renderScanTable(); // Updates both Desktop Table & Mobile Feed
+    renderScanStats(); // Update stats
+  });
+
   let scanMode = 'auto'; // auto, break_out, break_in
 
   // Break Buttons UI Logic
@@ -1652,9 +1661,11 @@ window.addEventListener('DOMContentLoaded', () => {
 
   // Bind Button
   $('#btnCamToggle')?.addEventListener('click', toggleCamera);
+  window.toggleCamera = toggleCamera; // Expose for Mobile Button
 
 
   function handleScan(raw) {
+    window.handleScan = handleScan; // Auto-expose self for external calls
     const parsed = parseRaw(raw); const ts = now(); const emp = findEmp(parsed);
     if (!emp) {
       toast('Karyawan tidak ditemukan di database.');
@@ -1732,6 +1743,9 @@ window.addEventListener('DOMContentLoaded', () => {
     window.dispatchEvent(new Event('attendance:update'));
     renderScanStats();
   }
+
+  // Explicitly expose handleScan to window for mobile-camera.js
+  window.handleScan = handleScan;
 
   // == NEW REPORT: Analisis Izin/Istirahat (Full Page) ==
   function renderAnalysisPage() {

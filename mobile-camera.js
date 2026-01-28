@@ -109,13 +109,51 @@
         }
     };
 
-    // Auto-bind button just in case onclick is missing
-    window.addEventListener('DOMContentLoaded', () => {
-        const btn = document.getElementById('btnCamToggleMob');
-        if (btn) {
-            btn.onclick = window.toggleCamera;
-            console.log('Button re-bound via script');
-        }
-    });
+    // NEW: Bind Manual Submit Button
+    // Use a flag to prevent double-binding if script runs multiple times
+    if (!window._mobSubmitBound) {
+        window.addEventListener('DOMContentLoaded', () => {
+            const btnSubmit = document.getElementById('btnMobSubmit');
+
+            // Auto-bind toggle camera if not bound
+            const btnCam = document.getElementById('btnCamToggleMob');
+            if (btnCam) btnCam.onclick = window.toggleCamera;
+
+            if (btnSubmit) {
+                // Remove old listeners by cloning (nuclear option) to ensure clean slate
+                const newBtn = btnSubmit.cloneNode(true);
+                btnSubmit.parentNode.replaceChild(newBtn, btnSubmit);
+
+                newBtn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+
+                    // Robust retrieval check
+                    let inp = newBtn.parentNode.querySelector('input[type="text"]');
+                    if (!inp) inp = document.getElementById('mobScanInput');
+
+                    if (!inp) return; // Should not happen
+
+                    const val = inp.value.trim();
+                    if (!val) {
+                        inp.focus();
+                        // Use toast instead of alert if available, else alert
+                        if (window.toast) toast('Mohon ketik NID atau Nama.', 'error');
+                        else alert('Mohon ketik NID atau Nama.');
+                        return;
+                    }
+
+                    if (window.handleScan) {
+                        window.handleScan(val);
+                        inp.value = '';
+                        // Note: handleScan in app.js already triggers toasts (Success/Failure)
+                    } else {
+                        alert('System Error: app.js not loaded.');
+                    }
+                });
+            }
+        });
+        window._mobSubmitBound = true;
+    }
 
 })();
