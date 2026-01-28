@@ -141,12 +141,15 @@ body::after {
   inset: 0 auto 0 0;
   width: 280px;
   padding: 24px;
-  background: var(--surface);
-  border-right: 1px solid var(--line);
+  background: url('assets/sidebar-bg-final.png') no-repeat center bottom;
+  background-size: 100% 100%;
+  border-right: none;
+  /* Remove border as image defines edge */
   display: flex;
   flex-direction: column;
   gap: 24px;
   box-shadow: var(--shadow);
+  color: #fff;
 }
 
 .brand {
@@ -174,7 +177,8 @@ body::after {
 }
 
 .brand-sub {
-  color: var(--muted);
+  color: rgba(255, 255, 255, 0.85);
+  /* Light text for dark bg */
   font-size: .9rem
 }
 
@@ -191,7 +195,8 @@ body::after {
   text-align: left;
   padding: 12px 14px;
   border-radius: 12px;
-  color: var(--text);
+  color: #fff;
+  /* White text */
   cursor: pointer;
   background: none;
   border: none;
@@ -199,18 +204,20 @@ body::after {
 }
 
 .navlink:hover {
-  background: var(--primary-100)
+  background: rgba(255, 255, 255, 0.15);
+  /* Glass effect */
 }
 
 .navlink.active {
-  background: var(--primary-200);
+  background: #fff;
   color: var(--primary-700);
-  outline: 1px solid var(--primary-300)
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  outline: none;
 }
 
 .sidebar-footer {
   margin-top: auto;
-  color: var(--muted);
+  color: rgba(255, 255, 255, 0.6);
   font-size: .9rem
 }
 
