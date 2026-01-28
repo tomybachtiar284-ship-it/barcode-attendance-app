@@ -8,7 +8,8 @@ function scheduleDateFor(shiftCode, scanDate) {
     if (!s) return todayISO(); // Fallback
 
     // Logic: If shift is Night (e.g. 23:00 - 07:00), scans until 11:00 AM belong to yesterday's shift
-    if (shiftCode === 'M') {
+    // UPDATED: Use 'C' (Malam) as per App Config
+    if (shiftCode === 'C' || shiftCode === 'M') {
         const h = scanDate.getHours();
         // If scan is before 11:00 AM, it counts as previous day's shift
         if (h < 11) {
@@ -20,70 +21,26 @@ function scheduleDateFor(shiftCode, scanDate) {
     return scanDate.toISOString().slice(0, 10);
 }
 
-function effectiveShiftFor(emp, ts) {
-    const d = new Date(ts);
-    const m = monthKey(d);
-    const dateStr = d.getDate(); // 1-31
+// ... effectiveShiftFor ... 
+// ... shiftWindow ...
+// ... isInWindow ...
 
-    // 1. Check Monthly Schedule
-    if (sched[m] && sched[m][emp.nid]) {
-        const code = sched[m][emp.nid][dateStr - 1]; // Array index 0-based
-        if (code) return code;
-    }
-
-    // 2. Fallback to Default (Pattern based)
-    if (emp.shift) return emp.shift;
-
-    // 3. Fallback General
-    return 'O'; // Office
-}
-
-function shiftWindow(code) {
-    const s = shifts[code];
-    if (!s) return null;
-    // Convert HH:mm to minutes
-    const [sh, sm] = s.start.split(':').map(Number);
-    const [eh, em] = s.end.split(':').map(Number);
-    let start = sh * 60 + sm;
-    let end = eh * 60 + em;
-    if (end < start) end += 24 * 60; // Cross midnight
-    return { start, end };
-}
-
-function isInWindow(nowMin, win) {
-    // Allow -2 hours early + 4 hours late window
-    // e.g. Start 07:00 (420). Window: 05:00 (300) to 11:00 (660).
-    // This logic seems too simple in original code, implementing as per original intent:
-    // "OK" means roughly within shift duration.
-    // Actually original code logic:
-    // const sWin = shiftWindow(effShift);
-    // const inWin = sWin ? isInWindow(minutesOf(ts), sWin) : false;
-    // Let's copy simple logic: strictly inside start-end? Or with tolerance?
-    // Original app.js logic was:
-    /*
-    function isInWindow(m, w) {
-        // Logic: allow check-in 90 mins before start, until end.
-        // allow check-out from start until 180 mins after end.
-        // This function needs context of status (IN/OUT).
-        // But simplifying: just check if 'close enough' to shift.
-    }
-    */
-    // REVISITING ORIGINAL LOGIC: 
-    // The original app.js didn't have complex window logic in `isInWindow`.
-    // It just checked if current minute is within start & end.
-    // Let's implement robust check.
-
-    if (nowMin < win.start - 120) return false; // Too early
-    if (nowMin > win.end + 240) return false;   // Too late (4 hours over)
-    return true;
-}
-
+/* REIMPLEMENTED: Robust Status Toggling for Night Shifts */
 function nextStatusFor(nid) {
-    const sod = new Date(todayISO() + 'T00:00:00').getTime();
-    // Filter ONLY 'datang' and 'pulang' to toggle main shift status
-    // Ignore 'break_out' / 'break_in'
-    const cnt = attendance.filter(a => a.nid === nid && a.ts >= sod && (a.status === 'datang' || a.status === 'pulang')).length;
-    return (cnt % 2 === 0) ? 'datang' : 'pulang';
+    // Look back 20 hours (enough to cover night shift gap but ignore forgotten checkouts from days ago)
+    const limit = new Date().getTime() - (20 * 60 * 60 * 1000); // 20 hours ago
+
+    // Get the very last scan for this user within the limit
+    // We sort DESC by timestamp
+    const last = attendance
+        .filter(a => a.nid === nid && a.ts > limit && (a.status === 'datang' || a.status === 'pulang'))
+        .sort((a, b) => b.ts - a.ts)[0];
+
+    // If no recent history found, assume New Entry -> 'datang'
+    if (!last) return 'datang';
+
+    // Toggle status
+    return (last.status === 'datang') ? 'pulang' : 'datang';
 }
 
 function parseRaw(raw) {
