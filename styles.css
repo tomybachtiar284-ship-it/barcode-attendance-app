@@ -2376,10 +2376,19 @@ h1.page-title {
     height: 100vh;
     z-index: 10002;
     /* Above everything */
-    background: #fff;
-    box-shadow: 4px 0 15px rgba(0, 0, 0, 0.15);
-    padding-top: 20px;
     animation: slideInSidebar 0.3s ease forwards;
+    /* FIX: Sync mobile sidebar background */
+    background: url('assets/sidebar-bg-final.png') no-repeat center bottom !important;
+    background-size: 100% 100% !important;
+  }
+
+  /* FIX: Revert text color to white for dark background */
+  .sidebar.active-mobile .navlink {
+    color: #fff;
+  }
+
+  .sidebar.active-mobile .brand-sub {
+    color: rgba(255, 255, 255, 0.85);
   }
 
   @keyframes slideInSidebar {
