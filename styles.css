@@ -2374,6 +2374,11 @@ h1.page-title {
     left: 0;
     width: 280px;
     height: 100vh;
+    /* Fallback */
+    height: 100dvh;
+    /* FIX: Stable on mobile browsers */
+    bottom: 0;
+    /* Anchor to bottom */
     z-index: 10002;
     /* Above everything */
     animation: slideInSidebar 0.3s ease forwards;
@@ -2382,8 +2387,14 @@ h1.page-title {
     background-size: 100% 100% !important;
   }
 
-  /* FIX: Revert text color to white for dark background */
-  .sidebar.active-mobile .navlink {
+  /* FIX: Pastikan teks menu yg AKTIF berwarna biru (kontras dengan putih) */
+  .sidebar.active-mobile .navlink.active {
+    color: var(--primary-700) !important;
+    background: #fff;
+  }
+
+  /* FIX: Revert text color to white for dark background (yg tidak aktif) */
+  .sidebar.active-mobile .navlink:not(.active) {
     color: #fff;
   }
 
