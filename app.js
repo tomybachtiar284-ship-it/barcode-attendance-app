@@ -29,16 +29,33 @@ window.addEventListener('DOMContentLoaded', () => {
   let employees = load(LS_EMP, []),
     attendance = load(LS_ATT, []),
     shifts = load(LS_SHIFTS, {
-      A: { start: '08:00', end: '16:00' },
-      B: { start: '16:00', end: '24:00' },
-      C: { start: '24:00', end: '07:00' },
-      D: { start: '07:30', end: '15:30' },
+      P: { start: '07:30', end: '15:30' },
+      S: { start: '15:30', end: '23:30' },
+      M: { start: '23:30', end: '07:30' },
       DAYTIME: { start: '07:30', end: '16:00' }
     }),
     news = load(LS_NEWS, []),
     sched = load(LS_SCHED, {});
-  /* Cleanup removed */
-  // if (shifts.D) { delete shifts.D; save(LS_SHIFTS, shifts); }
+
+  // === MIGRATION: Convert old Group-based shift keys (A/B/C/D) to Shift keys (P/S/M) ===
+  (function migrateOldShiftKeys() {
+    const OLD_TO_NEW = { A: 'P', B: 'S', C: 'M', D: 'P' }; // D was same as Pagi
+    let migrated = false;
+    for (const [oldKey, newKey] of Object.entries(OLD_TO_NEW)) {
+      if (shifts[oldKey] && !shifts[newKey]) {
+        shifts[newKey] = shifts[oldKey];
+        delete shifts[oldKey];
+        migrated = true;
+      } else if (shifts[oldKey]) {
+        delete shifts[oldKey]; // Remove old key if new key already exists
+        migrated = true;
+      }
+    }
+    if (migrated) {
+      save(LS_SHIFTS, shifts);
+      console.log('✅ Migrated old shift keys (A/B/C/D) to new keys (P/S/M)');
+    }
+  })();
 
   // FIX: Declare isSyncing here to avoid ReferenceError in pullAll (TDZ)
   let isSyncing = false;
@@ -259,7 +276,7 @@ window.addEventListener('DOMContentLoaded', () => {
     // Map internal shifts object to array of rows
     const rows = Object.entries(shifts).map(([code, val]) => ({
       code: code,
-      label: CODE_TO_LABEL[code] || code, // Use app label or code as fallback
+      label: SHIFT_LABEL?.[code] || code, // Use shift label (Pagi/Sore/Malam)
       start_time: val.start,
       end_time: val.end,
       updated_at: new Date().toISOString()
@@ -532,15 +549,19 @@ window.addEventListener('DOMContentLoaded', () => {
         alert('GAGAL AMBIL SHIFT DARI DB: ' + shErr.message);
       } else if (shRows && shRows.length > 0) {
         const newShifts = { ...shifts };
+        // Migrate old DB keys (A/B/C/D) to new keys (P/S/M)
+        const DB_KEY_MIGRATE = { A: 'P', B: 'S', C: 'M', D: 'P' };
         shRows.forEach(row => {
-          newShifts[row.code] = { start: row.start_time, end: row.end_time };
+          const migratedKey = DB_KEY_MIGRATE[row.code] || row.code;
+          newShifts[migratedKey] = { start: row.start_time, end: row.end_time };
         });
+        // Remove old keys if still present
+        ['A', 'B', 'C', 'D'].forEach(k => delete newShifts[k]);
         shifts = newShifts;
         save(LS_SHIFTS, shifts);
-        // toast(`Sync: ${shRows.length} shift loaded from DB.`);
+        console.log('✅ Shifts loaded from DB:', Object.keys(shifts));
       } else {
-        console.warn('No shifts found in DB?');
-        // alert('PERINGATAN: Tabel Shifts di Database kosong! Memakai default.');
+        console.warn('No shifts found in DB, using defaults.');
       }
 
       // Schedule (current month)
@@ -645,17 +666,34 @@ window.addEventListener('DOMContentLoaded', () => {
   }
   setInterval(tick, 1000); tick();
 
-  // Shift helpers
-  const SHIFT_KEYS = ['A', 'B', 'C', 'D', 'DAYTIME'];
-  const CODE_TO_LABEL = { A: 'P', B: 'S', C: 'M', D: 'D', DAYTIME: 'DAY', OFF: 'L' };
-  const LABEL_TO_CODE = {
-    'a': 'A', 'p': 'A', 'pagi': 'A', 'group a': 'A', 'grup a': 'A',
-    'b': 'B', 's': 'B', 'sore': 'B', 'group b': 'B', 'grup b': 'B',
-    'c': 'C', 'm': 'C', 'malam': 'C', 'group c': 'C', 'grup c': 'C',
-    'd': 'D', 'shift d': 'D', 'group d': 'D', 'grup d': 'D',
-    'day': 'DAYTIME', 'daytime': 'DAYTIME', 'siang': 'DAYTIME', 'group daytime': 'DAYTIME', 'grup daytime': 'DAYTIME',
+  // === Shift & Group helpers ===
+  // SHIFT_KEYS = kode shift (jam kerja)
+  const SHIFT_KEYS = ['P', 'S', 'M', 'DAYTIME'];
+  // GROUP_KEYS = kode grup (rotasi karyawan)
+  const GROUP_KEYS = ['A', 'B', 'C', 'D', 'DAYTIME'];
+  // Label untuk tampilan UI
+  const SHIFT_LABEL = { P: 'Pagi', S: 'Sore', M: 'Malam', DAYTIME: 'Daytime', OFF: 'Libur', L: 'Libur' };
+  const GROUP_LABEL = { A: 'Grup A', B: 'Grup B', C: 'Grup C', D: 'Grup D', DAYTIME: 'Grup Daytime' };
+  // Backward compat: CODE_TO_LABEL maps group→shift label (for old data/display)
+  const CODE_TO_LABEL = { A: 'Grup A', B: 'Grup B', C: 'Grup C', D: 'Grup D', DAYTIME: 'Grup Daytime', OFF: 'Libur' };
+  // Normalize scheduler cell values to shift codes
+  const NORMALIZE_SHIFT = {
+    'p': 'P', 'pagi': 'P', 'shift pagi': 'P',
+    's': 'S', 'sore': 'S', 'shift sore': 'S',
+    'm': 'M', 'malam': 'M', 'shift malam': 'M',
+    'day': 'DAYTIME', 'daytime': 'DAYTIME', 'siang': 'DAYTIME',
     'off': 'OFF', 'l': 'OFF', 'libur': 'OFF'
   };
+  // Normalize group input values
+  const NORMALIZE_GROUP = {
+    'a': 'A', 'group a': 'A', 'grup a': 'A',
+    'b': 'B', 'group b': 'B', 'grup b': 'B',
+    'c': 'C', 'group c': 'C', 'grup c': 'C',
+    'd': 'D', 'group d': 'D', 'grup d': 'D',
+    'daytime': 'DAYTIME', 'day': 'DAYTIME', 'group daytime': 'DAYTIME', 'grup daytime': 'DAYTIME'
+  };
+  // BACKCOMPAT: keep LABEL_TO_CODE for old references but redirect to NORMALIZE_SHIFT
+  const LABEL_TO_CODE = NORMALIZE_SHIFT;
   function normalizeTime(s) {
     s = String(s || '').trim(); if (!s) return '';
     s = s.replace(/[.,\-h ]/g, ':');
@@ -674,26 +712,30 @@ window.addEventListener('DOMContentLoaded', () => {
   function effectiveShiftFor(emp, date) {
     if (!emp || !emp.shift) return null;
 
-    // 1. Normalize Group Name to Shift Code (e.g. 'Group A' -> 'A')
+    // 1. Normalize Group Name (emp.shift stores the GROUP code)
     let group = emp.shift;
-    const groupAlias = LABEL_TO_CODE[group.toLowerCase()];
+    const groupAlias = NORMALIZE_GROUP[group.toLowerCase()];
     if (groupAlias) group = groupAlias;
 
     // 2. Check Monthly Schedule (Jadwal Bulanan)
-    // The schedule is stored by Internal Code (A, B, C, D, DAYTIME)
+    // Schedule: sched[monthKey][groupCode][day] = Shift Code (P/S/M/DAYTIME/L)
     const id = monthKey(date), day = date.getDate();
     const dailyCode = sched[id]?.[group]?.[day];
 
     if (dailyCode) {
-      if (dailyCode === 'L' || dailyCode === 'OFF') return 'OFF';
-      // Normalize cell value (e.g. 'DAY' -> 'DAYTIME', 'P' -> 'A')
-      const valAlias = LABEL_TO_CODE[dailyCode.toLowerCase()];
-      return valAlias || dailyCode;
+      if (dailyCode === 'L' || dailyCode === 'OFF' || dailyCode.toLowerCase() === 'libur') return 'OFF';
+      // Normalize cell value to standard shift code (P/S/M/DAYTIME)
+      const normalized = NORMALIZE_SHIFT[dailyCode.toLowerCase()];
+      const shiftCode = normalized || dailyCode.toUpperCase();
+      // Verify it's a valid shift code
+      if (shifts[shiftCode]) return shiftCode;
+      return shiftCode; // Return as-is even if not found (fallback)
     }
 
-    // 3. Fallback: If no schedule entry, assume the Group Code itself is the Shift
-    // (e.g. Group A works Shift A by default, unless overriden)
-    if (shifts[group]) return group;
+    // 3. Fallback: No schedule entry → default mapping by Group
+    const DEFAULT_GROUP_SHIFT = { A: 'P', B: 'S', C: 'M', D: 'P', DAYTIME: 'DAYTIME' };
+    const defaultShift = DEFAULT_GROUP_SHIFT[group];
+    if (defaultShift && shifts[defaultShift]) return defaultShift;
 
     return 'OFF';
   }
@@ -725,15 +767,21 @@ window.addEventListener('DOMContentLoaded', () => {
     return m >= win.start || m < win.end;
   }
 
-  function groupsScheduled(code, dateFor) {
+  function groupsScheduled(shiftCode, dateFor) {
     const id = monthKey(dateFor); const day = dateFor.getDate(); const out = [];
-    SHIFT_KEYS.forEach(g => { if ((sched[id]?.[g]?.[day] || '') === code) out.push(g); });
+    // Iterate over GROUP_KEYS, check which groups are scheduled for this shiftCode
+    GROUP_KEYS.forEach(g => {
+      const cellVal = sched[id]?.[g]?.[day] || '';
+      const normalized = NORMALIZE_SHIFT[cellVal.toLowerCase()] || cellVal.toUpperCase();
+      if (normalized === shiftCode) out.push(g);
+    });
     return out;
   }
 
   function activeShiftsNow() {
     const n = new Date(); const m = minutesOf(n); const arr = [];
-    ['A', 'B', 'C', 'D', 'DAYTIME'].forEach(code => {
+    // Iterate over SHIFT codes (P, S, M, DAYTIME), not Group codes
+    SHIFT_KEYS.forEach(code => {
       const win = shiftWindow(code); if (!win) return;
       if (isInWindow(m, win)) { const df = scheduleDateFor(code, n); const gs = groupsScheduled(code, df); if (gs.length) arr.push({ code, groups: gs, win }); }
     });
@@ -745,10 +793,9 @@ window.addEventListener('DOMContentLoaded', () => {
     const emptyMsg = `<div class="muted" style="font-size:0.9rem">Tidak ada shift berjalan saat ini.</div>`;
 
     const CODE_FULL = {
-      A: 'Pagi (P)',
-      B: 'Sore (S)',
-      C: 'Malam (M)',
-      D: 'Shift D (D)',
+      P: 'Pagi (P)',
+      S: 'Sore (S)',
+      M: 'Malam (M)',
       DAYTIME: 'Daytime (DAY)'
     };
 
@@ -791,20 +838,17 @@ window.addEventListener('DOMContentLoaded', () => {
 
     employees.forEach(e => {
       // Filter 1: Strictly DAYTIME shift only.
-      // Note: Shift 'A', 'B', 'C', 'D' are EXCLUDED.
-      // We check `effectiveShiftFor` or just `e.shift`?
-      // User said "Shift A, B, C, D tidak berlaku". "Daytime" only.
-      // Assuming 'DAYTIME' code is 'DAYTIME' or mapped.
-
+      // Overtime only applies to Daytime employees.
+      // emp.shift stores GROUP code (A/B/C/D/DAYTIME), not shift code
       let isDaytime = (e.shift === 'DAYTIME') || (e.shift && e.shift.toLowerCase().includes('day'));
 
       const effCode = effectiveShiftFor(e, t);
 
-      // FIX: If effectiveShiftFor returns OFF/null (missing schedule) but static shift IS Daytime, force generic Daytime.
+      // FIX: If effectiveShiftFor returns OFF/null (missing schedule) but employee IS Daytime, force generic Daytime.
       if ((!effCode || effCode === 'OFF') && isDaytime) {
         // Keep isDaytime = true
       } else if (effCode !== 'DAYTIME') {
-        // If explicitly scheduled for something else (A,B,C), then reject.
+        // If explicitly scheduled for something else (P, S, M), then reject.
         isDaytime = false;
       }
 
@@ -1693,9 +1737,8 @@ window.addEventListener('DOMContentLoaded', () => {
       yesterday.setDate(yesterday.getDate() - 1);
       const shiftYesterday = effectiveShiftFor(emp, yesterday);
 
-      // Robust Check: Is yesterday Shift C? OR is their default group C?
-      // And allow Checkout until 18:00 (covers extreme overtime or double shift)
-      const likelyNightShift = shiftYesterday === 'C' || (shiftYesterday === 'OFF' && emp.shift === 'C');
+      // Robust Check: Is yesterday Shift Malam (M)?
+      const likelyNightShift = shiftYesterday === 'M';
 
       if (likelyNightShift && ts.getHours() < 18) {
         // Check last attendance record globally (ignore "today" restriction)
@@ -1703,11 +1746,10 @@ window.addEventListener('DOMContentLoaded', () => {
 
         if (lastRec && lastRec.status === 'datang') {
           // They are currently IN from yesterday. This MUST be a checkout.
-          // Logic Check: Is the last record from within reasonable time? (e.g. < 24h)
           if (ts.getTime() - lastRec.ts < 24 * 3600 * 1000) {
             status = 'pulang';
-            effShift = 'C'; // Force shift to be Yesterday's Shift C
-            noteOverride = 'Pulang Shift C (Context Aware)';
+            effShift = 'M'; // Force shift to be Night Shift
+            noteOverride = 'Pulang Shift Malam (Context Aware)';
             console.log('Context-Aware: Detected Night Shift Checkout for', emp.name);
           }
         }
@@ -2044,7 +2086,7 @@ window.addEventListener('DOMContentLoaded', () => {
                 <th data-i18n="table_nid">NID</th>
                 <th data-i18n="table_name">Nama</th>
                 <th data-i18n="col_job">Jabatan</th>
-                <th data-i18n="table_shift">Shift</th>
+                <th data-i18n="table_shift">Grup</th>
                 <th style="text-align:right" data-i18n="table_action">Aksi</th>
               </tr>
             </thead>
@@ -2058,7 +2100,7 @@ window.addEventListener('DOMContentLoaded', () => {
             <td data-label="NID">${e.nid}</td>
             <td data-label="Nama">${e.name}</td>
             <td data-label="Jabatan">${e.title}</td>
-            <td data-label="Shift"><span style="background:var(--surface-2); padding:4px 8px; border-radius:6px; font-size:0.85rem; font-weight:600; color:var(--primary-700)">Group ${e.shift || '-'}</span></td>
+            <td data-label="Grup"><span style="background:var(--surface-2); padding:4px 8px; border-radius:6px; font-size:0.85rem; font-weight:600; color:var(--primary-700)">Grup ${e.shift || '-'}</span></td>
             <td data-label="Aksi">
               <div style="display:flex; justify-content:flex-end; gap:6px;">
                 <button class='btn small' data-act='view' data-id='${e.nid}' title="Lihat Detail" style="padding:4px;width:28px;height:28px;display:grid;place-items:center;">👁️</button>
@@ -2256,7 +2298,7 @@ window.addEventListener('DOMContentLoaded', () => {
       Nama: e.name,
       Jabatan: e.title,
       Perusahaan: e.company,
-      Shift: e.shift
+      Grup: e.shift // emp.shift stores GROUP code (A/B/C/D/DAYTIME)
     }));
 
     // Create Worksheet
@@ -2526,10 +2568,10 @@ window.addEventListener('DOMContentLoaded', () => {
     return { pagi, sore, malam, shiftd, day };
   }
   function renderShiftForm() {
-    const pagi = shifts.A || { start: '08:00', end: '16:00' };
-    const sore = shifts.B || { start: '16:00', end: '24:00' };
-    const malam = shifts.C || { start: '24:00', end: '07:00' };
-    /* shiftd removed */
+    // FIX: Read from Shift keys (P/S/M), not Group keys (A/B/C)
+    const pagi = shifts.P || { start: '07:30', end: '15:30' };
+    const sore = shifts.S || { start: '15:30', end: '23:30' };
+    const malam = shifts.M || { start: '23:30', end: '07:30' };
 
     $('#shiftPagiStart') && ($('#shiftPagiStart').value = pagi.start);
     $('#shiftPagiEnd') && ($('#shiftPagiEnd').value = pagi.end);
@@ -2538,30 +2580,17 @@ window.addEventListener('DOMContentLoaded', () => {
     $('#shiftMalamStart') && ($('#shiftMalamStart').value = malam.start);
     $('#shiftMalamEnd') && ($('#shiftMalamEnd').value = malam.end);
 
-    // Map D/Daytime to the same input
-    $('#shiftDStart').value = shifts.D?.start || '07:30';
-    $('#shiftDEnd').value = shifts.D?.end || '15:30';
-
-    $('#shiftDayStart').value = shifts.DAYTIME?.start || '07:30';
-    $('#shiftDayEnd').value = shifts.DAYTIME?.end || '16:00';
-
-    // Compat selectors just in case
-    $('#shiftAStart') && ($('#shiftAStart').value = pagi.start);
-    $('#shiftAEnd') && ($('#shiftAEnd').value = pagi.end);
-    $('#shiftBStart') && ($('#shiftBStart').value = sore.start);
-    $('#shiftBEnd') && ($('#shiftBEnd').value = sore.end);
-    $('#shiftCStart') && ($('#shiftCStart').value = malam.start);
-    $('#shiftCEnd') && ($('#shiftCEnd').value = malam.end);
+    $('#shiftDayStart') && ($('#shiftDayStart').value = shifts.DAYTIME?.start || '07:30');
+    $('#shiftDayEnd') && ($('#shiftDayEnd').value = shifts.DAYTIME?.end || '16:00');
   }
   $('#btnSaveShift')?.addEventListener('click', async () => {
     const btn = $('#btnSaveShift');
     const { pagi, sore, malam, day } = getShiftInputs();
+    // FIX: Save with Shift keys (P/S/M/DAYTIME), not Group keys (A/B/C/D)
     shifts = {
-      A: { start: normalizeTime(pagi.start), end: normalizeTime(pagi.end) },
-      B: { start: normalizeTime(sore.start), end: normalizeTime(sore.end) },
-      C: { start: normalizeTime(malam.start), end: normalizeTime(malam.end) },
-      // Automatically sync D to match DAYTIME (since D is just the group using Daytime hours)
-      D: { start: normalizeTime(day.start), end: normalizeTime(day.end) },
+      P: { start: normalizeTime(pagi.start), end: normalizeTime(pagi.end) },
+      S: { start: normalizeTime(sore.start), end: normalizeTime(sore.end) },
+      M: { start: normalizeTime(malam.start), end: normalizeTime(malam.end) },
       DAYTIME: { start: normalizeTime(day.start), end: normalizeTime(day.end) }
     };
     save(LS_SHIFTS, shifts); syncGlobals();
@@ -2839,7 +2868,7 @@ window.addEventListener('DOMContentLoaded', () => {
         $('#editAttNid').value = emp.nid;
         $('#editAttTitle').value = emp.title || '';
         $('#editAttCompany').value = emp.company || '';
-        $('#editAttShift').value = emp.shift || 'A';
+        $('#editAttShift').value = emp.shift || 'A'; // emp.shift stores GROUP code
       }
     };
 
@@ -3027,11 +3056,20 @@ window.addEventListener('DOMContentLoaded', () => {
     const [yy, mm] = id.split('-').map(Number); const dim = daysIn(yy, mm - 1);
     ensureMonth(id);
     const head = [...Array(dim)].map((_, i) => { const d = new Date(yy, mm - 1, i + 1); const wd = d.toLocaleDateString('id-ID', { weekday: 'short' }); return `<th>${i + 1}<br><small>${wd}</small></th>`; }).join('');
-    host.innerHTML = `<thead><tr><th style="min-width:80px">Shift</th>${head}</tr></thead><tbody></tbody>`;
+    host.innerHTML = `<thead><tr><th style="min-width:80px">Grup</th>${head}</tr></thead><tbody></tbody>`;
     const tb = host.querySelector('tbody');
-    const opts = Object.entries(CODE_TO_LABEL).filter(([c]) => c !== 'D').map(([code, label]) => `<option value="${code}">${label}</option>`).join('');
+    // Dropdown options = shift assignments (Pagi, Sore, Malam, Libur, Daytime)
+    const SCHED_OPTIONS = [
+      { code: 'P', label: 'Pagi' },
+      { code: 'S', label: 'Sore' },
+      { code: 'M', label: 'Malam' },
+      { code: 'OFF', label: 'Libur' },
+      { code: 'DAYTIME', label: 'Daytime' }
+    ];
+    const opts = SCHED_OPTIONS.map(o => `<option value="${o.code}">${o.label}</option>`).join('');
     const optsHtml = `<option value="">—</option>${opts}`;
-    SHIFT_KEYS.forEach(groupName => {
+    // Rows = Groups (A, B, C, D, DAYTIME)
+    GROUP_KEYS.forEach(groupName => {
       const tr = document.createElement('tr');
       let cells = `<td><b>${esc(groupName)}</b></td>`;
       for (let d = 1; d <= dim; d++) {
@@ -3088,7 +3126,7 @@ window.addEventListener('DOMContentLoaded', () => {
   });
   $('#btnSchedDownload')?.addEventListener('click', () => {
     const id = $('#schedMonth').value || monthKey(new Date()); const [yy, mm] = id.split('-').map(Number); const dim = daysIn(yy, mm - 1); ensureMonth(id);
-    const rows = SHIFT_KEYS.map(group => {
+    const rows = GROUP_KEYS.map(group => {
       const row = { Grup: group };
       for (let d = 1; d <= dim; d++) {
         const code = sched[id]?.[group]?.[d] || '';
@@ -3109,7 +3147,7 @@ window.addEventListener('DOMContentLoaded', () => {
     let applied = 0;
     rows.forEach(r => {
       const group = String(r.Grup || r.grup || '').trim();
-      if (!group || !SHIFT_KEYS.includes(group)) return;
+      if (!group || !GROUP_KEYS.includes(group)) return;
       if (!sched[id][group]) sched[id][group] = {};
       for (let d = 1; d <= dim; d++) {
         let v = String(r['D' + d] || '').trim(); if (!v) { delete sched[id][group][d]; continue; }
@@ -4334,7 +4372,9 @@ window.addEventListener('DOMContentLoaded', function initOvertimeReport() {
 /* =========================================
    INVENTORY (KELUAR MASUK BARANG) LOGIC
    ========================================= */
-let inventoryData = getLocal('SA_INVENTORY', []);
+// FIX: Changed let → var to avoid "Identifier already declared" SyntaxError
+// (var is re-declarable in the same scope, let is not)
+var inventoryData = getLocal('SA_INVENTORY', []);
 
 function getLocal(key, fallback) {
   try {
@@ -5358,15 +5398,11 @@ function showEmployeeDetail(emp) {
   document.getElementById('vNid').textContent = emp.nid || '-';
   document.getElementById('vTitle').textContent = emp.title || '-';
 
-  // Safe Shift Label (Scope protection)
+  // Safe Group Label (emp.shift stores group code)
   let sLabel = emp.shift;
-  if (typeof CODE_TO_LABEL !== 'undefined' && CODE_TO_LABEL[emp.shift]) {
-    sLabel = CODE_TO_LABEL[emp.shift];
-  } else {
-    const localMap = { A: 'Group A', B: 'Group B', C: 'Group C', D: 'Group D', DAYTIME: 'Daytime', OFF: 'Libur' };
-    sLabel = localMap[emp.shift] || emp.shift;
-  }
-  document.getElementById('vShift').textContent = sLabel || '-';
+  const groupLabelMap = { A: 'Grup A', B: 'Grup B', C: 'Grup C', D: 'Grup D', DAYTIME: 'Grup Daytime' };
+  sLabel = groupLabelMap[emp.shift] || emp.shift || '-';
+  document.getElementById('vShift').textContent = sLabel;
 
   document.getElementById('vCompany').textContent = emp.company || '-';
 
