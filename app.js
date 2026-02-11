@@ -1708,6 +1708,22 @@ window.addEventListener('DOMContentLoaded', () => {
   window.toggleCamera = toggleCamera; // Expose for Mobile Button
 
 
+  // HELPER: Centralized Late Logic (Phase 3)
+  function calculateLateStatus(emp, ts, shiftCode) {
+    if (!shiftCode || shiftCode === 'OFF') return false;
+    const sDef = (window.shifts && window.shifts[shiftCode]) ? window.shifts[shiftCode] : null;
+    if (!sDef || !sDef.start) return false;
+
+    // Construct Start Time for the Shift Day
+    const baseDay = scheduleDateFor(shiftCode, new Date(ts));
+    const [sh, sm] = sDef.start.split(':').map(Number);
+    const shiftStart = new Date(baseDay);
+    shiftStart.setHours(sh, sm, 0, 0);
+
+    // Tolerance 5 Minutes
+    return ts >= (shiftStart.getTime() + 5 * 60 * 1000);
+  }
+
   function handleScan(raw) {
     window.handleScan = handleScan; // Auto-expose self for external calls
     const parsed = parseRaw(raw); const ts = now(); const emp = findEmp(parsed);
@@ -1760,11 +1776,10 @@ window.addEventListener('DOMContentLoaded', () => {
     const inWin = sWin ? isInWindow(minutesOf(ts), sWin) : false;
 
     // === Late calc yang akurat (berdasarkan tanggal basis shift) ===
+    // === Late calc yang akurat (berdasarkan tanggal basis shift) ===
     let late = false;
     if (effShift !== 'OFF' && status === 'datang' && sWin) {
-      const baseDay = scheduleDateFor(effShift, ts);
-      const startDate = toDateFromHM(baseDay, shifts[effShift]?.start || '00:00');
-      late = ts.getTime() >= (startDate.getTime() + 5 * 60 * 1000);
+      late = calculateLateStatus(emp, ts.getTime(), effShift);
     }
 
     // Reset mode back to auto after scan
@@ -2670,18 +2685,20 @@ window.addEventListener('DOMContentLoaded', () => {
         employees.forEach(e => {
           // 1. Filter Check
           if (q && !(e.name + ' ' + e.nid + ' ' + (e.company || '')).toLowerCase().includes(q)) return;
-          // 1. Filter Check
+          // 1. Filter Check (Name/Company)
           if (q && !(e.name + ' ' + e.nid + ' ' + (e.company || '')).toLowerCase().includes(q)) return;
-          if (gr && e.shift !== gr) return;
-          if (co && (e.company || '').trim() !== co) return; // check company
+          if (co && (e.company || '').trim() !== co) return;
+
+          // 2. Schedule Check (First)
+          const checkDate = new Date(loop); checkDate.setHours(12, 0, 0, 0);
+          const code = window.effectiveShiftFor ? window.effectiveShiftFor(e, checkDate) : e.shift;
+
+          // 3. Filter Check (Group - Standardized)
+          if (gr && code !== gr) return;
 
           // 2. Presence Check
+          // 4. Presence Check & Off Check
           if (presenceMap.has(`${e.nid}|${dateKey}`)) return;
-
-          // 3. Schedule Check (noon to avoid boundary issues)
-          const checkDate = new Date(loop); checkDate.setHours(12, 0, 0, 0);
-          const code = effectiveShiftFor(e, checkDate);
-
           if (!code || code === 'OFF') return;
 
           // 4. Create Ghost Record
@@ -2716,11 +2733,13 @@ window.addEventListener('DOMContentLoaded', () => {
         if (!(a.name + ' ' + a.nid).toLowerCase().includes(q)) return false;
       }
 
-      // 3. Check Group
-      // 3. Check Group
+      // 3. Check Group (Standardized)
       if (gr) {
         const emp = employees.find(e => e.nid === a.nid);
-        if (!emp || emp.shift !== gr) return false;
+        if (!emp) return false;
+        // Use effective shift for the date of attendance
+        const eff = window.effectiveShiftFor ? window.effectiveShiftFor(emp, new Date(a.ts)) : emp.shift;
+        if (eff !== gr) return false;
       }
 
       // 4. Check Company
@@ -2734,12 +2753,26 @@ window.addEventListener('DOMContentLoaded', () => {
 
       // 4. Check Status
       if (st) {
-        if (st === 'LATE') return !!a.late;
-        if (st === 'ONTIME') return a.status === 'datang' && !a.late;
+        if (st === 'LATE') {
+          // Retroactive Late Check
+          const emp = employees.find(e => e.nid === a.nid);
+          const eff = emp ? (window.effectiveShiftFor ? window.effectiveShiftFor(emp, new Date(a.ts)) : emp.shift) : a.shift;
+          return a.status === 'datang' && calculateLateStatus(emp, a.ts, eff);
+        }
+        if (st === 'ONTIME') {
+          const emp = employees.find(e => e.nid === a.nid);
+          const eff = emp ? (window.effectiveShiftFor ? window.effectiveShiftFor(emp, new Date(a.ts)) : emp.shift) : a.shift;
+          return a.status === 'datang' && !calculateLateStatus(emp, a.ts, eff);
+        }
         // Note: UNKNOWN handled above
         if (st === 'OVERTIME') {
           if (a.status !== 'pulang') return false;
-          const sDef = shfs[a.shift];
+
+          // Use effective shift to get correct end time
+          const emp = employees.find(e => e.nid === a.nid);
+          const eff = emp ? (window.effectiveShiftFor ? window.effectiveShiftFor(emp, new Date(a.ts)) : emp.shift) : a.shift;
+          const sDef = shfs[eff];
+
           if (!sDef || !sDef.end) return false;
           const d = new Date(a.ts);
           const scanMins = d.getHours() * 60 + d.getMinutes();
@@ -2798,6 +2831,9 @@ window.addEventListener('DOMContentLoaded', () => {
   $('#attStatusFilter')?.addEventListener('change', filterAttendance);
   $('#attFrom')?.addEventListener('change', filterAttendance);
   $('#attTo')?.addEventListener('change', filterAttendance);
+
+  // Expose for debugging/testing
+  window.getFilteredAttendanceRows = getFilteredAttendanceRows;
 
   $('#tableAtt tbody')?.addEventListener('click', (e) => {
     const btn = e.target.closest('button'); if (!btn) return;
@@ -3898,10 +3934,67 @@ window.addEventListener('DOMContentLoaded', function initOvertimeReport() {
     elComp.addEventListener('mousedown', populateCompDropdown);
   }
 
+  // --- NEW: Populate Name Filter (Daytime Only + Sync with Company) ---
+  const elName = document.getElementById('otRepName');
+
+  function populateNameDropdown() {
+    if (!elName || !window.employees) return;
+
+    // Save current selection to restore if possible
+    const currentVal = elName.value;
+
+    // Clear existing options (keep default)
+    elName.innerHTML = '<option value="">Semua Karyawan</option>';
+
+    // Get selected company
+    const selComp = elComp ? elComp.value : '';
+
+    // Filter: Daytime Only AND (Company match if selected)
+    const dayUsers = window.employees.filter(e => {
+      const isDay = (e.shift === 'DAYTIME') || (e.shift && e.shift.toLowerCase().includes('day'));
+      if (!isDay) return false;
+
+      if (selComp && (e.company || '').trim() !== selComp) return false;
+      return true;
+    }).sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+
+    dayUsers.forEach(e => {
+      const opt = document.createElement('option');
+      opt.value = e.name;
+      opt.textContent = `${e.name}`;
+      elName.appendChild(opt);
+    });
+
+    // Restore selection if it still exists in the new list
+    // Otherwise, it naturally falls back to "" (Semua)
+    if (currentVal && Array.from(elName.options).some(o => o.value === currentVal)) {
+      elName.value = currentVal;
+    }
+  }
+
+  // Initial Populate
+  populateNameDropdown();
+
+  if (elName) {
+    elName.addEventListener('focus', populateNameDropdown);
+    // elName.addEventListener('mousedown', populateNameDropdown); // Remove mousedown to avoid flicker
+  }
+
+  // SYNC: When Company changes, update Name list
+  if (elComp) {
+    elComp.addEventListener('change', () => {
+      populateNameDropdown();
+      // Reset name selection to 'All' when company changes (UX best practice)
+      elName.value = '';
+    });
+  }
+
+
   function getOtReportData() {
     const dStart = new Date(document.getElementById('otRepStart').value + 'T00:00:00');
     const dEnd = new Date(document.getElementById('otRepEnd').value + 'T23:59:59');
     const fComp = document.getElementById('otRepCompany')?.value || '';
+    const fName = document.getElementById('otRepName')?.value || '';
 
     // Cache employees
     const empMap = new Map((window.employees || []).map(e => [e.nid, e]));
@@ -3931,7 +4024,8 @@ window.addEventListener('DOMContentLoaded', function initOvertimeReport() {
     const results = [];
 
     Object.values(records).forEach(rec => {
-      if (!rec.datang || !rec.pulang) return; // Must have In and Out
+      // FIX: Allow partial records. We check for valid Out time later (Smart Logic)
+      // if (!rec.pulang) return;
 
       const e = empMap.get(rec.nid);
       if (!e) return;
@@ -3939,16 +4033,22 @@ window.addEventListener('DOMContentLoaded', function initOvertimeReport() {
       // Filter Company
       if (fComp && (e.company || '').trim() !== fComp) return;
 
-      // --- LOGIC FILTER STRICT DAYTIME (REUSED) ---
-      const tDate = new Date(rec.datang);
-      const effCode = window.effectiveShiftFor ? window.effectiveShiftFor(e, tDate) : null;
-      // Fallback Logic
-      let isDaytime = (e.shift === 'DAYTIME') || (e.shift && e.shift.toLowerCase().includes('day'));
+      // Filter Name (New)
+      if (fName && e.name !== fName) return;
 
-      if ((!effCode || effCode === 'OFF') && isDaytime) {
-        // Keep trusted static
-      } else if (effCode !== 'DAYTIME') {
-        isDaytime = false;
+      // --- LOGIC FILTER STRICT DAYTIME (REUSED) ---
+      // Fix: Use rec.date because rec.datang might be missing
+      const tDate = new Date(rec.date + 'T12:00:00'); // Use noon to avoid timezone issues
+      const effCode = window.effectiveShiftFor ? window.effectiveShiftFor(e, tDate) : null;
+      // Fallback Logic: Check if shift string contains 'day' (e.g. "DAYTIME", "Grup Daytime")
+      // User Request: STRICTLY "Grup Daytime" / "Daytime" only.
+      let shiftStr = (e.shift || '').toLowerCase();
+      let isDaytime = shiftStr.includes('day');
+
+      // Trust effective shift if available and specific
+      if (effCode && effCode !== 'OFF' && effCode !== 'DAYTIME') {
+        // If effective shift is NOT Daytime (e.g. 'Malam'), exclude.
+        if (!effCode.toLowerCase().includes('day')) isDaytime = false;
       }
 
       if (!isDaytime) return;
@@ -3959,11 +4059,23 @@ window.addEventListener('DOMContentLoaded', function initOvertimeReport() {
       const s = (window.shifts && window.shifts.DAYTIME) ? window.shifts.DAYTIME : { end: '16:00' };
       const [eh, em] = s.end.split(':').map(Number);
 
-      const schedEnd = new Date(rec.datang); // Base on Scan In Date
-      schedEnd.setHours(eh, em, 0, 0);
+      const schedEnd = new Date(`${rec.date}T${s.end}:00`); // Base on Date + Shift End
+      // schedEnd.setHours(eh, em, 0, 0); // Already set by string construction
 
-      if (rec.pulang > schedEnd.getTime()) {
-        const diffMs = rec.pulang - schedEnd.getTime();
+      let actualOutTs = rec.pulang;
+      let noteSuffix = '';
+
+      // PHASE 1.5: Smart Detection (Lupa Scan Pagi)
+      // If no Pulang, check if Datang is actually a late Pulang (after Shift End)
+      if (!actualOutTs && rec.datang && rec.datang > schedEnd.getTime()) {
+        actualOutTs = rec.datang;
+        noteSuffix = ' (Salah Scan Masuk)';
+      }
+
+      if (!actualOutTs) return; // Must have a valid Out time (Real or Smart Detected)
+
+      if (actualOutTs > schedEnd.getTime()) {
+        const diffMs = actualOutTs - schedEnd.getTime();
         // Threshold check (e.g. 1 min)
         if (diffMs > 60000) {
           const hours = Math.floor(diffMs / 3600000);
@@ -3974,9 +4086,9 @@ window.addEventListener('DOMContentLoaded', function initOvertimeReport() {
             nid: rec.nid,
             name: e.name,
             shiftEnd: s.end,
-            actualOut: new Date(rec.pulang).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
+            actualOut: new Date(actualOutTs).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
             durationMs: diffMs,
-            desc: `${hours}h ${mins}m`
+            desc: `${hours}h ${mins}m${noteSuffix}`
           });
         }
       }
@@ -3992,40 +4104,64 @@ window.addEventListener('DOMContentLoaded', function initOvertimeReport() {
   }
 
   function renderReport() {
-    const list = getOtReportData();
-    const tbody = document.querySelector('#tableOtReport tbody');
-    if (!tbody) return;
+    const btn = document.getElementById('btnGenOtReport');
+    const originalText = btn ? btn.innerHTML : 'Tampilkan Laporan';
 
-    tbody.innerHTML = '';
-
-    let totalEmp = new Set();
-    let totalMs = 0;
-
-    list.forEach(r => {
-      totalEmp.add(r.nid);
-      totalMs += r.durationMs;
-
-      const tr = document.createElement('tr');
-      tr.innerHTML = `
-        <td>${r.date}</td>
-        <td><b style="color:var(--primary-700)">${r.name}</b><br><small class="muted">${r.nid}</small></td>
-        <td>DAYTIME (${r.shiftEnd})</td>
-        <td>${r.actualOut}</td>
-        <td><span class="badgess green">${r.desc}</span></td>
-        <td>Lembur Harian</td>
-      `;
-      tbody.appendChild(tr);
-    });
-
-    // Summary
-    document.getElementById('otRepTotalEmp').textContent = totalEmp.size + ' Org';
-    const h = Math.floor(totalMs / 3600000);
-    const m = Math.floor((totalMs % 3600000) / 60000);
-    document.getElementById('otRepTotalHours').textContent = `${h}h ${m}m`;
-
-    if (list.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:20px;">Tidak ada data lembur Daytime pada periode ini.</td></tr>';
+    // Show Loading
+    if (btn) {
+      btn.disabled = true;
+      btn.innerHTML = '⏳ Memuat...';
     }
+    const tbody = document.querySelector('#tableOtReport tbody');
+    if (tbody) tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:20px;">Memproses data...</td></tr>';
+
+    // Delay to allow UI render
+    setTimeout(() => {
+      try {
+        const list = getOtReportData();
+        if (!tbody) return;
+
+        tbody.innerHTML = '';
+
+        let totalEmp = new Set();
+        let totalMs = 0;
+
+        list.forEach(r => {
+          totalEmp.add(r.nid);
+          totalMs += r.durationMs;
+
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+                <td>${r.date}</td>
+                <td><b style="color:var(--primary-700)">${r.name}</b><br><small class="muted">${r.nid}</small></td>
+                <td>DAYTIME (${r.shiftEnd})</td>
+                <td>${r.actualOut}</td>
+                <td><span class="badgess green">${r.desc}</span></td>
+                <td>Lembur Harian</td>
+            `;
+          tbody.appendChild(tr);
+        });
+
+        // Summary
+        document.getElementById('otRepTotalEmp').textContent = totalEmp.size + ' Org';
+        const h = Math.floor(totalMs / 3600000);
+        const m = Math.floor((totalMs % 3600000) / 60000);
+        document.getElementById('otRepTotalHours').textContent = `${h}h ${m}m`;
+
+        if (list.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:20px;">Tidak ada data lembur Daytime pada periode ini.</td></tr>';
+        }
+      } catch (error) {
+        console.error(error);
+        if (tbody) tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:red;">Gagal memuat: ${error.message}</td></tr>`;
+      } finally {
+        // Restore Button
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = originalText;
+        }
+      }
+    }, 100);
   }
 
   function exportPDF() {
@@ -4061,6 +4197,7 @@ window.addEventListener('DOMContentLoaded', function initOvertimeReport() {
 
   // Expose for debugging if needed
   window.renderOvertimeReport = renderReport;
+  window.getOtReportData = getOtReportData; // Expose for Console Test Script
 });
 
 
