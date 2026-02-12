@@ -768,12 +768,17 @@ window.addEventListener('DOMContentLoaded', () => {
   }
 
   function groupsScheduled(shiftCode, dateFor) {
-    const id = monthKey(dateFor); const day = dateFor.getDate(); const out = [];
-    // Iterate over GROUP_KEYS, check which groups are scheduled for this shiftCode
+    const out = [];
+    // Standardize: Use effectiveShiftFor to determine if a Group is assigned to this ShiftCode
+    // We create a "Mock Employee" representing the Group
     GROUP_KEYS.forEach(g => {
-      const cellVal = sched[id]?.[g]?.[day] || '';
-      const normalized = NORMALIZE_SHIFT[cellVal.toLowerCase()] || cellVal.toUpperCase();
-      if (normalized === shiftCode) out.push(g);
+      // Mock employee with just the shift(group) property
+      const mockEmp = { shift: g };
+      // Get effective shift for this group on the specific date
+      const eff = effectiveShiftFor(mockEmp, dateFor);
+
+      // If result matches the requested shiftCode, add group to list
+      if (eff === shiftCode) out.push(g);
     });
     return out;
   }
@@ -1747,27 +1752,28 @@ window.addEventListener('DOMContentLoaded', () => {
     } else {
       status = nextStatusFor(emp.nid);
 
-      // === CONTEXT AWARE LOGIC: Night Shift Detection (UPDATED) ===
-      // Check if this scan is likely a "Pulang" for Yesterday's Night Shift
-      const yesterday = new Date(ts);
-      yesterday.setDate(yesterday.getDate() - 1);
-      const shiftYesterday = effectiveShiftFor(emp, yesterday);
+      // === CONTEXT AWARE LOGIC: Night Shift Detection (DATA PRIORITY) ===
+      // Philosophy: If they scanned IN yesterday (or late night) and haven't scanned OUT,
+      // it MUST be a checkout, regardless of what the Roster says for today.
 
-      // Robust Check: Is yesterday Shift Malam (M)?
-      const likelyNightShift = shiftYesterday === 'M';
+      // 1. Get Global Last Record for this person
+      const lastRec = attendance.slice().reverse().find(a => a.nid === emp.nid);
 
-      if (likelyNightShift && ts.getHours() < 18) {
-        // Check last attendance record globally (ignore "today" restriction)
-        const lastRec = attendance.slice().reverse().find(a => a.nid === emp.nid);
+      if (lastRec && lastRec.status === 'datang') {
+        // Calculate hours since last scan
+        const hoursSinceLast = (ts.getTime() - lastRec.ts) / (1000 * 60 * 60);
 
-        if (lastRec && lastRec.status === 'datang') {
-          // They are currently IN from yesterday. This MUST be a checkout.
-          if (ts.getTime() - lastRec.ts < 24 * 3600 * 1000) {
-            status = 'pulang';
-            effShift = 'M'; // Force shift to be Night Shift
-            noteOverride = 'Pulang Shift Malam (Context Aware)';
-            console.log('Context-Aware: Detected Night Shift Checkout for', emp.name);
-          }
+        // Conditions:
+        // A. It's Morning (< 14:00) - Typical Night Shift checkout time.
+        // B. Last scan was recent (< 20 hours) but not too recent (avoid double tap).
+        if (ts.getHours() < 14 && hoursSinceLast < 20) {
+          console.log(`Context-Aware: Detected Night Shift Checkout for ${emp.name}. Gap: ${hoursSinceLast.toFixed(1)}h`);
+
+          status = 'pulang';
+          // CRITICAL: Force Shift 'M' so validation runs against Night Shift Rules (End 07:30)
+          // This fixes the "Outside Shift" bug when Roster says "OFF" or "P"
+          effShift = 'M';
+          noteOverride = 'Pulang Shift Malam (Auto-Detected)';
         }
       }
     }
