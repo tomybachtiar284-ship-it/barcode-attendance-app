@@ -811,6 +811,441 @@ dialog::backdrop {
   transition: width .45s ease
 }
 
+/* =========================
+   GEN 2 MOBILE UI REDESIGN
+   ========================= */
+:root {
+  --mob-grad-1: #2563eb;
+  /* Royal Blue */
+  --mob-grad-2: #06b6d4;
+  /* Cyan */
+  --mob-bg-body: #f8fafc;
+}
+
+.mob-modern-wrapper {
+  background: var(--mob-bg-body);
+  min-height: 100vh;
+  font-family: 'Inter', sans-serif;
+  padding-bottom: 90px;
+  /* Nav space */
+}
+
+/* 1. Header */
+.mob-modern-header {
+  background: linear-gradient(135deg, var(--mob-grad-1), var(--mob-grad-2));
+  padding: 20px 24px 60px;
+  /* Bottom padding for overlap */
+  border-bottom-left-radius: 32px;
+  border-bottom-right-radius: 32px;
+  color: #fff;
+  position: relative;
+  z-index: 1;
+  box-shadow: 0 4px 20px rgba(6, 182, 212, 0.25);
+}
+
+.mob-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.mob-brand-mark {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(255, 255, 255, 0.15);
+  padding: 6px 12px;
+  border-radius: 99px;
+  backdrop-filter: blur(4px);
+  width: fit-content;
+  margin-bottom: 16px;
+}
+
+.mob-brand-mark img {
+  height: 20px;
+  width: auto;
+}
+
+.mob-brand-mark span {
+  font-size: 0.85rem;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+
+.mob-greet h1 {
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin: 0;
+  line-height: 1.3;
+}
+
+.mob-greet p {
+  margin: 4px 0 0;
+  font-size: 0.9rem;
+  opacity: 0.9;
+}
+
+/* Profile Icon w/ Notification */
+.mob-profile-btn {
+  position: relative;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: #fff;
+  padding: 2px;
+  cursor: pointer;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+}
+
+.mob-profile-btn img {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.mob-notif-badge {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  background: #ef4444;
+  color: white;
+  font-size: 0.7rem;
+  font-weight: 700;
+  height: 18px;
+  min-width: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 99px;
+  border: 2px solid var(--mob-grad-1);
+}
+
+/* 2. Hero Card (Active On-Site) */
+.mob-hero-container {
+  padding: 0 24px;
+  margin-top: -40px;
+  /* Overlap */
+  position: relative;
+  z-index: 2;
+}
+
+.mob-hero-card {
+  background: url('assets/bg-city-overlay.png'), linear-gradient(110deg, #3b82f6, #0ea5e9);
+  background-size: cover;
+  background-position: center;
+  border-radius: 24px;
+  padding: 20px;
+  color: white;
+  box-shadow: 0 15px 35px rgba(14, 165, 233, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  position: relative;
+  overflow: hidden;
+}
+
+/* Shine Effect */
+.mob-hero-card::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 50%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+  transform: skewX(-20deg);
+  animation: shine 4s infinite;
+}
+
+@keyframes shine {
+  0% {
+    left: -100%;
+  }
+
+  20% {
+    left: 200%;
+  }
+
+  100% {
+    left: 200%;
+  }
+}
+
+.mob-hero-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  opacity: 0.9;
+  margin-bottom: 8px;
+}
+
+.mob-hero-title .dot {
+  width: 8px;
+  height: 8px;
+  background: #bef264;
+  /* Lime green */
+  border-radius: 50%;
+  box-shadow: 0 0 10px #bef264;
+  animation: pulse 2s infinite;
+}
+
+.mob-hero-count {
+  font-size: 3.5rem;
+  font-weight: 800;
+  line-height: 1;
+  margin: 4px 0;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+.mob-hero-lbl {
+  font-size: 1rem;
+  font-weight: 500;
+  opacity: 0.96;
+}
+
+/* 3. Quick Actions Grid (Phase 2) */
+.mob-quick-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  padding: 0 24px;
+  margin-bottom: 24px;
+}
+
+.mob-quick-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: transform 0.2s;
+  background: none;
+  border: none;
+  color: inherit;
+  width: 100%;
+  padding: 0;
+}
+
+.mob-quick-item:active {
+  transform: scale(0.95);
+}
+
+.mob-quick-icon {
+  width: 100%;
+  /* Fill container (aspect ratio handled by grid usually, but we want square) */
+  aspect-ratio: 1/1;
+  max-width: 64px;
+  background: #fff;
+  border-radius: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.6rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  /* Soft shadow */
+  color: var(--mob-grad-1);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  transition: all 0.2s;
+}
+
+.mob-quick-item:hover .mob-quick-icon {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
+}
+
+.mob-quick-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #475569;
+  letter-spacing: -0.2px;
+}
+
+/* 4. Daily Stats Card (Phase 3) */
+.mob-daily-card {
+  background: #fff;
+  margin: 0 24px 24px;
+  border-radius: 24px;
+  padding: 24px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03);
+  display: grid;
+  grid-template-columns: 1fr 120px;
+  gap: 20px;
+  align-items: center;
+}
+
+.mob-stats-left {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.mob-stat-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.mob-stat-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
+  flex-shrink: 0;
+}
+
+.mob-stat-icon.green {
+  background: #dcfce7;
+  color: #16a34a;
+}
+
+.mob-stat-icon.red {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+.mob-stat-info h5 {
+  margin: 0;
+  font-size: 0.75rem;
+  color: #64748b;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.mob-stat-info h3 {
+  margin: 2px 0 0;
+  font-size: 1.25rem;
+  color: #0f172a;
+  font-weight: 800;
+}
+
+.mob-chart-wrap {
+  width: 120px;
+  height: 120px;
+  position: relative;
+  display: grid;
+  place-items: center;
+}
+
+.mob-chart-center {
+  position: absolute;
+  text-align: center;
+  pointer-events: none;
+}
+
+.mob-chart-center span {
+  display: block;
+  font-size: 0.7rem;
+  color: #64748b;
+}
+
+.mob-chart-center b {
+  display: block;
+  font-size: 1.2rem;
+  color: #0f172a;
+  font-weight: 800;
+}
+
+/* 5. Modern Bottom Nav (Phase 4) */
+.mobile-bottom-nav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 80px;
+  /* Taller for modern feel */
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(12px);
+  border-top: 1px solid rgba(0, 0, 0, 0.05);
+  box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.03);
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  z-index: 9999;
+  padding-bottom: 10px;
+  /* Safe area padding */
+}
+
+.mb-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  color: #94a3b8;
+  position: relative;
+  width: 20%;
+  height: 100%;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.mb-item.active {
+  color: var(--mob-grad-1);
+}
+
+.mb-item .icon {
+  font-size: 1.5rem;
+  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  background: transparent;
+  border-radius: 12px;
+  width: 40px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+}
+
+.mb-item.active .icon {
+  transform: translateY(-4px);
+  color: var(--mob-grad-1);
+}
+
+.mb-item span {
+  font-size: 0.7rem;
+  font-weight: 500;
+  opacity: 0.8;
+  transition: opacity 0.2s;
+}
+
+.mb-item.active span {
+  font-weight: 700;
+  opacity: 1;
+}
+
+/* Floating Active Indicator */
+.mb-item.active::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  width: 40px;
+  height: 4px;
+  background: linear-gradient(90deg, var(--mob-grad-1), var(--mob-grad-2));
+  border-bottom-left-radius: 4px;
+  border-bottom-right-radius: 4px;
+  animation: slideDown 0.3s ease-out;
+}
+
+@keyframes slideDown {
+  from {
+    transform: translateY(-100%);
+  }
+
+  to {
+    transform: translateY(0);
+  }
+}
+
+
+
+
+
+
 /* ============================================================================
    AREA 6: DASHBOARD (#route-dashboard)
    ========================================================================== */
@@ -2385,6 +2820,10 @@ h1.page-title {
     /* FIX: Sync mobile sidebar background */
     background: url('assets/sidebar-bg-final.png') no-repeat center bottom !important;
     background-size: 100% 100% !important;
+    overflow-y: auto;
+    padding-bottom: 80px;
+    /* Ensure bottom content is reachable */
+    /* Allow scrolling for small screens */
   }
 
   /* FIX: Pastikan teks menu yg AKTIF berwarna biru (kontras dengan putih) */
@@ -2558,6 +2997,73 @@ h1.page-title {
 
   .mob-stat-card.gray {
     border-bottom: 3px solid var(--muted);
+  }
+
+  /* Comp Grid Mobile */
+  .company-grid-mobile {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  .mob-comp-card {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+
+  .mob-comp-card:active {
+    background: #e2e8f0;
+  }
+
+  .mob-comp-name {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #334155;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100px;
+  }
+
+  .mob-comp-countBadge {
+    font-size: 0.8rem;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 99px;
+    min-width: 24px;
+    text-align: center;
+  }
+
+  .mob-comp-countBadge.blue {
+    background: #dbeafe;
+    color: #1e40af;
+  }
+
+  .mob-comp-countBadge.orange {
+    background: #ffedd5;
+    color: #9a3412;
+  }
+
+  .mob-comp-countBadge.green {
+    background: #dcfce7;
+    color: #166534;
+  }
+
+  .mob-comp-countBadge.purple {
+    background: #f3e8ff;
+    color: #6b21a8;
+  }
+
+  .mob-comp-countBadge.gray {
+    background: #f1f5f9;
+    color: #475569;
   }
 
   .mob-stat-card .label {

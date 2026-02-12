@@ -18,7 +18,8 @@
     rel="stylesheet">
 
   <!-- Styles -->
-  <link rel="stylesheet" href="styles.css?v=modal_fix_2" />
+  <link rel="stylesheet" href="styles.css?v=mobile_redesign_v1" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script> <!-- Required for New Mobile Dashboard -->
   <style>
     /* Styling for Inventory, Latest Info, Education, Attendance & Employee Table Borders */
     #route-inventory table,
@@ -944,13 +945,23 @@
     }
 
     /* Desktop Default */
-    .mobile-only {
+    /* Desktop Default */
+    .mobile-only,
+    .mobile-bottom-nav {
       display: none;
     }
 
     @media (max-width: 768px) {
+      .mobile-only {
+        display: block !important;
+      }
+
+      .mobile-bottom-nav {
+        display: flex !important;
+      }
+
       .desktop-only {
-        display: none;
+        display: none !important;
       }
 
 
@@ -1088,79 +1099,120 @@
     <section class="route active" id="route-dashboard">
 
       <!-- MOBILE DASHBOARD (Visible ONLY on Mobile) -->
-      <div class="mob-dash-container">
-        <!-- 1. Header & Greeting -->
-        <div class="mob-header">
-          <img src="assets/AMAN-S-Logo.jpg" class="mob-logo">
-          <div class="mob-brand">
-            <h3>AMAN-S APP</h3>
-            <span>PLN Nusantara Power Services</span>
-          </div>
-        </div>
-
-        <!-- 2. Hero Clock Card -->
-        <div class="mob-hero-card">
-          <div class="mob-clock" id="mobClock">--:--</div>
-          <div class="mob-date" id="mobDate">...</div>
-          <div class="mob-greet" id="mobGreet">Selamat Datang</div>
-        </div>
-
-        <!-- 3. Active On-Site (NEW MOBILE - COMPACT) -->
-        <!-- 3. Active On-Site (ULTRA SLIM) -->
-        <div class="card-solid stat-orange"
-          style="margin: 0 16px 8px; padding: 8px 12px; display:flex; justify-content:space-between; align-items:center; min-height: 40px;"
-          onclick="showStatDetail('active_site')">
-          <div style="display:flex; align-items:center; gap:8px;">
-            <!-- Icon / Dot -->
-            <div
-              style="width:8px; height:8px; background:#fff; border-radius:50%; box-shadow:0 0 5px rgba(255,255,255,0.6);">
+      <div class="mob-dash-container mob-modern-wrapper mobile-only">
+        <!-- 1. Header (Gradient) -->
+        <div class="mob-modern-header">
+          <div class="mob-header-row">
+            <div class="mob-brand-mark">
+              <img src="assets/AMAN-S-Logo.jpg" alt="Logo" style="border-radius:4px;">
+              <span>AMAN-S APP</span>
             </div>
-            <div
-              style="font-size:0.75rem; font-weight:600; text-transform:uppercase; letter-spacing:0.3px; opacity:0.95;">
-              Active On-Site</div>
+            <div id="mobShiftBadge" onclick="window._showShiftDetail && window._showShiftDetail()"
+              style="cursor:pointer;background:rgba(255,255,255,0.25);backdrop-filter:blur(4px);border-radius:12px;padding:6px 12px;display:flex;align-items:center;gap:6px;transition:all .2s">
+              <span style="font-size:1.1rem">📋</span>
+              <div style="text-align:right;line-height:1.2">
+                <div id="mobShiftCode" style="font-weight:800;font-size:0.8rem;color:#fff">--</div>
+                <div id="mobShiftGroup" style="font-size:0.65rem;color:rgba(255,255,255,0.85)">Loading...</div>
+              </div>
+            </div>
           </div>
-          <div style="display:flex; align-items:baseline; gap:4px;">
-            <div class="val" id="mobStatActive" style="font-size:1.1rem; font-weight:800; line-height:1;">0</div>
-            <span style="font-size:0.65rem; opacity:0.8;">Personil</span>
+
+          <div class="mob-greet">
+            <p style="opacity:0.8; font-size:0.85rem; margin-bottom:4px;">Selamat Siang,</p>
+            <h1><span id="mobUserGreetName">Tomy</span> 👋</h1>
           </div>
         </div>
 
-        <!-- 4. Stats Row (GRID) -->
-        <div class="mob-stats-overlap">
-          <div class="mob-stat-grid-3">
+        <!-- 2. Hero Card (Active On-Site) -->
+        <div class="mob-hero-container">
+          <div class="mob-hero-card" onclick="window._showActiveDetail && window._showActiveDetail()"
+            style="cursor:pointer">
+            <div class="mob-hero-title">
+              <span class="dot"></span>
+              Hadir di Lokasi
+            </div>
+            <div class="mob-hero-count" id="heroActiveCount_v2">--</div>
+            <div class="mob-hero-lbl">ACTIVE ON-SITE</div>
+          </div>
+        </div>
+
+        <!-- 3. Quick Actions Grid -->
+        <div class="mob-quick-grid">
+          <!-- 1. Absen -->
+          <button class="mob-quick-item" onclick="window.appRoute('scan')">
+            <div class="mob-quick-icon">📷</div>
+            <span class="mob-quick-label">Absen</span>
+          </button>
+
+          <!-- 2. Data -->
+          <button class="mob-quick-item" onclick="window.appRoute('employees')">
+            <div class="mob-quick-icon">👥</div>
+            <span class="mob-quick-label">Data</span>
+          </button>
+
+          <!-- 3. Logistik -->
+          <button class="mob-quick-item" onclick="window.appRoute('inventory')">
+            <div class="mob-quick-icon">📦</div>
+            <span class="mob-quick-label">Logistik</span>
+          </button>
+
+          <!-- 4. Laporan -->
+          <button class="mob-quick-item" onclick="window.appRoute('attendance')">
+            <div class="mob-quick-icon">📊</div>
+            <span class="mob-quick-label">Laporan</span>
+          </button>
+        </div>
+
+        <!-- 4. Daily Stats (Chart) -->
+        <div class="mob-daily-card">
+          <div class="mob-stats-left">
             <!-- Terlambat -->
-            <div class="card-solid mob-stat-card stat-red" id="mobCardLate">
-              <div class="lbl-sm">TERLAMBAT</div>
-              <div class="val" id="mobStatLate">0</div>
-              <div class="lbl-xs">Orang</div>
+            <div class="mob-stat-row" onclick="window._showLateDetail && window._showLateDetail()"
+              style="cursor:pointer">
+              <div class="mob-stat-icon red">⏰</div>
+              <div class="mob-stat-info">
+                <h5>Terlambat</h5>
+                <h3 id="mobStatLate_v2">0</h3>
+              </div>
             </div>
             <!-- Hadir -->
-            <div class="card-solid mob-stat-card stat-blue" id="mobCardPresent">
-              <div class="lbl-sm">HADIR</div>
-              <div class="val" id="mobStatPresent">0</div>
-              <div class="lbl-xs">Orang</div>
-            </div>
-            <!-- Total -->
-            <div class="card-solid mob-stat-card stat-gray" id="mobCardTotal">
-              <div class="lbl-sm">TOTAL</div>
-              <div class="val" id="mobStatTotal">0</div>
-              <div class="lbl-xs">Karyawan</div>
+            <div class="mob-stat-row" onclick="window._showOntimeDetail && window._showOntimeDetail()"
+              style="cursor:pointer">
+              <div class="mob-stat-icon green">✅</div>
+              <div class="mob-stat-info">
+                <h5>Hadir (Ontime)</h5>
+                <h3 id="mobStatOntime_v2">0</h3>
+              </div>
             </div>
           </div>
 
-          <!-- 4. Gauge (NEW DESIGN) -->
-          <div class="card-solid mob-gauge-card" style="margin-top:12px; text-align:center; padding:16px;">
-            <div style="font-weight:700; margin-bottom:12px; font-size:0.95rem; color:#1e293b;">Kehadiran Hari Ini</div>
-
-            <div class="gauge-simple">
-              <div class="gauge-bg"></div>
-              <div class="gauge-fill" id="mobGaugeFill"></div>
-              <div class="gauge-val" id="mobGaugeVal">0%</div>
+          <div class="mob-chart-wrap">
+            <canvas id="mobDailyChart_v2" width="120" height="120"></canvas>
+            <div class="mob-chart-center">
+              <span id="mobChartPercent_v2">0%</span>
+              <b id="mobChartTotal_v2">Total</b>
             </div>
           </div>
         </div>
 
-        <!-- 5. Live Presence Stats (MOBILE) -->
+        <!-- 4b. Overtime Panel (Hidden by default, shown when overtime exists) -->
+        <div id="mobOvertimePanel" onclick="window._showOvertimeDetail && window._showOvertimeDetail()"
+          style="display:none;margin:8px 12px 0;background:linear-gradient(135deg,#fef3c7,#fde68a);border:1px solid #f59e0b;border-radius:14px;padding:12px 16px;cursor:pointer;transition:all .2s">
+          <div style="display:flex;align-items:center;justify-content:space-between">
+            <div style="display:flex;align-items:center;gap:8px">
+              <span style="font-size:1.4rem">⏱️</span>
+              <div>
+                <div style="font-weight:700;font-size:0.85rem;color:#92400e">Karyawan Lembur</div>
+                <div style="font-size:0.72rem;color:#a16207">Shift Daytime melebihi jam kerja</div>
+              </div>
+            </div>
+            <div id="mobOvertimeCount"
+              style="background:#f59e0b;color:#fff;font-weight:800;font-size:1rem;padding:4px 12px;border-radius:99px;min-width:28px;text-align:center">
+              0</div>
+          </div>
+        </div>
+
+        <!-- 5. Live Presence Stats -->
         <div class="mob-gauge-card" style="margin: 8px 12px 12px; padding: 10px;">
           <div style="font-weight:700; margin-bottom:6px; font-size:0.85rem; color:#1e293b;">Statistik Kehadiran
             Langsung</div>
@@ -1169,7 +1221,7 @@
       </div>
 
       <!-- DESKTOP DASHBOARD (Hidden on Mobile) -->
-      <div class="desktop-dash">
+      <div class="desktop-dash desktop-only">
         <!-- MODERN HEADER (New) -->
         <div class="header-modern">
           <!-- Logo Kiri -->
@@ -2872,8 +2924,28 @@
       </div>
     </div>
   </div>
+  <!-- MOBILE BOTTOM NAV (5 Items) -->
+  <nav class="mobile-bottom-nav">
+    <div class="mb-item active" data-route="dashboard" onclick="window.appRoute('dashboard')">
+      <div class="icon">🏠</div><span>Beranda</span>
+    </div>
+    <div class="mb-item" data-route="scan" onclick="window.appRoute('scan')">
+      <div class="icon">📸</div><span>Absen</span>
+    </div>
+    <div class="mb-item" data-route="employees" onclick="window.appRoute('employees')">
+      <div class="icon">👥</div><span>Karyawan</span>
+    </div>
+    <div class="mb-item" data-route="inventory" onclick="window.appRoute('inventory')">
+      <div class="icon">📦</div><span>Logistik</span>
+    </div>
+    <div class="mb-item" onclick="window.toggleMobileMenu()">
+      <div class="icon">☰</div><span>Menu</span>
+    </div>
+  </nav>
+
   <script src="app.js"></script>
   <script src="mobile-camera.js"></script>
+  <script src="mobile-stats.js?v=20260212f"></script>
 </body>
 
 </html>

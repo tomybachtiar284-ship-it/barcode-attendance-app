@@ -5610,3 +5610,273 @@ function showEmployeeDetail(emp) {
   modal.showModal();
 }
 window.showEmployeeDetail = showEmployeeDetail;
+
+// === NEW: Mobile Dashboard Renderer (Gen 2 UI) ===
+// === NEW: Mobile Dashboard Renderer (Gen 2 UI) ===
+window.renderMobileDashboard = function (isRetry = false) {
+  // Debug Log
+  console.log('[MobDash] Render Triggered', {
+    attendance: window.attendance?.length,
+    employees: window.employees?.length,
+    retry: isRetry
+  });
+
+  // 1. Update Active On-Site Count (Realtime Estimate)
+  if (!window.attendance || window.attendance.length === 0) {
+    if (!isRetry) setTimeout(() => window.renderMobileDashboard(true), 1500);
+    return;
+  }
+
+  const rollingStart = Date.now() - (24 * 60 * 60 * 1000); // 24 Hours
+  const activeMap = new Map();
+  const attToday = attendance.filter(a => a.ts >= rollingStart);
+
+  attToday.sort((a, b) => a.ts - b.ts).forEach(r => {
+    activeMap.set(r.nid, r.status);
+  });
+
+  let activeCount = 0;
+  activeMap.forEach(status => {
+    if (status === 'datang' || status === 'break_in') activeCount++;
+  });
+
+  const elCount = document.getElementById('heroActiveCount_v2');
+  if (elCount) {
+    if (elCount.textContent !== String(activeCount)) {
+      elCount.textContent = activeCount;
+      elCount.classList.remove('bump');
+      void elCount.offsetWidth;
+      elCount.classList.add('bump');
+    }
+  } else {
+    console.warn('[MobDash] Hero Count Element NOT FOUND: heroActiveCount_v2');
+  }
+
+  // Sync to small stat card
+  const elCount2 = document.getElementById('mobStatActive');
+  if (elCount2) elCount2.textContent = activeCount;
+
+  // 2. Update Greeting
+  const elGreet = document.getElementById('mobUserGreetName');
+  if (elGreet) {
+    try {
+      const sess = JSON.parse(localStorage.getItem('SA_SESSION') || '{}');
+      let name = sess.user?.name || sess.username || 'Petugas';
+      if (name.length > 15) name = name.split(' ')[0];
+      elGreet.textContent = name.replace(/\b\w/g, c => c.toUpperCase());
+    } catch (e) { elGreet.textContent = 'Petugas'; }
+  }
+
+  // 3. Daily Stats (Chart & Counts)
+  const lbLate = document.getElementById('mobStatLate_v2');
+  const lbOntime = document.getElementById('mobStatOntime_v2');
+  const lbPct = document.getElementById('mobChartPercent_v2');
+  const lbTot = document.getElementById('mobChartTotal_v2');
+  const cvs = document.getElementById('mobDailyChart_v2');
+
+  if (lbLate && lbOntime && cvs) {
+    const sod = new Date(); sod.setHours(0, 0, 0, 0);
+    const todayRecs = attendance.filter(a => a.ts >= sod.getTime() && a.status === 'datang');
+
+    let cntLate = 0;
+    let cntOntime = 0;
+    const unique = new Set();
+
+    todayRecs.sort((a, b) => b.ts - a.ts);
+    todayRecs.forEach(r => {
+      if (!unique.has(r.nid)) {
+        unique.add(r.nid);
+        if (r.late) cntLate++; else cntOntime++;
+      }
+    });
+
+    const total = cntLate + cntOntime;
+    const rate = total ? Math.round((cntOntime / total) * 100) : 0;
+
+    lbLate.textContent = cntLate;
+    lbOntime.textContent = cntOntime;
+    if (lbPct) lbPct.textContent = rate + '%';
+    if (lbTot) lbTot.textContent = total;
+
+    // Render Chart
+    if (window.Chart) {
+      if (window.mobChartInstance) {
+        window.mobChartInstance.data.datasets[0].data = [cntOntime, cntLate];
+        window.mobChartInstance.update();
+      } else {
+        window.mobChartInstance = new Chart(cvs, {
+          type: 'doughnut',
+          data: {
+            labels: ['Hadir (Ontime)', 'Terlambat'],
+            datasets: [{
+              data: [cntOntime, cntLate],
+              backgroundColor: ['#22c55e', '#ef4444'],
+              borderWidth: 0,
+            }]
+          },
+          options: {
+            responsive: true,
+            cutout: '75%',
+            plugins: { legend: { display: false }, tooltip: { enabled: false } },
+            maintainAspectRatio: false,
+            animation: { duration: 800 }
+          }
+        });
+      }
+    }
+  } else {
+    console.warn('[MobDash] Stats Elements Missing (v2)');
+  }
+
+  // 4. Update Live Presence Grid (Footer)
+  if (window.renderCompanyPresenceMobile) window.renderCompanyPresenceMobile();
+};
+
+
+
+// === NEW: Render Company Presence (Mobile) ===
+window.renderCompanyPresenceMobile = function () {
+  const grid = document.getElementById('companyPresenceGridMobile');
+  if (!grid) return;
+
+  // 1. Calculate Active Per Company
+  const rollingStart = Date.now() - (24 * 60 * 60 * 1000);
+  const activeMap = new Map(); // NID -> Status
+
+  // Get latest status for everyone in last 24h
+  attendance.filter(a => a.ts >= rollingStart)
+    .sort((a, b) => a.ts - b.ts)
+    .forEach(r => activeMap.set(r.nid, r.status));
+
+  const companyCounts = {};
+
+  // Iterate active employees
+  activeMap.forEach((status, nid) => {
+    if (status === 'datang' || status === 'break_in') {
+      const emp = employees.find(e => e.nid === nid);
+      if (emp) {
+        const comp = emp.company || 'Lainnya';
+        companyCounts[comp] = (companyCounts[comp] || 0) + 1;
+      }
+    }
+  });
+
+  // 2. Render Cards
+  const companies = Object.keys(companyCounts).sort();
+  let html = '';
+
+  // Defined colors for companies (optional, can be random or fixed)
+  const compColors = {
+    'PT MKP': 'blue',
+    'PT LINMAS': 'orange',
+    'PT NPN': 'green',
+    'CV NUANSA NUSANTARA': 'purple',
+    'Lainnya': 'gray'
+  };
+
+  companies.forEach(comp => {
+    const count = companyCounts[comp];
+    const color = compColors[comp] || 'blue'; // Default blue
+
+    // Map color names to CSS var-like classes or inline styles
+    // We'll use simple classes: mob-comp-card + color modifier
+
+    html += `
+        <div class="mob-comp-card" onclick="showCompanyDetail('${comp}')">
+            <div class="mob-comp-name">${comp}</div>
+            <div class="mob-comp-countBadge ${color}">${count}</div>
+        </div>
+        `;
+  });
+
+  if (companies.length === 0) {
+    html = `<div style="grid-column:1/-1; text-align:center; opacity:0.6; font-size:0.8rem; padding:10px;">Belum ada data kehadiran</div>`;
+  }
+
+  grid.innerHTML = html;
+};
+
+// Detail Modal Trigger
+window.showCompanyDetail = function (compName) {
+  // Re-use existing logic or create new simple modal content
+  // For now, let's just use the existing 'showStatDetail' logic but filtered by company
+  // Or simpler: Just alert for now, or implement a modal if requested.
+  // The user requested "munculkan semua data", so display is priority.
+  // We can reuse the "Active Personnel" modal if available.
+
+  if (window.renderActivePersonnelModal) {
+    window.renderActivePersonnelModal(compName);
+  }
+};
+
+// === NEW: Render Active Personnel Modal (Detail) ===
+window.renderActivePersonnelModal = function (filterCompany) {
+  const modal = document.getElementById('activePersonnelModal');
+  const list = document.getElementById('activePersonnelList');
+  if (!modal || !list) return;
+
+  // 1. Get Active Data
+  const rollingStart = Date.now() - (24 * 60 * 60 * 1000);
+  const activeMap = new Map();
+  const activeRecs = [];
+
+  // Filter & Sort
+  attendance.filter(a => a.ts >= rollingStart)
+    .sort((a, b) => a.ts - b.ts) // Ascending to get last status
+    .forEach(r => {
+      activeMap.set(r.nid, r);
+    });
+
+  // Collect active only
+  activeMap.forEach((r, nid) => {
+    if (r.status === 'datang' || r.status === 'break_in') {
+      activeRecs.push(r);
+    }
+  });
+
+  // 2. Filter by Company (if specific)
+  let filtered = activeRecs;
+  let title = 'Personil Aktif (Live)';
+
+  if (filterCompany && filterCompany !== 'active_site') {
+    filtered = activeRecs.filter(r => {
+      const emp = employees.find(e => e.nid === r.nid);
+      return emp && (emp.company === filterCompany || (!emp.company && filterCompany === 'Lainnya'));
+    });
+    title = `Personil Aktif: ${filterCompany}`;
+  }
+
+  // Update Title
+  const h3 = modal.querySelector('h3');
+  if (h3 && h3.childNodes[0]) h3.childNodes[0].nodeValue = title + ' ';
+
+  // 3. Render List
+  if (filtered.length === 0) {
+    list.innerHTML = `<div style="text-align:center; padding:20px; color:#999;">Tidak ada personil aktif saat ini.</div>`;
+  } else {
+    list.innerHTML = filtered.map(r => {
+      const emp = employees.find(e => e.nid === r.nid);
+      const name = emp ? emp.name : r.name;
+      const job = emp ? emp.job : '-';
+      const company = emp ? emp.company : '-';
+      const time = new Date(r.ts).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+
+      return `
+            <div style="padding:12px; border-bottom:1px solid #f1f5f9; display:flex; justify-content:space-between; align-items:center;">
+                <div>
+                    <div style="font-weight:700; color:#334155; font-size:0.95rem;">${name}</div>
+                    <div style="font-size:0.75rem; color:#64748b;">${job} • ${company}</div>
+                </div>
+                <div style="text-align:right;">
+                    <div style="font-weight:700; color:#0f172a; font-size:0.9rem;">${time}</div>
+                    <div style="font-size:0.7rem; color:#22c55e; background:#dcfce7; padding:2px 6px; border-radius:4px; display:inline-block;">Hadir</div>
+                </div>
+            </div>
+            `;
+    }).join('');
+  }
+
+  // 4. Show
+  modal.showModal();
+};
+
