@@ -1729,6 +1729,47 @@ window.addEventListener('DOMContentLoaded', () => {
     return ts >= (shiftStart.getTime() + 5 * 60 * 1000);
   }
 
+  // Double Scan Prevention Map (NID -> Timestamp)
+  const lastScanMap = new Map();
+
+  function showSuccessOverlay(emp, statusText) {
+    let overlay = document.getElementById('scanSuccessOverlay');
+    if (!overlay) {
+      overlay = document.createElement('div');
+      overlay.id = 'scanSuccessOverlay';
+      overlay.style.cssText = `
+        position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+        background: #10b981; z-index: 99999; display: flex;
+        flex-direction: column; align-items: center; justify-content: center;
+        color: white; opacity: 0; transition: opacity 0.2s; pointer-events: none;
+      `;
+      overlay.innerHTML = `
+        <div style="font-size: 5rem;">✅</div>
+        <h1 style="font-size: 2.5rem; margin: 10px 0; font-weight: 800;">BERHASIL</h1>
+        <div id="overlayEmpName" style="font-size: 1.5rem; font-weight: 500;"></div>
+        <div id="overlayStatus" style="font-size: 1.2rem; opacity: 0.9; margin-top:5px; text-transform:uppercase"></div>
+      `;
+      document.body.appendChild(overlay);
+    }
+
+    // Update Content
+    overlay.querySelector('#overlayEmpName').textContent = emp.name;
+    overlay.querySelector('#overlayStatus').textContent = statusText;
+
+    // Show
+    overlay.style.opacity = '1';
+    overlay.style.pointerEvents = 'all'; // Block clicks
+
+    // Play Sound if available
+    // const audio = new Audio('assets/beep.mp3'); audio.play().catch(()=>{});
+
+    // Hide after 1.5s
+    setTimeout(() => {
+      overlay.style.opacity = '0';
+      overlay.style.pointerEvents = 'none';
+    }, 1500);
+  }
+
   function handleScan(raw) {
     window.handleScan = handleScan; // Auto-expose self for external calls
     const parsed = parseRaw(raw); const ts = now(); const emp = findEmp(parsed);
@@ -1738,6 +1779,15 @@ window.addEventListener('DOMContentLoaded', () => {
       const pill = $('#scanShiftCheck'); if (pill) { pill.textContent = 'Belum terdaftar'; pill.className = 'pill light danger'; }
       $('#scanTs') && ($('#scanTs').textContent = fmtTs(ts)); return;
     }
+
+    // === DOUBLE SCAN PREVENTION (7 Seconds Cooldown) ===
+    const lastTime = lastScanMap.get(emp.nid) || 0;
+    if (ts.getTime() - lastTime < 7000) {
+      toast(`⏳ Tunggu 7 detik sebelum scan ${emp.name} lagi.`);
+      return;
+    }
+    lastScanMap.set(emp.nid, ts.getTime());
+
     let effShift = effectiveShiftFor(emp, ts);
     let noteOverride = ''; if (effShift === 'OFF') { noteOverride = 'Libur'; }
 
@@ -1766,7 +1816,10 @@ window.addEventListener('DOMContentLoaded', () => {
         // Conditions:
         // A. It's Morning (< 14:00) - Typical Night Shift checkout time.
         // B. Last scan was recent (< 20 hours) but not too recent (avoid double tap).
-        if (ts.getHours() < 14 && hoursSinceLast < 20) {
+        // C. Last scan was NOT today (Must be a cross-day shift).
+        const isSameDay = new Date(lastRec.ts).getDate() === ts.getDate();
+
+        if (ts.getHours() < 14 && hoursSinceLast < 20 && !isSameDay) {
           console.log(`Context-Aware: Detected Night Shift Checkout for ${emp.name}. Gap: ${hoursSinceLast.toFixed(1)}h`);
 
           status = 'pulang';
@@ -1798,7 +1851,11 @@ window.addEventListener('DOMContentLoaded', () => {
       note: noteOverride || (status === 'datang' ? (late ? 'Terlambat' : 'On-time') : '—') + (inWin ? '' : ' • Di luar jam shift'),
       late: !!late
     };
+
     attendance.push(rec); save(LS_ATT, attendance); syncGlobals();
+
+    // Show Success Overlay
+    showSuccessOverlay(emp, status === 'datang' ? 'MASUK' : (status === 'pulang' ? 'PULANG' : status));
     pushAttendance(rec);
     renderScanPreview(emp, rec); renderScanTable(); renderDashboard(); updateScanLiveCircle(true);
     window.dispatchEvent(new Event('scan:saved'));
