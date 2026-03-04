@@ -4166,7 +4166,7 @@ window.addEventListener('DOMContentLoaded', function initOvertimeReport() {
     return results;
   }
 
-  function renderReport() {
+  async function renderReport() {
     const btn = document.getElementById('btnGenOtReport');
     const originalText = btn ? btn.innerHTML : 'Tampilkan Laporan';
 
@@ -4177,6 +4177,21 @@ window.addEventListener('DOMContentLoaded', function initOvertimeReport() {
     }
     const tbody = document.querySelector('#tableOtReport tbody');
     if (tbody) tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:20px;">Memproses data...</td></tr>';
+
+    // Fetch history first
+    try {
+      if (typeof ensureHistory === 'function') {
+        const startDateStr = document.getElementById('otRepStart')?.value || '';
+        const endDateStr = document.getElementById('otRepEnd')?.value || '';
+        if (startDateStr && endDateStr) {
+          const startMs = new Date(startDateStr + 'T00:00:00').getTime();
+          const endMs = new Date(endDateStr + 'T23:59:59').getTime();
+          await ensureHistory(startMs, endMs);
+        }
+      }
+    } catch (e) {
+      console.warn("Gagal mengambil histori overtime:", e);
+    }
 
     // Delay to allow UI render
     setTimeout(() => {
@@ -4227,32 +4242,65 @@ window.addEventListener('DOMContentLoaded', function initOvertimeReport() {
     }, 100);
   }
 
-  function exportPDF() {
-    const list = getOtReportData();
-    if (list.length === 0) { alert("Tidak ada data untuk diexport!"); return; }
+  async function exportPDF() {
+    // Show Loading state on button if possible
+    const btn = document.getElementById('btnExportOtPdf');
+    const originalText = btn ? btn.innerHTML : 'Export PDF';
+    if (btn) {
+      btn.disabled = true;
+      btn.innerHTML = '⏳ Menyiapkan...';
+    }
 
-    const { jsPDF } = window.jspdf;
-    const doc = new jsPDF('l', 'mm', 'a4');
+    try {
+      // Fetch history first
+      if (typeof ensureHistory === 'function') {
+        const startDateStr = document.getElementById('otRepStart')?.value || '';
+        const endDateStr = document.getElementById('otRepEnd')?.value || '';
+        if (startDateStr && endDateStr) {
+          const startMs = new Date(startDateStr + 'T00:00:00').getTime();
+          const endMs = new Date(endDateStr + 'T23:59:59').getTime();
+          await ensureHistory(startMs, endMs);
+        }
+      }
 
-    // Simple Header
-    doc.setFontSize(16);
-    doc.text('Laporan Overtime (Daytime)', 14, 15);
-    doc.setFontSize(10);
-    doc.text(`Periode: ${document.getElementById('otRepStart').value} s.d ${document.getElementById('otRepEnd').value}`, 14, 22);
+      const list = getOtReportData();
+      if (list.length === 0) {
+        alert("Tidak ada data untuk diexport!");
+        if (btn) { btn.disabled = false; btn.innerHTML = originalText; }
+        return;
+      }
 
-    const data = list.map((r, i) => [
-      i + 1, r.date, r.name, r.nid, 'DAYTIME', r.actualOut, r.desc
-    ]);
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF('l', 'mm', 'a4');
 
-    doc.autoTable({
-      head: [['No', 'Tanggal', 'Nama', 'NID', 'Shift', 'Jam Pulang', 'Durasi']],
-      body: data,
-      startY: 30,
-      theme: 'grid',
-      headStyles: { fillColor: [220, 38, 38] } // Red header for overtime
-    });
+      // Simple Header
+      doc.setFontSize(16);
+      doc.text('Laporan Overtime (Daytime)', 14, 15);
+      doc.setFontSize(10);
+      doc.text(`Periode: ${document.getElementById('otRepStart').value} s.d ${document.getElementById('otRepEnd').value}`, 14, 22);
 
-    doc.save('Laporan_Overtime_Daytime.pdf');
+      const data = list.map((r, i) => [
+        i + 1, r.date, r.name, r.nid, 'DAYTIME', r.actualOut, r.desc
+      ]);
+
+      doc.autoTable({
+        head: [['No', 'Tanggal', 'Nama', 'NID', 'Shift', 'Jam Pulang', 'Durasi']],
+        body: data,
+        startY: 30,
+        theme: 'grid',
+        headStyles: { fillColor: [220, 38, 38] } // Red header for overtime
+      });
+
+      doc.save('Laporan_Overtime_Daytime.pdf');
+    } catch (error) {
+      console.error("Gagal export PDF:", error);
+      alert("Terjadi kesalahan saat membuat PDF.");
+    } finally {
+      if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+      }
+    }
   }
 
   if (btnGen) btnGen.onclick = renderReport;
@@ -4364,6 +4412,9 @@ window.addEventListener('DOMContentLoaded', function initOvertimeReport() {
       if (btn) { btn.disabled = false; btn.textContent = 'Tampilkan'; }
     }
   }
+
+  // EXPORT to window so Overtime Report can use it too
+  window.ensureHistory = ensureHistory;
 
   window.renderAttReport = async function () { // Exposed globally
     if (!tableBody) return;
