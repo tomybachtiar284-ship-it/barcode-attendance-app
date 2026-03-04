@@ -1496,7 +1496,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
     feed.innerHTML = rows.map(r => {
       const emp = employees.find(e => e.nid === r.nid);
-      const photo = emp?.photo || 'assets/default-user.png'; // Fallback image if needed
+      const photo = emp?.photo || 'data:image/svg+xml;charset=UTF-8,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22%23cbd5e1%22%3E%3Cpath d=%22M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z%22/%3E%3C/svg%3E'; // Fallback SVG if needed
       const timeStr = new Date(r.ts).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }).replace('.', ':');
 
       let statusClass = 'in'; // default green
@@ -1509,7 +1509,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
       return `
       <div class="mob-feed-card">
-        <img src="${photo}" onerror="this.src='assets/default-user.png'" style="background:#eee; object-fit:cover;">
+        <img src="${photo}" onerror="this.onerror=null; this.src='data:image/svg+xml;charset=UTF-8,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22%23cbd5e1%22%3E%3Cpath d=%22M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z%22/%3E%3C/svg%3E'" style="background:#eee; object-fit:cover;">
         <div class="info">
           <h4>${r.name}</h4>
           <p>${timeStr} • ${r.company || '-'}</p>
