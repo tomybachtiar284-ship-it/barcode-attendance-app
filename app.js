@@ -1884,7 +1884,7 @@ window.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  window.renderBreakAnalysis = function () {
+  window.renderBreakAnalysis = async function () {
     const m = $('#filterAnalysisMonth')?.value;
     const c = $('#filterAnalysisCompany')?.value || '';
     const tbody = $('#tableAnalysis tbody');
@@ -1892,79 +1892,94 @@ window.addEventListener('DOMContentLoaded', () => {
 
     if (!m) { toast('Pilih bulan terlebih dahulu.'); return; }
 
-    const start = new Date(m + '-01T00:00:00').getTime();
-    const year = parseInt(m.split('-')[0]), month = parseInt(m.split('-')[1]);
-    const end = new Date(year, month, 0, 23, 59, 59).getTime();
+    // Show loading state
+    const originalContent = tbody.innerHTML;
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:20px;">Mengambil data...</td></tr>';
 
-    // Filter Data
-    let rawBreaks = attendance.filter(a => a.ts >= start && a.ts <= end && (a.status === 'break_out' || a.status === 'break_in'));
+    try {
+      const start = new Date(m + '-01T00:00:00').getTime();
+      const year = parseInt(m.split('-')[0]), month = parseInt(m.split('-')[1]);
+      const end = new Date(year, month, 0, 23, 59, 59).getTime();
 
-    // Filter Company if selected
-    if (c) {
-      rawBreaks = rawBreaks.filter(b => (b.company || '').trim() === c);
-    }
-
-    // Group by NID and pairwise logic
-    const grouped = {};
-    rawBreaks.sort((a, b) => a.ts - b.ts); // Ensure time order for pairing
-
-    rawBreaks.forEach(r => {
-      if (!grouped[r.nid]) grouped[r.nid] = { name: r.name, company: r.company, sessions: [], lastOut: null };
-
-      if (r.status === 'break_out') {
-        grouped[r.nid].lastOut = r.ts;
-        // Push partial session
-        grouped[r.nid].sessions.push({ out: r.ts, in: null });
-      } else if (r.status === 'break_in') {
-        // Find last open session
-        const sessions = grouped[r.nid].sessions;
-        const last = sessions[sessions.length - 1];
-        if (last && last.out && !last.in) {
-          last.in = r.ts;
-        } else {
-          // Orphan break_in? Ignore or log?
-        }
+      // Fetch history for the selected month
+      if (typeof window.ensureHistory === 'function') {
+        await window.ensureHistory(start, end);
       }
-    });
 
-    // Convert to array and filter only checks that have at least one OUT
-    const sorted = Object.entries(grouped)
-      .map(([nid, val]) => ({ nid, ...val, count: val.sessions.length }))
-      .filter(x => x.count > 0)
-      .sort((a, b) => b.count - a.count);
+      // Filter Data
+      let rawBreaks = attendance.filter(a => a.ts >= start && a.ts <= end && (a.status === 'break_out' || a.status === 'break_in'));
 
-    // Render
-    if (sorted.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding:20px;">Tidak ada data izin keluar pada bulan ${m} ${c ? 'untuk ' + c : ''}.</td></tr>`;
-      return;
-    }
+      // Filter Company if selected
+      if (c) {
+        rawBreaks = rawBreaks.filter(b => (b.company || '').trim() === c);
+      }
 
-    const hm = (ts) => ts ? new Date(ts).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : '...';
-    const dt = (ts) => ts ? new Date(ts).toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit' }) : '';
+      // Group by NID and pairwise logic
+      const grouped = {};
+      rawBreaks.sort((a, b) => a.ts - b.ts); // Ensure time order for pairing
 
-    tbody.innerHTML = sorted.map((row, i) => {
-      const rank = i + 1;
-      // Format sessions
-      const details = row.sessions.map(s => {
-        const tDate = dt(s.out);
-        const tOut = hm(s.out);
-        const tIn = hm(s.in);
-        const dur = (s.out && s.in) ? Math.round((s.in - s.out) / 60000) + 'm' : '?';
-        return `<div class="chip-sm" style="margin-bottom:2px; font-size:0.75rem; display:inline-flex; align-items:center;">
-             <span style="color:var(--primary-600); font-weight:600; margin-right:4px;">${tDate}:</span> ${tOut} - ${tIn} (${dur})
-             <button onclick="deleteBreakSession(${s.out}, ${s.in || 'null'})" title="Hapus Sesi" style="background:none; border:none; color:var(--danger); cursor:pointer; margin-left:6px; font-size:1.1em; line-height:1;">&times;</button>
-        </div>`;
+      rawBreaks.forEach(r => {
+        if (!grouped[r.nid]) grouped[r.nid] = { name: r.name, company: r.company, sessions: [], lastOut: null };
+
+        if (r.status === 'break_out') {
+          grouped[r.nid].lastOut = r.ts;
+          // Push partial session
+          grouped[r.nid].sessions.push({ out: r.ts, in: null });
+        } else if (r.status === 'break_in') {
+          // Find last open session
+          const sessions = grouped[r.nid].sessions;
+          const last = sessions[sessions.length - 1];
+          if (last && last.out && !last.in) {
+            last.in = r.ts;
+          } else {
+            // Orphan break_in? Ignore or log?
+          }
+        }
+      });
+
+      // Convert to array and filter only checks that have at least one OUT
+      const sorted = Object.entries(grouped)
+        .map(([nid, val]) => ({ nid, ...val, count: val.sessions.length }))
+        .filter(x => x.count > 0)
+        .sort((a, b) => b.count - a.count);
+
+      // Render
+      if (sorted.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding:20px;">Tidak ada data izin keluar pada bulan ${m} ${c ? 'untuk ' + c : ''}.</td></tr>`;
+        return;
+      }
+
+      const hm = (ts) => ts ? new Date(ts).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : '...';
+      const dt = (ts) => ts ? new Date(ts).toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit' }) : '';
+
+      tbody.innerHTML = sorted.map((row, i) => {
+        const rank = i + 1;
+        // Format sessions
+        const details = row.sessions.map(s => {
+          const tDate = dt(s.out);
+          const tOut = hm(s.out);
+          const tIn = hm(s.in);
+          const dur = (s.out && s.in) ? Math.round((s.in - s.out) / 60000) + 'm' : '?';
+          return `<div class="chip-sm" style="margin-bottom:2px; font-size:0.75rem; display:inline-flex; align-items:center;">
+                 <span style="color:var(--primary-600); font-weight:600; margin-right:4px;">${tDate}:</span> ${tOut} - ${tIn} (${dur})
+                 <button onclick="deleteBreakSession(${s.out}, ${s.in || 'null'})" title="Hapus Sesi" style="background:none; border:none; color:var(--danger); cursor:pointer; margin-left:6px; font-size:1.1em; line-height:1;">&times;</button>
+            </div>`;
+        }).join('');
+
+        return `<tr>
+                  <td style="text-align:center; font-weight:bold;">${rank}</td>
+                  <td>${row.nid}</td>
+                  <td>${row.name}</td>
+                  <td>${row.company || '-'}</td>
+                  <td style="text-align:center; font-weight:bold; font-size:1.1rem; color:var(--orange-600)">${row.count}</td>
+                  <td>${details}</td>
+              </tr>`;
       }).join('');
 
-      return `<tr>
-              <td style="text-align:center; font-weight:bold;">${rank}</td>
-              <td>${row.nid}</td>
-              <td>${row.name}</td>
-              <td>${row.company || '-'}</td>
-              <td style="text-align:center; font-weight:bold; font-size:1.1rem; color:var(--orange-600)">${row.count}</td>
-              <td>${details}</td>
-          </tr>`;
-    }).join('');
+    } catch (error) {
+      console.error("Gagal menganalisis izin:", error);
+      tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding:20px; color:red;">Gagal memuat data: ${error.message}</td></tr>`;
+    }
   };
 
   window.deleteBreakSession = async function (tsOut, tsIn) {
@@ -3704,512 +3719,511 @@ window.addEventListener('DOMContentLoaded', () => {
     XLSX.writeFile(wb, `Laporan_Absensi_${dateStr}.xlsx`);
     toast("Laporan berhasil didownload!");
   };
-});
 
-// ===== Mobile Sidebar Logic (New Block) =====
-document.addEventListener('DOMContentLoaded', () => {
-  const btn = document.getElementById('btnMobileNav');
-  const overlay = document.getElementById('sidebarOverlay');
-  const sidebar = document.querySelector('.sidebar');
-  const navLinks = document.querySelectorAll('.navlink');
+  // ===== Mobile Sidebar Logic (New Block) =====
+  document.addEventListener('DOMContentLoaded', () => {
+    const btn = document.getElementById('btnMobileNav');
+    const overlay = document.getElementById('sidebarOverlay');
+    const sidebar = document.querySelector('.sidebar');
+    const navLinks = document.querySelectorAll('.navlink');
 
-  function toggleSidebar() {
-    if (sidebar) sidebar.classList.toggle('active');
-    if (overlay) overlay.classList.toggle('active');
-  }
+    function toggleSidebar() {
+      if (sidebar) sidebar.classList.toggle('active');
+      if (overlay) overlay.classList.toggle('active');
+    }
 
-  function closeSidebar() {
-    if (sidebar) sidebar.classList.remove('active');
-    if (overlay) overlay.classList.remove('active');
-  }
+    function closeSidebar() {
+      if (sidebar) sidebar.classList.remove('active');
+      if (overlay) overlay.classList.remove('active');
+    }
 
-  if (btn) {
-    btn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      toggleSidebar();
+    if (btn) {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        toggleSidebar();
+      });
+    }
+
+    if (overlay) {
+      overlay.addEventListener('click', closeSidebar);
+    }
+
+    // Close sidebar when a nav link is clicked (mobile UX)
+    navLinks.forEach(link => {
+      link.addEventListener('click', () => {
+        if (window.innerWidth <= 1024) {
+          closeSidebar();
+        }
+      });
     });
-  }
 
-  if (overlay) {
-    overlay.addEventListener('click', closeSidebar);
-  }
+    // ===== Logout Logic =====
+    // ===== Logout Logic =====
+    const btnLogout = document.getElementById('btnLogout');
+    if (btnLogout) {
+      btnLogout.addEventListener('click', () => {
+        if (confirm(t('confirm_logout'))) {
+          localStorage.removeItem('SA_SESSION');
+          window.location.replace('login.html');
+        }
+      });
+    }
 
-  // Close sidebar when a nav link is clicked (mobile UX)
-  navLinks.forEach(link => {
-    link.addEventListener('click', () => {
-      if (window.innerWidth <= 1024) {
-        closeSidebar();
+    // FORCE RESET DATA LOGIC
+    const btnResetData = document.getElementById('btnResetData');
+    if (btnResetData) {
+      btnResetData.addEventListener('click', () => {
+        if (confirm('⚠️ HAPUS SEMUA DATA LOKAL?\n\n1. Data di laptop ini akan dihapus.\n2. Aplikasi akan restart.\n3. Data akan diambil ulang dari Cloud (jika ada).\n\nLanjutkan?')) {
+          localStorage.clear();
+          window.location.reload();
+        }
+      });
+    }
+  });
+
+  // ===== Laporan Bulanan (Performance Report) =====
+  document.addEventListener('DOMContentLoaded', () => {
+    const btn = document.getElementById('btnDownloadMonthlyReport');
+    if (!btn) return;
+
+    const pad = n => n < 10 ? '0' + n : n;
+
+    btn.addEventListener('click', async () => {
+      const mInput = document.getElementById('reportMonth');
+      const mStr = mInput ? mInput.value : '';
+
+      if (!mStr) {
+        if (window.toast) toast('Pilih bulan terlebih dahulu.');
+        else alert('Pilih bulan terlebih dahulu.');
+        return;
+      }
+
+      if (!window.jspdf) {
+        if (window.toast) toast("Library PDF belum dimuat.");
+        return;
+      }
+
+      try {
+        const [year, month] = mStr.split('-').map(Number);
+        const startTs = new Date(year, month - 1, 1).getTime();
+        const endTs = new Date(year, month, 1).getTime();
+
+        // 1. Init stats object
+        const report = {};
+        const atts = window.attendance || [];
+
+        // 2. Process logs (Build report dynamically from logs)
+        atts.forEach(a => {
+          const ts = Number(a.ts);
+          if (isNaN(ts)) return;
+          if (ts < startTs || ts >= endTs) return;
+
+          // Init user in report if not exists
+          if (!report[a.nid]) {
+            // FIX: Look up latest employee data to fill gaps in historical records
+            const emp = window.employees ? window.employees.find(e => e.nid === a.nid) : null;
+
+            report[a.nid] = {
+              nid: a.nid,
+              name: emp?.name || a.name || '(Unknown)',
+              company: emp?.company || a.company || '-',
+              shift: emp?.shift || a.shift || '-',
+              presentDates: new Set(),
+              lateCount: 0,
+              overtimeMins: 0
+            };
+          }
+          const stats = report[a.nid];
+
+          const d = new Date(ts);
+          const dateStr = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+
+          if (a.status === 'datang') {
+            stats.presentDates.add(dateStr);
+            if (a.late) stats.lateCount++;
+          } else if (a.status === 'pulang') {
+            // Calculate Overtime
+            const shCode = a.shift;
+            if (window.shifts && window.shifts[shCode]) {
+              const sh = window.shifts[shCode];
+              let [eh, em] = sh.end.split(':').map(Number);
+              if (eh === 24) eh = 0;
+
+              const sched = new Date(ts);
+              sched.setHours(eh, em, 0, 0);
+
+              let diffMs = ts - sched.getTime();
+              // Handle cross-midnight adjustments if needed (simple logic)
+              if (diffMs > 12 * 3600 * 1000) diffMs -= 24 * 3600 * 1000;
+              if (diffMs < -12 * 3600 * 1000) diffMs += 24 * 3600 * 1000;
+
+              if (diffMs > 60000) {
+                stats.overtimeMins += Math.floor(diffMs / 60000);
+              }
+            }
+          }
+        });
+
+        // 3. Prepare PDF
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF('l', 'mm', 'a4'); // Landscape
+
+        // Helper: Load & Compress Image
+        const loadAndCompressImage = (src, targetWidth) => {
+          return new Promise(resolve => {
+            const img = new Image();
+            img.crossOrigin = 'Anonymous';
+            img.src = src;
+            img.onload = () => {
+              const canvas = document.createElement('canvas');
+              const aspect = img.height / img.width;
+              canvas.width = targetWidth;
+              canvas.height = targetWidth * aspect;
+              const ctx = canvas.getContext('2d');
+              ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+              // Use PNG to preserve transparency, but small resolution
+              resolve(canvas.toDataURL('image/png'));
+            };
+            img.onerror = () => resolve(null);
+          });
+        };
+
+        // Load Logos (Resized to ~150px width -> drastic size reduction)
+        const [logoLeft, logoRight] = await Promise.all([
+          loadAndCompressImage('assets/AMAN-S-Logo.jpg', 120),
+          loadAndCompressImage('assets/LOGO PLN NP SERVICES - FIN.png', 180)
+        ]);
+
+        // Header Layout
+        let yPos = 15;
+        const pageWidth = doc.internal.pageSize.getWidth(); // A4 Landscape ~297mm
+
+        // Left Logo (Aman-S)
+        if (logoLeft) {
+          doc.addImage(logoLeft, 'PNG', 14, 10, 20, 20); // 20mm width
+          doc.setFontSize(18);
+          doc.text('Aman-S', 40, 19);
+          doc.setFontSize(10);
+          doc.text('Aplikasi Manajemen Pengamanan Aset dan Safety', 40, 25);
+          yPos = 38;
+        } else {
+          doc.setFontSize(18);
+          doc.text('Aman-S', 14, 18);
+          doc.setFontSize(10);
+          doc.text('Aplikasi Manajemen Pengamanan Aset dan Safety', 14, 24);
+          yPos = 38;
+        }
+
+        // Right Logo (PLN)
+        if (logoRight) {
+          // Position at right side: Width - Margin (14) - ImageWidth (e.g. 40)
+          // Adjust width/height as needed typically landscape logos are wider
+          const imgW = 35;
+          const imgH = 15;
+          const xPos = pageWidth - 14 - imgW;
+          doc.addImage(logoRight, 'PNG', xPos, 12, imgW, imgH);
+        }
+
+        doc.setFontSize(14);
+        doc.text('Laporan Efektifitas & Kinerja Bulanan', 14, yPos);
+        doc.setFontSize(10);
+        doc.text(`Periode: ${mStr}`, 14, yPos + 6);
+
+        // 4. Flatten Data for autoTable
+        const tableData = Object.values(report).map((r, i) => {
+          const h = Math.floor(r.overtimeMins / 60);
+          const m = r.overtimeMins % 60;
+          const otStr = r.overtimeMins > 0 ? `${h}h ${m}m` : '0';
+
+          return [
+            i + 1,
+            r.nid,
+            r.name,
+            r.company,
+            r.shift,
+            r.presentDates.size + ' Hari',
+            r.lateCount + ' Kali',
+            otStr
+          ];
+        });
+
+        doc.autoTable({
+          head: [['No', 'NID', 'Nama', 'Perusahaan', 'Group', 'Total Hadir', 'Terlambat', 'Overtime']],
+          body: tableData,
+          startY: yPos + 12,
+          theme: 'grid',
+          styles: { fontSize: 9, cellPadding: 3 },
+          headStyles: { fillColor: [41, 75, 125], textColor: [255, 255, 255], fontStyle: 'bold' }
+        });
+
+        // 5. Save
+        doc.save(`Laporan_Kinerja_${mStr}.pdf`);
+
+        if (window.toast) toast(`Laporan ${mStr} (PDF) berhasil didownload.`);
+      } catch (err) {
+        console.error(err);
+        alert('Gagal membuat laporan: ' + err.message);
       }
     });
   });
 
-  // ===== Logout Logic =====
-  // ===== Logout Logic =====
-  const btnLogout = document.getElementById('btnLogout');
-  if (btnLogout) {
-    btnLogout.addEventListener('click', () => {
-      if (confirm(t('confirm_logout'))) {
-        localStorage.removeItem('SA_SESSION');
-        window.location.replace('login.html');
-      }
-    });
-  }
 
-  // FORCE RESET DATA LOGIC
-  const btnResetData = document.getElementById('btnResetData');
-  if (btnResetData) {
-    btnResetData.addEventListener('click', () => {
-      if (confirm('⚠️ HAPUS SEMUA DATA LOKAL?\n\n1. Data di laptop ini akan dihapus.\n2. Aplikasi akan restart.\n3. Data akan diambil ulang dari Cloud (jika ada).\n\nLanjutkan?')) {
-        localStorage.clear();
-        window.location.reload();
-      }
-    });
-  }
-});
 
-// ===== Laporan Bulanan (Performance Report) =====
-document.addEventListener('DOMContentLoaded', () => {
-  const btn = document.getElementById('btnDownloadMonthlyReport');
-  if (!btn) return;
+  /* =========================================
+     OVERTIME REPORT LOGIC (DAYTIME SPECIAL)
+     ========================================= */
+  window.addEventListener('DOMContentLoaded', function initOvertimeReport() {
+    const btnGen = document.getElementById('btnGenOtReport');
+    const btnPdf = document.getElementById('btnExportOtPdf');
 
-  const pad = n => n < 10 ? '0' + n : n;
+    // Set default date range (First day of month to Now)
+    const today = new Date();
+    const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+    const pad = n => String(n).padStart(2, '0');
 
-  btn.addEventListener('click', async () => {
-    const mInput = document.getElementById('reportMonth');
-    const mStr = mInput ? mInput.value : '';
-
-    if (!mStr) {
-      if (window.toast) toast('Pilih bulan terlebih dahulu.');
-      else alert('Pilih bulan terlebih dahulu.');
-      return;
+    if (document.getElementById('otRepStart')) {
+      document.getElementById('otRepStart').value = `${firstDay.getFullYear()}-${pad(firstDay.getMonth() + 1)}-${pad(firstDay.getDate())}`;
+      document.getElementById('otRepEnd').value = `${today.getFullYear()}-${pad(today.getMonth() + 1)}-${pad(today.getDate())}`;
     }
 
-    if (!window.jspdf) {
-      if (window.toast) toast("Library PDF belum dimuat.");
-      return;
+    // Populate Company Filter (Robust: On Focus & Initial)
+    const elComp = document.getElementById('otRepCompany');
+
+    function populateCompDropdown() {
+      if (!elComp || !window.employees) return;
+      if (elComp.options.length > 1) return; // Already populated
+
+      const comps = [...new Set(window.employees.map(e => (e.company || '').trim()).filter(Boolean))].sort();
+      comps.forEach(c => {
+        const opt = document.createElement('option');
+        opt.value = c;
+        opt.textContent = c;
+        elComp.appendChild(opt);
+      });
     }
 
-    try {
-      const [year, month] = mStr.split('-').map(Number);
-      const startTs = new Date(year, month - 1, 1).getTime();
-      const endTs = new Date(year, month, 1).getTime();
+    // Try populate immediately if possible
+    populateCompDropdown();
 
-      // 1. Init stats object
-      const report = {};
-      const atts = window.attendance || [];
+    // Also bind to focus/click in case data came late
+    if (elComp) {
+      elComp.addEventListener('focus', populateCompDropdown);
+      elComp.addEventListener('mousedown', populateCompDropdown);
+    }
 
-      // 2. Process logs (Build report dynamically from logs)
-      atts.forEach(a => {
-        const ts = Number(a.ts);
-        if (isNaN(ts)) return;
-        if (ts < startTs || ts >= endTs) return;
+    // --- NEW: Populate Name Filter (Daytime Only + Sync with Company) ---
+    const elName = document.getElementById('otRepName');
 
-        // Init user in report if not exists
-        if (!report[a.nid]) {
-          // FIX: Look up latest employee data to fill gaps in historical records
-          const emp = window.employees ? window.employees.find(e => e.nid === a.nid) : null;
+    function populateNameDropdown() {
+      if (!elName || !window.employees) return;
 
-          report[a.nid] = {
-            nid: a.nid,
-            name: emp?.name || a.name || '(Unknown)',
-            company: emp?.company || a.company || '-',
-            shift: emp?.shift || a.shift || '-',
-            presentDates: new Set(),
-            lateCount: 0,
-            overtimeMins: 0
-          };
-        }
-        const stats = report[a.nid];
+      // Save current selection to restore if possible
+      const currentVal = elName.value;
 
-        const d = new Date(ts);
+      // Clear existing options (keep default)
+      elName.innerHTML = '<option value="">Semua Karyawan</option>';
+
+      // Get selected company
+      const selComp = elComp ? elComp.value : '';
+
+      // Filter: Daytime Only AND (Company match if selected)
+      const dayUsers = window.employees.filter(e => {
+        const isDay = (e.shift === 'DAYTIME') || (e.shift && e.shift.toLowerCase().includes('day'));
+        if (!isDay) return false;
+
+        if (selComp && (e.company || '').trim() !== selComp) return false;
+        return true;
+      }).sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+
+      dayUsers.forEach(e => {
+        const opt = document.createElement('option');
+        opt.value = e.name;
+        opt.textContent = `${e.name}`;
+        elName.appendChild(opt);
+      });
+
+      // Restore selection if it still exists in the new list
+      // Otherwise, it naturally falls back to "" (Semua)
+      if (currentVal && Array.from(elName.options).some(o => o.value === currentVal)) {
+        elName.value = currentVal;
+      }
+    }
+
+    // Initial Populate
+    populateNameDropdown();
+
+    if (elName) {
+      elName.addEventListener('focus', populateNameDropdown);
+      // elName.addEventListener('mousedown', populateNameDropdown); // Remove mousedown to avoid flicker
+    }
+
+    // SYNC: When Company changes, update Name list
+    if (elComp) {
+      elComp.addEventListener('change', () => {
+        populateNameDropdown();
+        // Reset name selection to 'All' when company changes (UX best practice)
+        elName.value = '';
+      });
+    }
+
+
+    function getOtReportData() {
+      const dStart = new Date(document.getElementById('otRepStart').value + 'T00:00:00');
+      const dEnd = new Date(document.getElementById('otRepEnd').value + 'T23:59:59');
+      const fComp = document.getElementById('otRepCompany')?.value || '';
+      const fName = document.getElementById('otRepName')?.value || '';
+
+      // Cache employees
+      const empMap = new Map((window.employees || []).map(e => [e.nid, e]));
+
+      // Group attendance by Date + NID
+      // structure: { "YYYY-MM-DD|NID": { datang: ts, pulang: ts, nid: ... } }
+      const records = {};
+
+      (window.attendance || []).forEach(a => {
+        const d = new Date(a.ts);
+        if (d < dStart || d > dEnd) return;
+
         const dateStr = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+        const key = `${dateStr}|${a.nid}`;
+
+        if (!records[key]) records[key] = { date: dateStr, nid: a.nid, datang: null, pulang: null };
 
         if (a.status === 'datang') {
-          stats.presentDates.add(dateStr);
-          if (a.late) stats.lateCount++;
+          // Take earliest datang
+          if (!records[key].datang || a.ts < records[key].datang) records[key].datang = a.ts;
         } else if (a.status === 'pulang') {
-          // Calculate Overtime
-          const shCode = a.shift;
-          if (window.shifts && window.shifts[shCode]) {
-            const sh = window.shifts[shCode];
-            let [eh, em] = sh.end.split(':').map(Number);
-            if (eh === 24) eh = 0;
+          // Take latest pulang
+          if (!records[key].pulang || a.ts > records[key].pulang) records[key].pulang = a.ts;
+        }
+      });
 
-            const sched = new Date(ts);
-            sched.setHours(eh, em, 0, 0);
+      const results = [];
 
-            let diffMs = ts - sched.getTime();
-            // Handle cross-midnight adjustments if needed (simple logic)
-            if (diffMs > 12 * 3600 * 1000) diffMs -= 24 * 3600 * 1000;
-            if (diffMs < -12 * 3600 * 1000) diffMs += 24 * 3600 * 1000;
+      Object.values(records).forEach(rec => {
+        // FIX: Allow partial records. We check for valid Out time later (Smart Logic)
+        // if (!rec.pulang) return;
 
-            if (diffMs > 60000) {
-              stats.overtimeMins += Math.floor(diffMs / 60000);
-            }
+        const e = empMap.get(rec.nid);
+        if (!e) return;
+
+        // Filter Company
+        if (fComp && (e.company || '').trim() !== fComp) return;
+
+        // Filter Name (New)
+        if (fName && e.name !== fName) return;
+
+        // --- LOGIC FILTER STRICT DAYTIME (REUSED) ---
+        // Fix: Use rec.date because rec.datang might be missing
+        const tDate = new Date(rec.date + 'T12:00:00'); // Use noon to avoid timezone issues
+        const effCode = window.effectiveShiftFor ? window.effectiveShiftFor(e, tDate) : null;
+        // Fallback Logic: Check if shift string contains 'day' (e.g. "DAYTIME", "Grup Daytime")
+        // User Request: STRICTLY "Grup Daytime" / "Daytime" only.
+        let shiftStr = (e.shift || '').toLowerCase();
+        let isDaytime = shiftStr.includes('day');
+
+        // Trust effective shift if available and specific
+        if (effCode && effCode !== 'OFF' && effCode !== 'DAYTIME') {
+          // If effective shift is NOT Daytime (e.g. 'Malam'), exclude.
+          if (!effCode.toLowerCase().includes('day')) isDaytime = false;
+        }
+
+        if (!isDaytime) return;
+        // ---------------------------------------------
+
+        // Calculate Overtime
+        // Shift End Rule
+        const s = (window.shifts && window.shifts.DAYTIME) ? window.shifts.DAYTIME : { end: '16:00' };
+        const [eh, em] = s.end.split(':').map(Number);
+
+        const schedEnd = new Date(`${rec.date}T${s.end}:00`); // Base on Date + Shift End
+        // schedEnd.setHours(eh, em, 0, 0); // Already set by string construction
+
+        let actualOutTs = rec.pulang;
+        let noteSuffix = '';
+
+        // PHASE 1.5: Smart Detection (Lupa Scan Pagi)
+        // If no Pulang, check if Datang is actually a late Pulang (after Shift End)
+        if (!actualOutTs && rec.datang && rec.datang > schedEnd.getTime()) {
+          actualOutTs = rec.datang;
+          noteSuffix = ' (Salah Scan Masuk)';
+        }
+
+        if (!actualOutTs) return; // Must have a valid Out time (Real or Smart Detected)
+
+        if (actualOutTs > schedEnd.getTime()) {
+          const diffMs = actualOutTs - schedEnd.getTime();
+          // Threshold check (e.g. 1 min)
+          if (diffMs > 60000) {
+            const hours = Math.floor(diffMs / 3600000);
+            const mins = Math.floor((diffMs % 3600000) / 60000);
+
+            results.push({
+              date: rec.date,
+              nid: rec.nid,
+              name: e.name,
+              shiftEnd: s.end,
+              actualOut: new Date(actualOutTs).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
+              durationMs: diffMs,
+              desc: `${hours}h ${mins}m${noteSuffix}`
+            });
           }
         }
       });
 
-      // 3. Prepare PDF
-      const { jsPDF } = window.jspdf;
-      const doc = new jsPDF('l', 'mm', 'a4'); // Landscape
-
-      // Helper: Load & Compress Image
-      const loadAndCompressImage = (src, targetWidth) => {
-        return new Promise(resolve => {
-          const img = new Image();
-          img.crossOrigin = 'Anonymous';
-          img.src = src;
-          img.onload = () => {
-            const canvas = document.createElement('canvas');
-            const aspect = img.height / img.width;
-            canvas.width = targetWidth;
-            canvas.height = targetWidth * aspect;
-            const ctx = canvas.getContext('2d');
-            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-            // Use PNG to preserve transparency, but small resolution
-            resolve(canvas.toDataURL('image/png'));
-          };
-          img.onerror = () => resolve(null);
-        });
-      };
-
-      // Load Logos (Resized to ~150px width -> drastic size reduction)
-      const [logoLeft, logoRight] = await Promise.all([
-        loadAndCompressImage('assets/AMAN-S-Logo.jpg', 120),
-        loadAndCompressImage('assets/LOGO PLN NP SERVICES - FIN.png', 180)
-      ]);
-
-      // Header Layout
-      let yPos = 15;
-      const pageWidth = doc.internal.pageSize.getWidth(); // A4 Landscape ~297mm
-
-      // Left Logo (Aman-S)
-      if (logoLeft) {
-        doc.addImage(logoLeft, 'PNG', 14, 10, 20, 20); // 20mm width
-        doc.setFontSize(18);
-        doc.text('Aman-S', 40, 19);
-        doc.setFontSize(10);
-        doc.text('Aplikasi Manajemen Pengamanan Aset dan Safety', 40, 25);
-        yPos = 38;
-      } else {
-        doc.setFontSize(18);
-        doc.text('Aman-S', 14, 18);
-        doc.setFontSize(10);
-        doc.text('Aplikasi Manajemen Pengamanan Aset dan Safety', 14, 24);
-        yPos = 38;
-      }
-
-      // Right Logo (PLN)
-      if (logoRight) {
-        // Position at right side: Width - Margin (14) - ImageWidth (e.g. 40)
-        // Adjust width/height as needed typically landscape logos are wider
-        const imgW = 35;
-        const imgH = 15;
-        const xPos = pageWidth - 14 - imgW;
-        doc.addImage(logoRight, 'PNG', xPos, 12, imgW, imgH);
-      }
-
-      doc.setFontSize(14);
-      doc.text('Laporan Efektifitas & Kinerja Bulanan', 14, yPos);
-      doc.setFontSize(10);
-      doc.text(`Periode: ${mStr}`, 14, yPos + 6);
-
-      // 4. Flatten Data for autoTable
-      const tableData = Object.values(report).map((r, i) => {
-        const h = Math.floor(r.overtimeMins / 60);
-        const m = r.overtimeMins % 60;
-        const otStr = r.overtimeMins > 0 ? `${h}h ${m}m` : '0';
-
-        return [
-          i + 1,
-          r.nid,
-          r.name,
-          r.company,
-          r.shift,
-          r.presentDates.size + ' Hari',
-          r.lateCount + ' Kali',
-          otStr
-        ];
+      // Sort by Date Desc, then Duration Desc
+      results.sort((a, b) => {
+        if (a.date !== b.date) return b.date.localeCompare(a.date);
+        return b.durationMs - a.durationMs;
       });
 
-      doc.autoTable({
-        head: [['No', 'NID', 'Nama', 'Perusahaan', 'Group', 'Total Hadir', 'Terlambat', 'Overtime']],
-        body: tableData,
-        startY: yPos + 12,
-        theme: 'grid',
-        styles: { fontSize: 9, cellPadding: 3 },
-        headStyles: { fillColor: [41, 75, 125], textColor: [255, 255, 255], fontStyle: 'bold' }
-      });
-
-      // 5. Save
-      doc.save(`Laporan_Kinerja_${mStr}.pdf`);
-
-      if (window.toast) toast(`Laporan ${mStr} (PDF) berhasil didownload.`);
-    } catch (err) {
-      console.error(err);
-      alert('Gagal membuat laporan: ' + err.message);
-    }
-  });
-});
-
-
-
-/* =========================================
-   OVERTIME REPORT LOGIC (DAYTIME SPECIAL)
-   ========================================= */
-window.addEventListener('DOMContentLoaded', function initOvertimeReport() {
-  const btnGen = document.getElementById('btnGenOtReport');
-  const btnPdf = document.getElementById('btnExportOtPdf');
-
-  // Set default date range (First day of month to Now)
-  const today = new Date();
-  const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
-  const pad = n => String(n).padStart(2, '0');
-
-  if (document.getElementById('otRepStart')) {
-    document.getElementById('otRepStart').value = `${firstDay.getFullYear()}-${pad(firstDay.getMonth() + 1)}-${pad(firstDay.getDate())}`;
-    document.getElementById('otRepEnd').value = `${today.getFullYear()}-${pad(today.getMonth() + 1)}-${pad(today.getDate())}`;
-  }
-
-  // Populate Company Filter (Robust: On Focus & Initial)
-  const elComp = document.getElementById('otRepCompany');
-
-  function populateCompDropdown() {
-    if (!elComp || !window.employees) return;
-    if (elComp.options.length > 1) return; // Already populated
-
-    const comps = [...new Set(window.employees.map(e => (e.company || '').trim()).filter(Boolean))].sort();
-    comps.forEach(c => {
-      const opt = document.createElement('option');
-      opt.value = c;
-      opt.textContent = c;
-      elComp.appendChild(opt);
-    });
-  }
-
-  // Try populate immediately if possible
-  populateCompDropdown();
-
-  // Also bind to focus/click in case data came late
-  if (elComp) {
-    elComp.addEventListener('focus', populateCompDropdown);
-    elComp.addEventListener('mousedown', populateCompDropdown);
-  }
-
-  // --- NEW: Populate Name Filter (Daytime Only + Sync with Company) ---
-  const elName = document.getElementById('otRepName');
-
-  function populateNameDropdown() {
-    if (!elName || !window.employees) return;
-
-    // Save current selection to restore if possible
-    const currentVal = elName.value;
-
-    // Clear existing options (keep default)
-    elName.innerHTML = '<option value="">Semua Karyawan</option>';
-
-    // Get selected company
-    const selComp = elComp ? elComp.value : '';
-
-    // Filter: Daytime Only AND (Company match if selected)
-    const dayUsers = window.employees.filter(e => {
-      const isDay = (e.shift === 'DAYTIME') || (e.shift && e.shift.toLowerCase().includes('day'));
-      if (!isDay) return false;
-
-      if (selComp && (e.company || '').trim() !== selComp) return false;
-      return true;
-    }).sort((a, b) => (a.name || '').localeCompare(b.name || ''));
-
-    dayUsers.forEach(e => {
-      const opt = document.createElement('option');
-      opt.value = e.name;
-      opt.textContent = `${e.name}`;
-      elName.appendChild(opt);
-    });
-
-    // Restore selection if it still exists in the new list
-    // Otherwise, it naturally falls back to "" (Semua)
-    if (currentVal && Array.from(elName.options).some(o => o.value === currentVal)) {
-      elName.value = currentVal;
-    }
-  }
-
-  // Initial Populate
-  populateNameDropdown();
-
-  if (elName) {
-    elName.addEventListener('focus', populateNameDropdown);
-    // elName.addEventListener('mousedown', populateNameDropdown); // Remove mousedown to avoid flicker
-  }
-
-  // SYNC: When Company changes, update Name list
-  if (elComp) {
-    elComp.addEventListener('change', () => {
-      populateNameDropdown();
-      // Reset name selection to 'All' when company changes (UX best practice)
-      elName.value = '';
-    });
-  }
-
-
-  function getOtReportData() {
-    const dStart = new Date(document.getElementById('otRepStart').value + 'T00:00:00');
-    const dEnd = new Date(document.getElementById('otRepEnd').value + 'T23:59:59');
-    const fComp = document.getElementById('otRepCompany')?.value || '';
-    const fName = document.getElementById('otRepName')?.value || '';
-
-    // Cache employees
-    const empMap = new Map((window.employees || []).map(e => [e.nid, e]));
-
-    // Group attendance by Date + NID
-    // structure: { "YYYY-MM-DD|NID": { datang: ts, pulang: ts, nid: ... } }
-    const records = {};
-
-    (window.attendance || []).forEach(a => {
-      const d = new Date(a.ts);
-      if (d < dStart || d > dEnd) return;
-
-      const dateStr = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-      const key = `${dateStr}|${a.nid}`;
-
-      if (!records[key]) records[key] = { date: dateStr, nid: a.nid, datang: null, pulang: null };
-
-      if (a.status === 'datang') {
-        // Take earliest datang
-        if (!records[key].datang || a.ts < records[key].datang) records[key].datang = a.ts;
-      } else if (a.status === 'pulang') {
-        // Take latest pulang
-        if (!records[key].pulang || a.ts > records[key].pulang) records[key].pulang = a.ts;
-      }
-    });
-
-    const results = [];
-
-    Object.values(records).forEach(rec => {
-      // FIX: Allow partial records. We check for valid Out time later (Smart Logic)
-      // if (!rec.pulang) return;
-
-      const e = empMap.get(rec.nid);
-      if (!e) return;
-
-      // Filter Company
-      if (fComp && (e.company || '').trim() !== fComp) return;
-
-      // Filter Name (New)
-      if (fName && e.name !== fName) return;
-
-      // --- LOGIC FILTER STRICT DAYTIME (REUSED) ---
-      // Fix: Use rec.date because rec.datang might be missing
-      const tDate = new Date(rec.date + 'T12:00:00'); // Use noon to avoid timezone issues
-      const effCode = window.effectiveShiftFor ? window.effectiveShiftFor(e, tDate) : null;
-      // Fallback Logic: Check if shift string contains 'day' (e.g. "DAYTIME", "Grup Daytime")
-      // User Request: STRICTLY "Grup Daytime" / "Daytime" only.
-      let shiftStr = (e.shift || '').toLowerCase();
-      let isDaytime = shiftStr.includes('day');
-
-      // Trust effective shift if available and specific
-      if (effCode && effCode !== 'OFF' && effCode !== 'DAYTIME') {
-        // If effective shift is NOT Daytime (e.g. 'Malam'), exclude.
-        if (!effCode.toLowerCase().includes('day')) isDaytime = false;
-      }
-
-      if (!isDaytime) return;
-      // ---------------------------------------------
-
-      // Calculate Overtime
-      // Shift End Rule
-      const s = (window.shifts && window.shifts.DAYTIME) ? window.shifts.DAYTIME : { end: '16:00' };
-      const [eh, em] = s.end.split(':').map(Number);
-
-      const schedEnd = new Date(`${rec.date}T${s.end}:00`); // Base on Date + Shift End
-      // schedEnd.setHours(eh, em, 0, 0); // Already set by string construction
-
-      let actualOutTs = rec.pulang;
-      let noteSuffix = '';
-
-      // PHASE 1.5: Smart Detection (Lupa Scan Pagi)
-      // If no Pulang, check if Datang is actually a late Pulang (after Shift End)
-      if (!actualOutTs && rec.datang && rec.datang > schedEnd.getTime()) {
-        actualOutTs = rec.datang;
-        noteSuffix = ' (Salah Scan Masuk)';
-      }
-
-      if (!actualOutTs) return; // Must have a valid Out time (Real or Smart Detected)
-
-      if (actualOutTs > schedEnd.getTime()) {
-        const diffMs = actualOutTs - schedEnd.getTime();
-        // Threshold check (e.g. 1 min)
-        if (diffMs > 60000) {
-          const hours = Math.floor(diffMs / 3600000);
-          const mins = Math.floor((diffMs % 3600000) / 60000);
-
-          results.push({
-            date: rec.date,
-            nid: rec.nid,
-            name: e.name,
-            shiftEnd: s.end,
-            actualOut: new Date(actualOutTs).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
-            durationMs: diffMs,
-            desc: `${hours}h ${mins}m${noteSuffix}`
-          });
-        }
-      }
-    });
-
-    // Sort by Date Desc, then Duration Desc
-    results.sort((a, b) => {
-      if (a.date !== b.date) return b.date.localeCompare(a.date);
-      return b.durationMs - a.durationMs;
-    });
-
-    return results;
-  }
-
-  async function renderReport() {
-    const btn = document.getElementById('btnGenOtReport');
-    const originalText = btn ? btn.innerHTML : 'Tampilkan Laporan';
-
-    // Show Loading
-    if (btn) {
-      btn.disabled = true;
-      btn.innerHTML = '⏳ Memuat...';
-    }
-    const tbody = document.querySelector('#tableOtReport tbody');
-    if (tbody) tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:20px;">Memproses data...</td></tr>';
-
-    // Fetch history first
-    try {
-      if (typeof ensureHistory === 'function') {
-        const startDateStr = document.getElementById('otRepStart')?.value || '';
-        const endDateStr = document.getElementById('otRepEnd')?.value || '';
-        if (startDateStr && endDateStr) {
-          const startMs = new Date(startDateStr + 'T00:00:00').getTime();
-          const endMs = new Date(endDateStr + 'T23:59:59').getTime();
-          await ensureHistory(startMs, endMs);
-        }
-      }
-    } catch (e) {
-      console.warn("Gagal mengambil histori overtime:", e);
+      return results;
     }
 
-    // Delay to allow UI render
-    setTimeout(() => {
+    async function renderReport() {
+      const btn = document.getElementById('btnGenOtReport');
+      const originalText = btn ? btn.innerHTML : 'Tampilkan Laporan';
+
+      // Show Loading
+      if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '⏳ Memuat...';
+      }
+      const tbody = document.querySelector('#tableOtReport tbody');
+      if (tbody) tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:20px;">Memproses data...</td></tr>';
+
+      // Fetch history first
       try {
-        const list = getOtReportData();
-        if (!tbody) return;
+        if (typeof ensureHistory === 'function') {
+          const startDateStr = document.getElementById('otRepStart')?.value || '';
+          const endDateStr = document.getElementById('otRepEnd')?.value || '';
+          if (startDateStr && endDateStr) {
+            const startMs = new Date(startDateStr + 'T00:00:00').getTime();
+            const endMs = new Date(endDateStr + 'T23:59:59').getTime();
+            await ensureHistory(startMs, endMs);
+          }
+        }
+      } catch (e) {
+        console.warn("Gagal mengambil histori overtime:", e);
+      }
 
-        tbody.innerHTML = '';
+      // Delay to allow UI render
+      setTimeout(() => {
+        try {
+          const list = getOtReportData();
+          if (!tbody) return;
 
-        let totalEmp = new Set();
-        let totalMs = 0;
+          tbody.innerHTML = '';
 
-        list.forEach(r => {
-          totalEmp.add(r.nid);
-          totalMs += r.durationMs;
+          let totalEmp = new Set();
+          let totalMs = 0;
 
-          const tr = document.createElement('tr');
-          tr.innerHTML = `
+          list.forEach(r => {
+            totalEmp.add(r.nid);
+            totalMs += r.durationMs;
+
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
                 <td>${r.date}</td>
                 <td><b style="color:var(--primary-700)">${r.name}</b><br><small class="muted">${r.nid}</small></td>
                 <td>DAYTIME (${r.shiftEnd})</td>
@@ -4217,347 +4231,347 @@ window.addEventListener('DOMContentLoaded', function initOvertimeReport() {
                 <td><span class="badgess green">${r.desc}</span></td>
                 <td>Lembur Harian</td>
             `;
-          tbody.appendChild(tr);
+            tbody.appendChild(tr);
+          });
+
+          // Summary
+          document.getElementById('otRepTotalEmp').textContent = totalEmp.size + ' Org';
+          const h = Math.floor(totalMs / 3600000);
+          const m = Math.floor((totalMs % 3600000) / 60000);
+          document.getElementById('otRepTotalHours').textContent = `${h}h ${m}m`;
+
+          if (list.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:20px;">Tidak ada data lembur Daytime pada periode ini.</td></tr>';
+          }
+        } catch (error) {
+          console.error(error);
+          if (tbody) tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:red;">Gagal memuat: ${error.message}</td></tr>`;
+        } finally {
+          // Restore Button
+          if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = originalText;
+          }
+        }
+      }, 100);
+    }
+
+    async function exportPDF() {
+      // Show Loading state on button if possible
+      const btn = document.getElementById('btnExportOtPdf');
+      const originalText = btn ? btn.innerHTML : 'Export PDF';
+      if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '⏳ Menyiapkan...';
+      }
+
+      try {
+        // Fetch history first
+        if (typeof ensureHistory === 'function') {
+          const startDateStr = document.getElementById('otRepStart')?.value || '';
+          const endDateStr = document.getElementById('otRepEnd')?.value || '';
+          if (startDateStr && endDateStr) {
+            const startMs = new Date(startDateStr + 'T00:00:00').getTime();
+            const endMs = new Date(endDateStr + 'T23:59:59').getTime();
+            await ensureHistory(startMs, endMs);
+          }
+        }
+
+        const list = getOtReportData();
+        if (list.length === 0) {
+          alert("Tidak ada data untuk diexport!");
+          if (btn) { btn.disabled = false; btn.innerHTML = originalText; }
+          return;
+        }
+
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF('l', 'mm', 'a4');
+
+        // Simple Header
+        doc.setFontSize(16);
+        doc.text('Laporan Overtime (Daytime)', 14, 15);
+        doc.setFontSize(10);
+        doc.text(`Periode: ${document.getElementById('otRepStart').value} s.d ${document.getElementById('otRepEnd').value}`, 14, 22);
+
+        const data = list.map((r, i) => [
+          i + 1, r.date, r.name, r.nid, 'DAYTIME', r.actualOut, r.desc
+        ]);
+
+        doc.autoTable({
+          head: [['No', 'Tanggal', 'Nama', 'NID', 'Shift', 'Jam Pulang', 'Durasi']],
+          body: data,
+          startY: 30,
+          theme: 'grid',
+          headStyles: { fillColor: [220, 38, 38] } // Red header for overtime
         });
 
-        // Summary
-        document.getElementById('otRepTotalEmp').textContent = totalEmp.size + ' Org';
-        const h = Math.floor(totalMs / 3600000);
-        const m = Math.floor((totalMs % 3600000) / 60000);
-        document.getElementById('otRepTotalHours').textContent = `${h}h ${m}m`;
-
-        if (list.length === 0) {
-          tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:20px;">Tidak ada data lembur Daytime pada periode ini.</td></tr>';
-        }
+        doc.save('Laporan_Overtime_Daytime.pdf');
       } catch (error) {
-        console.error(error);
-        if (tbody) tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:red;">Gagal memuat: ${error.message}</td></tr>`;
+        console.error("Gagal export PDF:", error);
+        alert("Terjadi kesalahan saat membuat PDF.");
       } finally {
-        // Restore Button
         if (btn) {
           btn.disabled = false;
           btn.innerHTML = originalText;
         }
       }
-    }, 100);
-  }
-
-  async function exportPDF() {
-    // Show Loading state on button if possible
-    const btn = document.getElementById('btnExportOtPdf');
-    const originalText = btn ? btn.innerHTML : 'Export PDF';
-    if (btn) {
-      btn.disabled = true;
-      btn.innerHTML = '⏳ Menyiapkan...';
     }
 
-    try {
-      // Fetch history first
-      if (typeof ensureHistory === 'function') {
-        const startDateStr = document.getElementById('otRepStart')?.value || '';
-        const endDateStr = document.getElementById('otRepEnd')?.value || '';
-        if (startDateStr && endDateStr) {
-          const startMs = new Date(startDateStr + 'T00:00:00').getTime();
-          const endMs = new Date(endDateStr + 'T23:59:59').getTime();
-          await ensureHistory(startMs, endMs);
+    if (btnGen) btnGen.onclick = renderReport;
+    if (btnPdf) btnPdf.onclick = exportPDF;
+
+    // Expose for debugging if needed
+    window.renderOvertimeReport = renderReport;
+    window.getOtReportData = getOtReportData; // Expose for Console Test Script
+  });
+
+
+
+  /* =========================================
+     ATTENDANCE REPORT (24H) & ABSENTEEISM LOGIC
+     ========================================= */
+  (function () {
+    const btnFilter = document.getElementById('btnFilterAtt');
+    const btnExport = document.getElementById('btnExportAtt');
+    const tableBody = document.querySelector('#tableAtt tbody');
+
+    // Helper: Format Time
+    const fmtTime = (ts) => {
+      if (!ts) return '-';
+      const d = new Date(ts);
+      return `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+    };
+    const pad = n => String(n).padStart(2, '0');
+
+    // Helper: Generate Date Range Array
+    const getDates = (start, end) => {
+      const dates = [];
+      let cur = new Date(start);
+      cur.setHours(0, 0, 0, 0);
+      const last = new Date(end);
+      last.setHours(0, 0, 0, 0);
+
+      while (cur <= last) {
+        dates.push(new Date(cur));
+        cur.setDate(cur.getDate() + 1);
+      }
+      return dates;
+    };
+
+    // Helper: Fetch History if Needed
+    async function ensureHistory(startMs, endMs) {
+      if (!window.sb) return;
+
+      // Check if we have data covering this range. 
+      // Simplified heuristic: If looking for past data (before Today), 
+      // and we haven't fetched it yet, then fetch.
+      // Better: Keep track of fetched ranges?
+      // SIMPLEST: Just fetch. Supabase is fast. Overlap is handled by uniqueness check.
+
+      const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
+      if (startMs >= todayStart.getTime()) return; // Today's data is already auto-synced
+
+      const btn = document.getElementById('btnFilterAtt');
+      if (btn) { btn.disabled = true; btn.textContent = 'loading...'; }
+
+      try {
+        console.log(`Fetch History: ${new Date(startMs).toLocaleDateString()} - ${new Date(endMs).toLocaleDateString()}`);
+
+        // Fetch Attendance
+        const { data: atts } = await window.sb.from('attendance')
+          .select('*')
+          .gte('ts', startMs)
+          .lte('ts', endMs);
+
+        // Fetch Breaks
+        const { data: brks } = await window.sb.from('breaks')
+          .select('*')
+          .gte('ts', startMs)
+          .lte('ts', endMs);
+
+        // Merge to window.attendance
+        if (atts || brks) {
+          const newItems = [];
+
+          if (atts) atts.forEach(x => {
+            newItems.push({
+              ts: new Date(x.ts).getTime(), // Fix TZ
+              status: x.status, nid: x.nid, name: x.name,
+              title: x.title, company: x.company, shift: x.shift,
+              note: x.note, late: x.late, okShift: x.ok_shift
+            });
+          });
+
+          if (brks) brks.forEach(x => {
+            newItems.push({
+              ts: new Date(x.ts).getTime(),
+              status: x.status, nid: x.nid, name: x.name,
+              title: '', company: x.company, shift: '',
+              note: (x.status === 'break_out' ? 'Izin Keluar / Istirahat' : 'Kembali Masuk'),
+              late: false, okShift: true
+            });
+          });
+
+          // Merge avoiding duplicates (by TS)
+          // Use Map for O(N)
+          const merged = new Map();
+          window.attendance.forEach(a => merged.set(a.ts, a));
+          newItems.forEach(a => merged.set(a.ts, a));
+
+          window.attendance = Array.from(merged.values()).sort((a, b) => a.ts - b.ts);
         }
+      } catch (e) {
+        console.error("History fetch error:", e);
+      } finally {
+        if (btn) { btn.disabled = false; btn.textContent = 'Tampilkan'; }
+      }
+    }
+
+    // EXPORT to window so Overtime Report can use it too
+    window.ensureHistory = ensureHistory;
+
+    window.renderAttReport = async function () { // Exposed globally
+      if (!tableBody) return;
+      tableBody.innerHTML = '<tr><td colspan="9" style="text-align:center">Memuat data...</td></tr>';
+
+      // 1. Get Filter Values
+      const fFrom = document.getElementById('attFrom')?.value || todayISO();
+      const fTo = document.getElementById('attTo')?.value || todayISO();
+      const fGroup = document.getElementById('attGroupFilter')?.value || '';
+      const fStatus = document.getElementById('attStatusFilter')?.value || '';
+      const fSearch = document.getElementById('attSearch')?.value?.toLowerCase() || '';
+
+      // 2. FETCH HISTORY IF NEEDED
+      const startMs = new Date(fFrom + 'T00:00:00').getTime();
+      const endMs = new Date(fTo + 'T23:59:59').getTime();
+
+      await ensureHistory(startMs, endMs);
+
+      // 3. Prepare Data Source
+      let allRecords = [];
+
+      // --- A. GET ACTUAL ATTENDANCE ---
+      // Filter by Date Range
+      const scanRecords = attendance.filter(a => a.ts >= startMs && a.ts <= endMs);
+
+      // --- B. GENERATE ABSENTEE (GHOST) RECORDS ---
+      // Only if filter is ALL or UNKNOWN
+      if (fStatus === '' || fStatus === 'UNKNOWN') {
+        const dates = getDates(fFrom, fTo);
+        const emps = employees; // Global
+
+        dates.forEach(dObj => {
+          const dateStr = `${dObj.getFullYear()}-${pad(dObj.getMonth() + 1)}-${pad(dObj.getDate())}`; // YYYY-MM-DD
+          const nextDayStr = new Date(dObj.getTime() + 86400000).toISOString().split('T')[0];
+
+          emps.forEach(emp => {
+            // Check Schedule
+            let shiftCode = 'OFF';
+            if (window.effectiveShiftFor) {
+              shiftCode = window.effectiveShiftFor(emp, dObj.getTime());
+            } else {
+              shiftCode = emp.shift || 'OFF';
+            }
+
+            if (!shiftCode || shiftCode === 'OFF') return; // Scheduled Off
+
+            // Check if Scanned
+            // Logic checks if any record exists for this NID on this Date
+            const hasScan = scanRecords.some(r => {
+              if (r.nid !== emp.nid) return false;
+              const rDate = new Date(r.ts);
+              const rDateStr = `${rDate.getFullYear()}-${pad(rDate.getMonth() + 1)}-${pad(rDate.getDate())}`;
+              return rDateStr === dateStr;
+            });
+
+            if (!hasScan) {
+              // Create Ghost Record
+              allRecords.push({
+                isGhost: true,
+                ts: dObj.getTime(), // Sortable
+                dateStr: dateStr,
+                timeStr: '-',
+                status: 'UNKNOWN',
+                nid: emp.nid,
+                name: emp.name,
+                title: emp.title,
+                company: emp.company,
+                shift: shiftCode,
+                note: `Tidak Hadir (Jadwal: ${shiftCode})`,
+                late: false
+              });
+            }
+          });
+        });
       }
 
-      const list = getOtReportData();
-      if (list.length === 0) {
-        alert("Tidak ada data untuk diexport!");
-        if (btn) { btn.disabled = false; btn.innerHTML = originalText; }
+      // --- C. MERGE & FILTER STATUS ---
+      // Add real scans if allowed
+      if (fStatus !== 'UNKNOWN') {
+        const mappedScans = scanRecords.map(r => ({
+          ...r,
+          isGhost: false,
+          dateStr: fmtTs(r.ts).split(' ')[0],
+          timeStr: fmtTime(r.ts)
+        }));
+        allRecords = [...allRecords, ...mappedScans];
+      }
+
+
+
+
+      // --- D. APPLY FILTERS ---
+      let filtered = allRecords.filter(r => {
+        // Status Filter
+        if (fStatus) {
+          if (fStatus === 'LATE' && !r.late) return false;
+          if (fStatus === 'ONTIME' && (r.late || r.status !== 'datang')) return false;
+          if (fStatus === 'UNKNOWN' && r.status !== 'UNKNOWN') return false;
+        }
+
+        // Group Filter
+        if (fGroup && fGroup !== '') {
+          if (r.shift !== fGroup) return false;
+        }
+
+        // Search Filter
+        if (fSearch) {
+          const raw = `${r.name} ${r.nid} ${r.company} ${r.note}`.toLowerCase();
+          if (!raw.includes(fSearch)) return false;
+        }
+
+        return true;
+      });
+
+      // --- E. SORT ---
+      // Sort by TS descending
+      filtered.sort((a, b) => b.ts - a.ts);
+
+      // --- F. RENDER ---
+      if (filtered.length === 0) {
+        tableBody.innerHTML = '<tr><td colspan="9" style="text-align:center; padding:20px;" class="muted">Tidak ada data ditemukan.</td></tr>';
         return;
       }
 
-      const { jsPDF } = window.jspdf;
-      const doc = new jsPDF('l', 'mm', 'a4');
+      tableBody.innerHTML = filtered.map(r => {
+        const rowClass = r.isGhost ? 'style="background-color:#fef2f2"' : ''; // Red tint for absent
+        const statusBadge = r.isGhost
+          ? `<span class="badge danger">Alpha / Tanpa Keterangan</span>`
+          : (r.status === 'datang' ? '<span class="badge success">Masuk</span>' : (r.status === 'break_out' ? '<span class="badge warning">Istirahat</span>' : '<span class="badge">Pulang</span>'));
 
-      // Simple Header
-      doc.setFontSize(16);
-      doc.text('Laporan Overtime (Daytime)', 14, 15);
-      doc.setFontSize(10);
-      doc.text(`Periode: ${document.getElementById('otRepStart').value} s.d ${document.getElementById('otRepEnd').value}`, 14, 22);
+        const lateBadge = r.late ? `<span class="badge danger">Telat</span>` : '';
+        const noteAndLate = `<div>${r.note || '-'} ${lateBadge}</div>`;
 
-      const data = list.map((r, i) => [
-        i + 1, r.date, r.name, r.nid, 'DAYTIME', r.actualOut, r.desc
-      ]);
+        // Use safe access for properties
+        // FIX: Lookup employee master data to ensure fields are populated
+        const empMaster = window.employees?.find(e => e.nid === r.nid);
+        const sNid = r.nid || '-';
+        const sName = empMaster?.name || r.name || '-';
+        const sTitle = empMaster?.title || r.title || '-';
+        const sComp = empMaster?.company || r.company || '-';
+        const sShift = empMaster?.shift || r.shift || '-';
 
-      doc.autoTable({
-        head: [['No', 'Tanggal', 'Nama', 'NID', 'Shift', 'Jam Pulang', 'Durasi']],
-        body: data,
-        startY: 30,
-        theme: 'grid',
-        headStyles: { fillColor: [220, 38, 38] } // Red header for overtime
-      });
-
-      doc.save('Laporan_Overtime_Daytime.pdf');
-    } catch (error) {
-      console.error("Gagal export PDF:", error);
-      alert("Terjadi kesalahan saat membuat PDF.");
-    } finally {
-      if (btn) {
-        btn.disabled = false;
-        btn.innerHTML = originalText;
-      }
-    }
-  }
-
-  if (btnGen) btnGen.onclick = renderReport;
-  if (btnPdf) btnPdf.onclick = exportPDF;
-
-  // Expose for debugging if needed
-  window.renderOvertimeReport = renderReport;
-  window.getOtReportData = getOtReportData; // Expose for Console Test Script
-});
-
-
-
-/* =========================================
-   ATTENDANCE REPORT (24H) & ABSENTEEISM LOGIC
-   ========================================= */
-(function () {
-  const btnFilter = document.getElementById('btnFilterAtt');
-  const btnExport = document.getElementById('btnExportAtt');
-  const tableBody = document.querySelector('#tableAtt tbody');
-
-  // Helper: Format Time
-  const fmtTime = (ts) => {
-    if (!ts) return '-';
-    const d = new Date(ts);
-    return `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
-  };
-  const pad = n => String(n).padStart(2, '0');
-
-  // Helper: Generate Date Range Array
-  const getDates = (start, end) => {
-    const dates = [];
-    let cur = new Date(start);
-    cur.setHours(0, 0, 0, 0);
-    const last = new Date(end);
-    last.setHours(0, 0, 0, 0);
-
-    while (cur <= last) {
-      dates.push(new Date(cur));
-      cur.setDate(cur.getDate() + 1);
-    }
-    return dates;
-  };
-
-  // Helper: Fetch History if Needed
-  async function ensureHistory(startMs, endMs) {
-    if (!window.sb) return;
-
-    // Check if we have data covering this range. 
-    // Simplified heuristic: If looking for past data (before Today), 
-    // and we haven't fetched it yet, then fetch.
-    // Better: Keep track of fetched ranges?
-    // SIMPLEST: Just fetch. Supabase is fast. Overlap is handled by uniqueness check.
-
-    const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
-    if (startMs >= todayStart.getTime()) return; // Today's data is already auto-synced
-
-    const btn = document.getElementById('btnFilterAtt');
-    if (btn) { btn.disabled = true; btn.textContent = 'loading...'; }
-
-    try {
-      console.log(`Fetch History: ${new Date(startMs).toLocaleDateString()} - ${new Date(endMs).toLocaleDateString()}`);
-
-      // Fetch Attendance
-      const { data: atts } = await window.sb.from('attendance')
-        .select('*')
-        .gte('ts', startMs)
-        .lte('ts', endMs);
-
-      // Fetch Breaks
-      const { data: brks } = await window.sb.from('breaks')
-        .select('*')
-        .gte('ts', startMs)
-        .lte('ts', endMs);
-
-      // Merge to window.attendance
-      if (atts || brks) {
-        const newItems = [];
-
-        if (atts) atts.forEach(x => {
-          newItems.push({
-            ts: new Date(x.ts).getTime(), // Fix TZ
-            status: x.status, nid: x.nid, name: x.name,
-            title: x.title, company: x.company, shift: x.shift,
-            note: x.note, late: x.late, okShift: x.ok_shift
-          });
-        });
-
-        if (brks) brks.forEach(x => {
-          newItems.push({
-            ts: new Date(x.ts).getTime(),
-            status: x.status, nid: x.nid, name: x.name,
-            title: '', company: x.company, shift: '',
-            note: (x.status === 'break_out' ? 'Izin Keluar / Istirahat' : 'Kembali Masuk'),
-            late: false, okShift: true
-          });
-        });
-
-        // Merge avoiding duplicates (by TS)
-        // Use Map for O(N)
-        const merged = new Map();
-        window.attendance.forEach(a => merged.set(a.ts, a));
-        newItems.forEach(a => merged.set(a.ts, a));
-
-        window.attendance = Array.from(merged.values()).sort((a, b) => a.ts - b.ts);
-      }
-    } catch (e) {
-      console.error("History fetch error:", e);
-    } finally {
-      if (btn) { btn.disabled = false; btn.textContent = 'Tampilkan'; }
-    }
-  }
-
-  // EXPORT to window so Overtime Report can use it too
-  window.ensureHistory = ensureHistory;
-
-  window.renderAttReport = async function () { // Exposed globally
-    if (!tableBody) return;
-    tableBody.innerHTML = '<tr><td colspan="9" style="text-align:center">Memuat data...</td></tr>';
-
-    // 1. Get Filter Values
-    const fFrom = document.getElementById('attFrom')?.value || todayISO();
-    const fTo = document.getElementById('attTo')?.value || todayISO();
-    const fGroup = document.getElementById('attGroupFilter')?.value || '';
-    const fStatus = document.getElementById('attStatusFilter')?.value || '';
-    const fSearch = document.getElementById('attSearch')?.value?.toLowerCase() || '';
-
-    // 2. FETCH HISTORY IF NEEDED
-    const startMs = new Date(fFrom + 'T00:00:00').getTime();
-    const endMs = new Date(fTo + 'T23:59:59').getTime();
-
-    await ensureHistory(startMs, endMs);
-
-    // 3. Prepare Data Source
-    let allRecords = [];
-
-    // --- A. GET ACTUAL ATTENDANCE ---
-    // Filter by Date Range
-    const scanRecords = attendance.filter(a => a.ts >= startMs && a.ts <= endMs);
-
-    // --- B. GENERATE ABSENTEE (GHOST) RECORDS ---
-    // Only if filter is ALL or UNKNOWN
-    if (fStatus === '' || fStatus === 'UNKNOWN') {
-      const dates = getDates(fFrom, fTo);
-      const emps = employees; // Global
-
-      dates.forEach(dObj => {
-        const dateStr = `${dObj.getFullYear()}-${pad(dObj.getMonth() + 1)}-${pad(dObj.getDate())}`; // YYYY-MM-DD
-        const nextDayStr = new Date(dObj.getTime() + 86400000).toISOString().split('T')[0];
-
-        emps.forEach(emp => {
-          // Check Schedule
-          let shiftCode = 'OFF';
-          if (window.effectiveShiftFor) {
-            shiftCode = window.effectiveShiftFor(emp, dObj.getTime());
-          } else {
-            shiftCode = emp.shift || 'OFF';
-          }
-
-          if (!shiftCode || shiftCode === 'OFF') return; // Scheduled Off
-
-          // Check if Scanned
-          // Logic checks if any record exists for this NID on this Date
-          const hasScan = scanRecords.some(r => {
-            if (r.nid !== emp.nid) return false;
-            const rDate = new Date(r.ts);
-            const rDateStr = `${rDate.getFullYear()}-${pad(rDate.getMonth() + 1)}-${pad(rDate.getDate())}`;
-            return rDateStr === dateStr;
-          });
-
-          if (!hasScan) {
-            // Create Ghost Record
-            allRecords.push({
-              isGhost: true,
-              ts: dObj.getTime(), // Sortable
-              dateStr: dateStr,
-              timeStr: '-',
-              status: 'UNKNOWN',
-              nid: emp.nid,
-              name: emp.name,
-              title: emp.title,
-              company: emp.company,
-              shift: shiftCode,
-              note: `Tidak Hadir (Jadwal: ${shiftCode})`,
-              late: false
-            });
-          }
-        });
-      });
-    }
-
-    // --- C. MERGE & FILTER STATUS ---
-    // Add real scans if allowed
-    if (fStatus !== 'UNKNOWN') {
-      const mappedScans = scanRecords.map(r => ({
-        ...r,
-        isGhost: false,
-        dateStr: fmtTs(r.ts).split(' ')[0],
-        timeStr: fmtTime(r.ts)
-      }));
-      allRecords = [...allRecords, ...mappedScans];
-    }
-
-
-
-
-    // --- D. APPLY FILTERS ---
-    let filtered = allRecords.filter(r => {
-      // Status Filter
-      if (fStatus) {
-        if (fStatus === 'LATE' && !r.late) return false;
-        if (fStatus === 'ONTIME' && (r.late || r.status !== 'datang')) return false;
-        if (fStatus === 'UNKNOWN' && r.status !== 'UNKNOWN') return false;
-      }
-
-      // Group Filter
-      if (fGroup && fGroup !== '') {
-        if (r.shift !== fGroup) return false;
-      }
-
-      // Search Filter
-      if (fSearch) {
-        const raw = `${r.name} ${r.nid} ${r.company} ${r.note}`.toLowerCase();
-        if (!raw.includes(fSearch)) return false;
-      }
-
-      return true;
-    });
-
-    // --- E. SORT ---
-    // Sort by TS descending
-    filtered.sort((a, b) => b.ts - a.ts);
-
-    // --- F. RENDER ---
-    if (filtered.length === 0) {
-      tableBody.innerHTML = '<tr><td colspan="9" style="text-align:center; padding:20px;" class="muted">Tidak ada data ditemukan.</td></tr>';
-      return;
-    }
-
-    tableBody.innerHTML = filtered.map(r => {
-      const rowClass = r.isGhost ? 'style="background-color:#fef2f2"' : ''; // Red tint for absent
-      const statusBadge = r.isGhost
-        ? `<span class="badge danger">Alpha / Tanpa Keterangan</span>`
-        : (r.status === 'datang' ? '<span class="badge success">Masuk</span>' : (r.status === 'break_out' ? '<span class="badge warning">Istirahat</span>' : '<span class="badge">Pulang</span>'));
-
-      const lateBadge = r.late ? `<span class="badge danger">Telat</span>` : '';
-      const noteAndLate = `<div>${r.note || '-'} ${lateBadge}</div>`;
-
-      // Use safe access for properties
-      // FIX: Lookup employee master data to ensure fields are populated
-      const empMaster = window.employees?.find(e => e.nid === r.nid);
-      const sNid = r.nid || '-';
-      const sName = empMaster?.name || r.name || '-';
-      const sTitle = empMaster?.title || r.title || '-';
-      const sComp = empMaster?.company || r.company || '-';
-      const sShift = empMaster?.shift || r.shift || '-';
-
-      return `
+        return `
         <tr ${rowClass}>
            <td>${fmtTs(r.ts)}</td>
            <td>${statusBadge}</td>
@@ -4572,163 +4586,163 @@ window.addEventListener('DOMContentLoaded', function initOvertimeReport() {
            </td>
         </tr>
       `;
-    }).join('');
+      }).join('');
 
-    // Save for Export reference
-    window.lastReportData = filtered;
-  }
-
-  // Bind Listener
-  if (btnFilter) {
-    const newBtn = btnFilter.cloneNode(true);
-    btnFilter.parentNode.replaceChild(newBtn, btnFilter);
-    newBtn.addEventListener('click', renderAttReport);
-  }
-
-  // Override Export
-  window.exportExcel = function () {
-    const data = window.lastReportData || attendance; // Fallback to all if no search done
-    if (!data || data.length === 0) { toast('Tidak ada data untuk diexport.'); return; }
-
-    if (typeof XLSX === 'undefined') { toast('Library Excel belum siap.'); return; }
-
-    const curTime = new Date().toISOString().replace(/[:.]/g, '-');
-
-    const rows = data.map(r => ({
-      "Waktu": fmtTs(r.ts),
-      "Status": r.status === 'UNKNOWN' ? 'TANPA KETERANGAN' : (r.status === 'datang' ? 'MASUK' : 'PULANG'),
-      "NID": r.nid,
-      "Nama": r.name,
-      "Jabatan": r.title,
-      "Perusahaan": r.company,
-      "Shift": r.shift,
-      "Keterangan": r.note + (r.late ? ' (Terlambat)' : '')
-    }));
-
-    const ws = XLSX.utils.json_to_sheet(rows);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Laporan Absensi");
-    XLSX.writeFile(wb, `SmartAttend_Report_${curTime}.xlsx`);
-  };
-
-  if (btnExport) {
-    const newBtn = btnExport.cloneNode(true);
-    btnExport.parentNode.replaceChild(newBtn, btnExport);
-    newBtn.addEventListener('click', window.exportExcel);
-  }
-
-})();
-
-
-/* =========================================
-   INVENTORY (KELUAR MASUK BARANG) LOGIC
-   ========================================= */
-// FIX: Changed let → var to avoid "Identifier already declared" SyntaxError
-// (var is re-declarable in the same scope, let is not)
-var inventoryData = getLocal('SA_INVENTORY', []);
-
-function getLocal(key, fallback) {
-  try {
-    const v = localStorage.getItem(key);
-    return v ? JSON.parse(v) : fallback;
-  } catch { return fallback; }
-}
-
-function saveInventory() {
-  localStorage.setItem('SA_INVENTORY', JSON.stringify(inventoryData));
-  renderInventory();
-}
-
-// Action: Checkout (Barang Keluar)
-window.checkoutInventory = async function (id) {
-  const item = inventoryData.find(x => x.id === id);
-  if (!item) return;
-
-  if (confirm('Apakah barang ini akan check-out (Keluar) sekarang?')) {
-    const now = new Date();
-    // Use standard UTC ISO. The render function handles locale conversion.
-    item.timeOut = now.toISOString();
-
-    // Optimistic Update
-    saveInventory();
-
-    // Sync
-    try {
-      await pushInventory(item);
-      alert(`Barang atas nama ${item.carrier} telah berhasil keluar.`);
-    } catch (e) {
-      console.error(e);
-      // pushInventory handles alerts
+      // Save for Export reference
+      window.lastReportData = filtered;
     }
-  }
-};
 
-function getInventoryFilterDates() {
-  const dStart = document.getElementById('invDateStart')?.value;
-  const dEnd = document.getElementById('invDateEnd')?.value;
-  return {
-    start: dStart ? new Date(dStart) : null,
-    end: dEnd ? new Date(dEnd) : null
+    // Bind Listener
+    if (btnFilter) {
+      const newBtn = btnFilter.cloneNode(true);
+      btnFilter.parentNode.replaceChild(newBtn, btnFilter);
+      newBtn.addEventListener('click', renderAttReport);
+    }
+
+    // Override Export
+    window.exportExcel = function () {
+      const data = window.lastReportData || attendance; // Fallback to all if no search done
+      if (!data || data.length === 0) { toast('Tidak ada data untuk diexport.'); return; }
+
+      if (typeof XLSX === 'undefined') { toast('Library Excel belum siap.'); return; }
+
+      const curTime = new Date().toISOString().replace(/[:.]/g, '-');
+
+      const rows = data.map(r => ({
+        "Waktu": fmtTs(r.ts),
+        "Status": r.status === 'UNKNOWN' ? 'TANPA KETERANGAN' : (r.status === 'datang' ? 'MASUK' : 'PULANG'),
+        "NID": r.nid,
+        "Nama": r.name,
+        "Jabatan": r.title,
+        "Perusahaan": r.company,
+        "Shift": r.shift,
+        "Keterangan": r.note + (r.late ? ' (Terlambat)' : '')
+      }));
+
+      const ws = XLSX.utils.json_to_sheet(rows);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Laporan Absensi");
+      XLSX.writeFile(wb, `SmartAttend_Report_${curTime}.xlsx`);
+    };
+
+    if (btnExport) {
+      const newBtn = btnExport.cloneNode(true);
+      btnExport.parentNode.replaceChild(newBtn, btnExport);
+      newBtn.addEventListener('click', window.exportExcel);
+    }
+
+  })();
+
+
+  /* =========================================
+     INVENTORY (KELUAR MASUK BARANG) LOGIC
+     ========================================= */
+  // FIX: Changed let → var to avoid "Identifier already declared" SyntaxError
+  // (var is re-declarable in the same scope, let is not)
+  var inventoryData = getLocal('SA_INVENTORY', []);
+
+  function getLocal(key, fallback) {
+    try {
+      const v = localStorage.getItem(key);
+      return v ? JSON.parse(v) : fallback;
+    } catch { return fallback; }
+  }
+
+  function saveInventory() {
+    localStorage.setItem('SA_INVENTORY', JSON.stringify(inventoryData));
+    renderInventory();
+  }
+
+  // Action: Checkout (Barang Keluar)
+  window.checkoutInventory = async function (id) {
+    const item = inventoryData.find(x => x.id === id);
+    if (!item) return;
+
+    if (confirm('Apakah barang ini akan check-out (Keluar) sekarang?')) {
+      const now = new Date();
+      // Use standard UTC ISO. The render function handles locale conversion.
+      item.timeOut = now.toISOString();
+
+      // Optimistic Update
+      saveInventory();
+
+      // Sync
+      try {
+        await pushInventory(item);
+        alert(`Barang atas nama ${item.carrier} telah berhasil keluar.`);
+      } catch (e) {
+        console.error(e);
+        // pushInventory handles alerts
+      }
+    }
   };
-}
 
-function renderInventory() {
-  const tbody = document.querySelector('#route-inventory tbody');
-  if (!tbody) return;
-
-  const { start, end } = getInventoryFilterDates();
-  const searchQ = document.getElementById('invSearch')?.value?.toLowerCase() || '';
-
-  // Filter logic
-  let filtered = [...inventoryData];
-  if (start || end || searchQ) {
-    filtered = filtered.filter(item => {
-      // Date Logic
-      const t = item.timeIn || item.time || item.timeOut;
-      if (!t) return false;
-      const d = new Date(t);
-      d.setHours(0, 0, 0, 0); // Normalize
-
-      if (start) {
-        const s = new Date(start); s.setHours(0, 0, 0, 0);
-        if (d < s) return false;
-      }
-      if (end) {
-        const e = new Date(end); e.setHours(0, 0, 0, 0);
-        if (d > e) return false;
-      }
-
-      // Search Logic
-      if (searchQ) {
-        const raw = [
-          item.carrier, item.company, item.item, item.dest, item.officer
-        ].join(' ').toLowerCase();
-        if (!raw.includes(searchQ)) return false;
-      }
-
-      return true;
-    });
+  function getInventoryFilterDates() {
+    const dStart = document.getElementById('invDateStart')?.value;
+    const dEnd = document.getElementById('invDateEnd')?.value;
+    return {
+      start: dStart ? new Date(dStart) : null,
+      end: dEnd ? new Date(dEnd) : null
+    };
   }
 
-  // Sort by timeIn desc
-  const sorted = filtered.sort((a, b) => new Date(b.timeIn || b.time || 0) - new Date(a.timeIn || a.time || 0));
+  function renderInventory() {
+    const tbody = document.querySelector('#route-inventory tbody');
+    if (!tbody) return;
 
-  if (sorted.length === 0) {
-    if (start || end || searchQ) tbody.innerHTML = '<tr><td colspan="10" class="muted" style="text-align:center; padding: 20px;">Data tidak ditemukan untuk filter ini.</td></tr>';
-    else tbody.innerHTML = '<tr><td colspan="10" class="muted" style="text-align:center; padding: 20px;">Belum ada data log barang.</td></tr>';
-    return;
-  }
+    const { start, end } = getInventoryFilterDates();
+    const searchQ = document.getElementById('invSearch')?.value?.toLowerCase() || '';
 
-  tbody.innerHTML = sorted.map((item, idx) => {
-    // Migration fallback
-    const tIn = item.timeIn || item.time;
+    // Filter logic
+    let filtered = [...inventoryData];
+    if (start || end || searchQ) {
+      filtered = filtered.filter(item => {
+        // Date Logic
+        const t = item.timeIn || item.time || item.timeOut;
+        if (!t) return false;
+        const d = new Date(t);
+        d.setHours(0, 0, 0, 0); // Normalize
 
-    const dIn = tIn ? new Date(tIn) : null;
-    const dateStr = dIn ? dIn.toLocaleDateString('id-ID') : '-';
-    const timeInStr = dIn ? dIn.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : '-';
+        if (start) {
+          const s = new Date(start); s.setHours(0, 0, 0, 0);
+          if (d < s) return false;
+        }
+        if (end) {
+          const e = new Date(end); e.setHours(0, 0, 0, 0);
+          if (d > e) return false;
+        }
 
-    let timeOutStr = '-';
-    let actionBtn = `
+        // Search Logic
+        if (searchQ) {
+          const raw = [
+            item.carrier, item.company, item.item, item.dest, item.officer
+          ].join(' ').toLowerCase();
+          if (!raw.includes(searchQ)) return false;
+        }
+
+        return true;
+      });
+    }
+
+    // Sort by timeIn desc
+    const sorted = filtered.sort((a, b) => new Date(b.timeIn || b.time || 0) - new Date(a.timeIn || a.time || 0));
+
+    if (sorted.length === 0) {
+      if (start || end || searchQ) tbody.innerHTML = '<tr><td colspan="10" class="muted" style="text-align:center; padding: 20px;">Data tidak ditemukan untuk filter ini.</td></tr>';
+      else tbody.innerHTML = '<tr><td colspan="10" class="muted" style="text-align:center; padding: 20px;">Belum ada data log barang.</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = sorted.map((item, idx) => {
+      // Migration fallback
+      const tIn = item.timeIn || item.time;
+
+      const dIn = tIn ? new Date(tIn) : null;
+      const dateStr = dIn ? dIn.toLocaleDateString('id-ID') : '-';
+      const timeInStr = dIn ? dIn.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : '-';
+
+      let timeOutStr = '-';
+      let actionBtn = `
       <div style="display:flex; gap:4px; justify-content:center;">
         <button class="btn small primary" onclick="checkoutInventory('${item.id}')" title="Barang Keluar" style="padding:2px 6px; font-size:12px;">📤</button>
         <button class="btn small" onclick="editInventory('${item.id}')" title="Edit Data" style="padding:2px 6px; font-size:12px; background:#f59e0b; border-color:#f59e0b; color:white;">✏️</button>
@@ -4736,24 +4750,24 @@ function renderInventory() {
       </div>
     `;
 
-    if (item.timeOut) {
-      const dOut = new Date(item.timeOut);
-      timeOutStr = dOut.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
-      actionBtn = `
+      if (item.timeOut) {
+        const dOut = new Date(item.timeOut);
+        timeOutStr = dOut.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+        actionBtn = `
         <div style="display:flex; gap:4px; justify-content:center;">
           <span class="badge success" style="background:#e6fffa; color:#047857; padding:2px 6px; border-radius:12px; font-size:11px; font-weight:bold;">Selesai</span>
           <button class="btn small" onclick="editInventory('${item.id}')" title="Edit Data" style="padding:2px 6px; font-size:12px; background:#f59e0b; border-color:#f59e0b; color:white;">✏️</button>
           <button class="btn small danger" onclick="deleteInventory('${item.id}')" title="Hapus Data" style="padding:2px 6px; font-size:12px;">🗑️</button>
         </div>
       `;
-    }
-    // Fallback for old data with type='OUT'
-    else if (item.type === 'OUT') {
-      timeOutStr = timeInStr;
-      actionBtn = `<span class="badge" style="opacity:0.6; font-size:11px;">Legacy Log</span>`;
-    }
+      }
+      // Fallback for old data with type='OUT'
+      else if (item.type === 'OUT') {
+        timeOutStr = timeInStr;
+        actionBtn = `<span class="badge" style="opacity:0.6; font-size:11px;">Legacy Log</span>`;
+      }
 
-    return `
+      return `
           <tr>
             <td data-label="No">${sorted.length - idx}</td>
             <td data-label="Tanggal">${dateStr}</td>
@@ -4767,1152 +4781,1152 @@ function renderInventory() {
             <td data-label="Aksi" style="text-align:center">${actionBtn}</td>
           </tr>
         `;
-  }).join('');
-}
-
-// Action: Edit Inventory
-window.editInventory = function (id) {
-  const item = inventoryData.find(x => x.id === id);
-  if (!item) return;
-
-  // Open Modal
-  openInvModal();
-
-  // Populate Fields
-  const elId = document.getElementById('iId');
-  const elTime = document.getElementById('iTime');
-  const elType = document.getElementById('iType'); // Select
-  const elCarrier = document.getElementById('iCarrier');
-  const elCompany = document.getElementById('iCompany');
-  const elItem = document.getElementById('iItem');
-  const elDest = document.getElementById('iDest');
-  const elOfficer = document.getElementById('iOfficer');
-
-  if (elId) elId.value = item.id;
-
-  // Restore Time (IN or OUT based on type)
-  // For simplicity, we load 'timeIn' if IN, 'timeOut' if OUT (direct out)
-  const tVal = item.timeIn || item.timeOut || new Date().toISOString();
-  if (elTime) elTime.value = new Date(tVal).toISOString().slice(0, 16); // Local datetime-local format approx
-
-  if (elType) elType.value = item.type;
-  if (elCarrier) elCarrier.value = item.carrier || '';
-  if (elCompany) elCompany.value = item.company || '';
-  if (elItem) elItem.value = item.item || '';
-  if (elDest) elDest.value = item.dest || '';
-  if (elOfficer) elOfficer.value = item.officer || '';
-
-  // Update Title
-  const title = document.getElementById('invModalTitle');
-  if (title) title.textContent = 'Edit Data Barang';
-}
-
-// Action: Delete Inventory
-// Action: Delete Inventory
-// Action: Excel Template Download
-window.downloadInventoryTemplate = function () {
-  if (typeof XLSX === 'undefined') { alert('Library Excel belum dimuat.'); return; }
-
-  // 1. Define Headers & Example
-  const headers = ['TANGGAL (YYYY-MM-DD)', 'JAM_MASUK (HH:MM)', 'JAM_KELUAR (HH:MM)', 'PEMBAWA', 'PERUSAHAAN', 'BARANG', 'TUJUAN', 'PETUGAS', 'STATUS (IN/OUT)'];
-  const example = ['2026-01-20', '08:00', '17:00', 'Budi Santoso', 'PT ABC Logistics', 'Laptop Dell Latitude', 'Divisi IT', 'Security A', 'IN'];
-
-  // 2. Create Sheet
-  const ws = XLSX.utils.aoa_to_sheet([headers, example]);
-
-  // Adjust column width
-  ws['!cols'] = [{ wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 20 }, { wch: 20 }, { wch: 30 }, { wch: 15 }, { wch: 15 }, { wch: 10 }];
-
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, "Template_Logistik");
-
-  // 3. Download
-  XLSX.writeFile(wb, "Template_Logistik_AmanS.xlsx");
-};
-
-// Action: Import Excel
-window.importInventoryExcel = async function (input) {
-  if (!input.files || input.files.length === 0) return;
-  if (typeof XLSX === 'undefined') { alert('Library Excel belum dimuat.'); return; }
-
-  const file = input.files[0];
-  const reader = new FileReader();
-
-  reader.onload = async function (e) {
-    try {
-      const data = new Uint8Array(e.target.result);
-      const workbook = XLSX.read(data, { type: 'array' });
-
-      const sheetName = workbook.SheetNames[0];
-      const sheet = workbook.Sheets[sheetName];
-      const jsonData = XLSX.utils.sheet_to_json(sheet, { header: 1 }); // Array of Arrays
-
-      if (jsonData.length < 2) { alert("File kosong atau format salah."); return; }
-
-      // Skip Header (row 0), process row 1..n
-      let successCount = 0;
-      let skippedCount = 0;
-
-      for (let i = 1; i < jsonData.length; i++) {
-        const row = jsonData[i];
-        if (!row || row.length === 0) continue;
-
-        // Map Cols (0..8)
-        // ['TANGGAL', 'JAM_MASUK', 'JAM_KELUAR', 'PEMBAWA', 'PERUSAHAAN', 'BARANG', 'TUJUAN', 'PETUGAS', 'STATUS']
-
-        const dateStr = row[0]; // expecting YYYY-MM-DD or Excel Date Code
-        const timeInStr = row[1]; // HH:MM
-        const timeOutStr = row[2]; // HH:MM
-        const carrier = row[3];
-        const company = row[4];
-        const item = row[5];
-        const dest = row[6];
-        const officer = row[7];
-        const type = (row[8] || 'IN').toUpperCase();
-
-        if (!carrier || !item) { skippedCount++; continue; }
-
-        // Time Parsing (Basic)
-        // Helper to combine Date + Time
-        const parseDateTime = (dStr, tStr) => {
-          if (!dStr || !tStr) return null;
-          let baseDate;
-          // Check if dStr is Excel serial number (number type)
-          if (typeof dStr === 'number') {
-            // Excel date epoch: 1900-01-01 generally, minus 1 day bug usually handled by libs, 
-            // but typically logic: new Date(Math.round((n - 25569)*86400*1000)) ? 
-            // Simplest: use string format in template instructions to avoid timezone hell.
-            // Verify if XLSX.utils.sheet_to_json({raw:false}) solves this, but we used header:1 (raw).
-            // Let's assume user inputs TEXT YYYY-MM-DD
-            baseDate = new Date((dStr - (25567 + 2)) * 86400 * 1000); // Rough approximation if number
-          } else {
-            baseDate = new Date(dStr);
-          }
-
-          if (isNaN(baseDate.getTime())) return null; // Invalid date
-
-          // Parse Time HH:MM
-          const [hh, mm] = String(tStr).split(':').map(Number);
-          baseDate.setHours(hh || 0, mm || 0, 0, 0);
-          return baseDate.toISOString();
-        };
-
-        const tInISO = parseDateTime(dateStr, timeInStr);
-        let tOutISO = null;
-
-        if (type === 'OUT' || type === 'IN') {
-          // If OUT provided
-          tOutISO = parseDateTime(dateStr, timeOutStr);
-        }
-
-        // Create Object
-        const newRec = {
-          id: Date.now().toString(36) + Math.random().toString(36).substr(2, 5),
-          carrier: String(carrier),
-          company: String(company || ''),
-          item: String(item),
-          dest: String(dest || ''),
-          officer: String(officer || ''),
-          type: (type === 'OUT' || type === 'KELUAR') ? 'OUT' : 'IN',
-          timeIn: tInISO || new Date().toISOString(), // Fallback now
-          timeOut: tOutISO
-        };
-
-        inventoryData.push(newRec);
-        // Explicitly sync individually? No, batch sync is better but existing func `forceSyncInventory` handles ALL.
-        // We will just save locally then autosync implicitly later or user clicks sync.
-        // Or we can try to pushInventory(item) one by one?
-        // Let's just push to local array first.
-        successCount++;
-
-        // Background sync attempt (fire & forget to avoid UI freeze on loop?)
-        // Better: let user click "Sync Cloud" after import or auto-trigger once.
-        pushInventory(newRec);
-      }
-
-      saveInventory();
-      alert(`Import Selesai!\nSukses: ${successCount}\nSkipped: ${skippedCount}\nData telah disimpan lokal & background sync dimulai.`);
-      input.value = ''; // Reset
-
-    } catch (e) {
-      console.error(e);
-      alert('Gagal memproses file: ' + e.message);
-    }
-  };
-  reader.readAsArrayBuffer(file);
-};
-
-window.deleteInventory = async function (id) {
-  if (!confirm('⚠️ YAKIN INGIN MENGHAPUS DATA INI?\nData yang dihapus akan hilang permanen dari server juga.')) return;
-
-  // 1. Remove Cloud First (Verify it works)
-  if (window.sb) {
-    try {
-      // Show loading indicator implicitly by freezing UI or just notify?
-      // Since it's row action, we just await.
-      const { error } = await window.sb.from('inventory').delete().eq('id', id);
-      if (error) {
-        throw error;
-      }
-    } catch (err) {
-      alert('Gagal menghapus dari Cloud: ' + err.message);
-      return; // Stop if cloud delete fails
-    }
+    }).join('');
   }
 
-  // 2. Remove Local (Only if Cloud success or Offline)
-  inventoryData = inventoryData.filter(x => x.id !== id);
-  saveInventory(); // Updates UI
+  // Action: Edit Inventory
+  window.editInventory = function (id) {
+    const item = inventoryData.find(x => x.id === id);
+    if (!item) return;
 
-  if (window.sb) if (window.toast) toast('Data berhasil dihapus dari Cloud.');
-};
+    // Open Modal
+    openInvModal();
 
-
-// Action: Export Inventory PDF
-window.exportInventoryPDF = function () {
-  const data = inventoryData; // Uses global filtered/active data if possible, or just all
-  // Note: ideally we should respect the current filter. 
-  // Let's re-run filter logic or assumes inventoryData is valid.
-  // But wait, renderInventory uses specific filter.
-  // Let's replicate strict filter logic for PDF to match visuals.
-
-  const { start, end } = getInventoryFilterDates();
-  const searchQ = document.getElementById('invSearch')?.value?.toLowerCase() || '';
-
-  let filtered = [...inventoryData];
-  if (start || end || searchQ) {
-    filtered = filtered.filter(item => {
-      const t = item.timeIn || item.time || item.timeOut;
-      if (!t) return false;
-      const d = new Date(t);
-      d.setHours(0, 0, 0, 0);
-
-      if (start) {
-        const s = new Date(start); s.setHours(0, 0, 0, 0);
-        if (d < s) return false;
-      }
-      if (end) {
-        const e = new Date(end); e.setHours(0, 0, 0, 0);
-        if (d > e) return false;
-      }
-      if (searchQ) {
-        const raw = [item.carrier, item.company, item.item, item.dest, item.officer].join(' ').toLowerCase();
-        if (!raw.includes(searchQ)) return false;
-      }
-      return true;
-    });
-  }
-
-  // Sort
-  filtered.sort((a, b) => new Date(b.timeIn || 0) - new Date(a.timeIn || 0));
-
-  if (filtered.length === 0) {
-    alert("Tidak ada data untuk diexport!");
-    return;
-  }
-
-  const { jsPDF } = window.jspdf;
-  const doc = new jsPDF('l', 'mm', 'a4'); // Landscape
-
-  // Helper
-  const fmt = (ts) => {
-    if (!ts) return '-';
-    return new Date(ts).toLocaleString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
-  };
-
-  // Header
-  doc.setFontSize(14);
-  doc.text('Laporan Keluar Masuk Barang', 14, 15);
-  doc.setFontSize(10);
-  doc.text(`Dicetak pada: ${new Date().toLocaleString('id-ID')}`, 14, 22);
-
-  // Table
-  const rows = filtered.map((item, i) => [
-    i + 1,
-    fmt(item.timeIn || item.time).split(' ')[0], // Tanggal
-    fmt(item.timeIn || item.time).split(' ')[1] || '-', // Jam Masuk
-    item.timeOut ? fmt(item.timeOut).split(' ')[1] : '-', // Jam Keluar
-    item.carrier || '-',
-    item.company || '-',
-    item.item || '-',
-    item.dest || '-',
-    item.officer || '-'
-  ]);
-
-  doc.autoTable({
-    head: [['No', 'Tanggal', 'Masuk', 'Keluar', 'Pembawa', 'Perusahaan', 'Barang', 'Tujuan', 'Petugas']],
-    body: rows,
-    startY: 28,
-    theme: 'grid',
-    styles: { fontSize: 8 },
-    headStyles: { fillColor: [22, 163, 74] } // Green header
-  });
-
-  doc.save(`Laporan_Logistik_${new Date().toISOString().slice(0, 10)}.pdf`);
-};
-
-// ... (PDF logic remains) ...
-
-// Bind Buttons
-document.addEventListener('DOMContentLoaded', () => {
-  // ...
-  const dStart = document.getElementById('invDateStart');
-  const dEnd = document.getElementById('invDateEnd');
-  const invSearch = document.getElementById('invSearch'); // NEW
-  const btnPDF = document.getElementById('btnExportInvPDF');
-
-  if (dStart) dStart.addEventListener('change', renderInventory);
-  if (dEnd) dEnd.addEventListener('change', renderInventory);
-  if (invSearch) invSearch.addEventListener('input', renderInventory);
-  if (btnPDF) btnPDF.addEventListener('click', window.exportInventoryPDF);
-
-  // NEW: Manual Sync Button (Delegated)
-  // NEW: Manual Sync Button (Global Exposure - Fix unresponsive click)
-  // NEW: Manual Sync Button (Global Exposure - Fix unresponsive click)
-  // NEW: Manual Sync Button (Diagnostic Mode)
-  window.forceSyncInventory = async function () {
-    const btnSync = document.getElementById('btnSyncInv');
-    if (btnSync && btnSync.disabled) return;
-
-    // Attempt lazy init if not yet ready
-    if (!window.sb) { if (window.initSupabase) window.initSupabase(); }
-    if (!window.sb) { alert('❌ Mode Offline. Pastikan URL & Key Supabase sudah diisi di index.html'); return; }
-
-    // 1. Production Mode Start
-    // const count = inventoryData.length;
-    // if (!confirm(...)) return;
-
-    if (btnSync) {
-      btnSync.textContent = '⏳ Syncing...';
-      btnSync.disabled = true;
-    }
-
-    try {
-      let success = 0, fail = 0;
-      let lastError = null;
-
-      // 1. Push all local items to server
-
-      for (const item of inventoryData) {
-        // Fix Timestamp Format (ensure ISO with Timezone)
-        const tIn = item.timeIn ? new Date(item.timeIn).toISOString() : null;
-        const tOut = item.timeOut ? new Date(item.timeOut).toISOString() : null;
-
-        const { error } = await window.sb.from('inventory').upsert({
-          id: item.id, carrier: item.carrier, company: item.company,
-          item: item.item, dest: item.dest, officer: item.officer, type: item.type,
-          time_in: tIn, time_out: tOut
-        }, { onConflict: 'id' });
-
-        if (!error) success++;
-        else { fail++; lastError = error; }
-      }
-
-      // 4. Pull
-      const { data: invs } = await window.sb.from('inventory').select('*');
-      if (invs) {
-        const serverMap = new Map(invs.map(x => [x.id, x]));
-        const localMap = new Map(inventoryData.map(x => [x.id, x]));
-        invs.forEach(x => {
-          if (x.item === 'CONNECTION_TEST') return; // Skip test item if stuck
-          localMap.set(x.id, {
-            id: x.id, carrier: x.carrier, company: x.company, item: x.item,
-            dest: x.dest, officer: x.officer, type: x.type, timeIn: x.time_in, timeOut: x.time_out
-          });
-        });
-        inventoryData = Array.from(localMap.values()).sort((a, b) => new Date(b.timeIn || 0) - new Date(a.timeIn || 0));
-        saveInventory();
-      }
-
-      if (fail > 0) {
-        alert(`⚠️ Sync Selesai dengan beberapa gagal.\nSukses: ${success}\nGagal: ${fail}\nPesan: ${lastError?.message}`);
-      } else {
-        alert(`✅ Sync Selesai!\nData Lokal & Cloud sudah sinkron.`);
-      }
-
-    } catch (err) {
-      alert('❌ Error Sync: ' + err.message);
-      console.error(err);
-    } finally {
-      if (btnSync) {
-        btnSync.innerHTML = '🔄 Sync'; // Reset text
-        btnSync.disabled = false;
-      }
-    }
-  };
-
-  // NEW: Backup to CSV (Manual Fallback)
-  window.backupInventoryCSV = function () {
-    if (!inventoryData || inventoryData.length === 0) {
-      alert('Belum ada data untuk dibackup.');
-      return;
-    }
-
-    // CSV Header (Must match Supabase columns for easy import)
-    const headers = ['id', 'carrier', 'company', 'item', 'dest', 'officer', 'type', 'time_in', 'time_out'];
-    const rows = inventoryData.map(item => {
-      // Escape for CSV
-      const escape = (val) => `"${(val || '').toString().replace(/"/g, '""')}"`;
-
-      const tIn = item.timeIn ? new Date(item.timeIn).toISOString() : '';
-      const tOut = item.timeOut ? new Date(item.timeOut).toISOString() : '';
-
-      return [
-        escape(item.id),
-        escape(item.carrier),
-        escape(item.company),
-        escape(item.item),
-        escape(item.dest),
-        escape(item.officer),
-        escape(item.type),
-        escape(tIn),
-        escape(tOut)
-      ].join(',');
-    });
-
-    const csvContent = [headers.join(','), ...rows].join('\n');
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-
-    // Trigger Download
-    const link = document.createElement('a');
-    link.href = url;
-    link.setAttribute('download', 'inventory_backup_' + new Date().toISOString().slice(0, 10) + '.csv');
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
-
-  // Ensure status dropdown is visible
-  const elType = document.getElementById('iType');
-  if (elType && elType.closest('label')) {
-    elType.closest('label').style.display = 'block';
-  }
-
-  let invTimeInterval;
-
-  // Expose to window so editInventory can call it
-  window.openInvModal = function () {
-    if (!invModal) { console.error('Inv Modal Missing'); return; }
-
-    const updateTime = () => {
-      const now = new Date();
-      now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
-      const elTime = document.getElementById('iTime');
-      if (elTime) elTime.value = now.toISOString().slice(0, 16);
-    };
-
-    // Initial set
-    updateTime();
-
-    // Clear existing interval if any
-    if (invTimeInterval) clearInterval(invTimeInterval);
-
-    // Update every second (1000ms)
-    invTimeInterval = setInterval(updateTime, 1000);
-
-    // Stop auto-update if user manually changes time
+    // Populate Fields
+    const elId = document.getElementById('iId');
     const elTime = document.getElementById('iTime');
-    if (elTime) {
-      elTime.onfocus = () => clearInterval(invTimeInterval);
-      elTime.onchange = () => clearInterval(invTimeInterval);
-    }
-
+    const elType = document.getElementById('iType'); // Select
     const elCarrier = document.getElementById('iCarrier');
     const elCompany = document.getElementById('iCompany');
     const elItem = document.getElementById('iItem');
     const elDest = document.getElementById('iDest');
     const elOfficer = document.getElementById('iOfficer');
 
-    if (elCarrier) elCarrier.value = '';
-    if (elCompany) elCompany.value = '';
-    if (elItem) elItem.value = '';
-    if (elDest) elDest.value = '';
-    if (elOfficer) elOfficer.value = 'Admin/Security'; // Default but editable
+    if (elId) elId.value = item.id;
 
-    // Reset Dropdown to IN
-    const t = document.getElementById('iType');
-    if (t) t.value = 'IN';
+    // Restore Time (IN or OUT based on type)
+    // For simplicity, we load 'timeIn' if IN, 'timeOut' if OUT (direct out)
+    const tVal = item.timeIn || item.timeOut || new Date().toISOString();
+    if (elTime) elTime.value = new Date(tVal).toISOString().slice(0, 16); // Local datetime-local format approx
 
-    invModal.showModal();
-  };
+    if (elType) elType.value = item.type;
+    if (elCarrier) elCarrier.value = item.carrier || '';
+    if (elCompany) elCompany.value = item.company || '';
+    if (elItem) elItem.value = item.item || '';
+    if (elDest) elDest.value = item.dest || '';
+    if (elOfficer) elOfficer.value = item.officer || '';
 
-  if (btnOpenInv) btnOpenInv.onclick = () => {
-    // Reset Title & ID when opening fresh
-    const elId = document.getElementById('iId');
+    // Update Title
     const title = document.getElementById('invModalTitle');
-    if (elId) elId.value = '';
-    if (title) title.textContent = 'Input Barang Masuk / Keluar';
-    window.openInvModal();
+    if (title) title.textContent = 'Edit Data Barang';
+  }
+
+  // Action: Delete Inventory
+  // Action: Delete Inventory
+  // Action: Excel Template Download
+  window.downloadInventoryTemplate = function () {
+    if (typeof XLSX === 'undefined') { alert('Library Excel belum dimuat.'); return; }
+
+    // 1. Define Headers & Example
+    const headers = ['TANGGAL (YYYY-MM-DD)', 'JAM_MASUK (HH:MM)', 'JAM_KELUAR (HH:MM)', 'PEMBAWA', 'PERUSAHAAN', 'BARANG', 'TUJUAN', 'PETUGAS', 'STATUS (IN/OUT)'];
+    const example = ['2026-01-20', '08:00', '17:00', 'Budi Santoso', 'PT ABC Logistics', 'Laptop Dell Latitude', 'Divisi IT', 'Security A', 'IN'];
+
+    // 2. Create Sheet
+    const ws = XLSX.utils.aoa_to_sheet([headers, example]);
+
+    // Adjust column width
+    ws['!cols'] = [{ wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 20 }, { wch: 20 }, { wch: 30 }, { wch: 15 }, { wch: 15 }, { wch: 10 }];
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Template_Logistik");
+
+    // 3. Download
+    XLSX.writeFile(wb, "Template_Logistik_AmanS.xlsx");
   };
 
-  if (btnBackInv) btnBackInv.onclick = (e) => {
-    e.preventDefault();
-    if (invTimeInterval) clearInterval(invTimeInterval);
-    invModal.close();
+  // Action: Import Excel
+  window.importInventoryExcel = async function (input) {
+    if (!input.files || input.files.length === 0) return;
+    if (typeof XLSX === 'undefined') { alert('Library Excel belum dimuat.'); return; }
+
+    const file = input.files[0];
+    const reader = new FileReader();
+
+    reader.onload = async function (e) {
+      try {
+        const data = new Uint8Array(e.target.result);
+        const workbook = XLSX.read(data, { type: 'array' });
+
+        const sheetName = workbook.SheetNames[0];
+        const sheet = workbook.Sheets[sheetName];
+        const jsonData = XLSX.utils.sheet_to_json(sheet, { header: 1 }); // Array of Arrays
+
+        if (jsonData.length < 2) { alert("File kosong atau format salah."); return; }
+
+        // Skip Header (row 0), process row 1..n
+        let successCount = 0;
+        let skippedCount = 0;
+
+        for (let i = 1; i < jsonData.length; i++) {
+          const row = jsonData[i];
+          if (!row || row.length === 0) continue;
+
+          // Map Cols (0..8)
+          // ['TANGGAL', 'JAM_MASUK', 'JAM_KELUAR', 'PEMBAWA', 'PERUSAHAAN', 'BARANG', 'TUJUAN', 'PETUGAS', 'STATUS']
+
+          const dateStr = row[0]; // expecting YYYY-MM-DD or Excel Date Code
+          const timeInStr = row[1]; // HH:MM
+          const timeOutStr = row[2]; // HH:MM
+          const carrier = row[3];
+          const company = row[4];
+          const item = row[5];
+          const dest = row[6];
+          const officer = row[7];
+          const type = (row[8] || 'IN').toUpperCase();
+
+          if (!carrier || !item) { skippedCount++; continue; }
+
+          // Time Parsing (Basic)
+          // Helper to combine Date + Time
+          const parseDateTime = (dStr, tStr) => {
+            if (!dStr || !tStr) return null;
+            let baseDate;
+            // Check if dStr is Excel serial number (number type)
+            if (typeof dStr === 'number') {
+              // Excel date epoch: 1900-01-01 generally, minus 1 day bug usually handled by libs, 
+              // but typically logic: new Date(Math.round((n - 25569)*86400*1000)) ? 
+              // Simplest: use string format in template instructions to avoid timezone hell.
+              // Verify if XLSX.utils.sheet_to_json({raw:false}) solves this, but we used header:1 (raw).
+              // Let's assume user inputs TEXT YYYY-MM-DD
+              baseDate = new Date((dStr - (25567 + 2)) * 86400 * 1000); // Rough approximation if number
+            } else {
+              baseDate = new Date(dStr);
+            }
+
+            if (isNaN(baseDate.getTime())) return null; // Invalid date
+
+            // Parse Time HH:MM
+            const [hh, mm] = String(tStr).split(':').map(Number);
+            baseDate.setHours(hh || 0, mm || 0, 0, 0);
+            return baseDate.toISOString();
+          };
+
+          const tInISO = parseDateTime(dateStr, timeInStr);
+          let tOutISO = null;
+
+          if (type === 'OUT' || type === 'IN') {
+            // If OUT provided
+            tOutISO = parseDateTime(dateStr, timeOutStr);
+          }
+
+          // Create Object
+          const newRec = {
+            id: Date.now().toString(36) + Math.random().toString(36).substr(2, 5),
+            carrier: String(carrier),
+            company: String(company || ''),
+            item: String(item),
+            dest: String(dest || ''),
+            officer: String(officer || ''),
+            type: (type === 'OUT' || type === 'KELUAR') ? 'OUT' : 'IN',
+            timeIn: tInISO || new Date().toISOString(), // Fallback now
+            timeOut: tOutISO
+          };
+
+          inventoryData.push(newRec);
+          // Explicitly sync individually? No, batch sync is better but existing func `forceSyncInventory` handles ALL.
+          // We will just save locally then autosync implicitly later or user clicks sync.
+          // Or we can try to pushInventory(item) one by one?
+          // Let's just push to local array first.
+          successCount++;
+
+          // Background sync attempt (fire & forget to avoid UI freeze on loop?)
+          // Better: let user click "Sync Cloud" after import or auto-trigger once.
+          pushInventory(newRec);
+        }
+
+        saveInventory();
+        alert(`Import Selesai!\nSukses: ${successCount}\nSkipped: ${skippedCount}\nData telah disimpan lokal & background sync dimulai.`);
+        input.value = ''; // Reset
+
+      } catch (e) {
+        console.error(e);
+        alert('Gagal memproses file: ' + e.message);
+      }
+    };
+    reader.readAsArrayBuffer(file);
   };
 
-  if (btnSaveInv) btnSaveInv.onclick = async (e) => {
-    e.preventDefault();
-    const idVal = document.getElementById('iId')?.value; // Check hidden ID
-    const type = document.getElementById('iType').value;
-    const timeVal = document.getElementById('iTime').value;
-    const carrier = document.getElementById('iCarrier').value;
-    const company = document.getElementById('iCompany').value;
-    const item = document.getElementById('iItem').value;
-    const dest = document.getElementById('iDest').value;
-    const officer = document.getElementById('iOfficer').value;
+  window.deleteInventory = async function (id) {
+    if (!confirm('⚠️ YAKIN INGIN MENGHAPUS DATA INI?\nData yang dihapus akan hilang permanen dari server juga.')) return;
 
-    if (!carrier || !item) {
-      alert('Mohon isi Nama Pembawa dan Jenis Barang.');
+    // 1. Remove Cloud First (Verify it works)
+    if (window.sb) {
+      try {
+        // Show loading indicator implicitly by freezing UI or just notify?
+        // Since it's row action, we just await.
+        const { error } = await window.sb.from('inventory').delete().eq('id', id);
+        if (error) {
+          throw error;
+        }
+      } catch (err) {
+        alert('Gagal menghapus dari Cloud: ' + err.message);
+        return; // Stop if cloud delete fails
+      }
+    }
+
+    // 2. Remove Local (Only if Cloud success or Offline)
+    inventoryData = inventoryData.filter(x => x.id !== id);
+    saveInventory(); // Updates UI
+
+    if (window.sb) if (window.toast) toast('Data berhasil dihapus dari Cloud.');
+  };
+
+
+  // Action: Export Inventory PDF
+  window.exportInventoryPDF = function () {
+    const data = inventoryData; // Uses global filtered/active data if possible, or just all
+    // Note: ideally we should respect the current filter. 
+    // Let's re-run filter logic or assumes inventoryData is valid.
+    // But wait, renderInventory uses specific filter.
+    // Let's replicate strict filter logic for PDF to match visuals.
+
+    const { start, end } = getInventoryFilterDates();
+    const searchQ = document.getElementById('invSearch')?.value?.toLowerCase() || '';
+
+    let filtered = [...inventoryData];
+    if (start || end || searchQ) {
+      filtered = filtered.filter(item => {
+        const t = item.timeIn || item.time || item.timeOut;
+        if (!t) return false;
+        const d = new Date(t);
+        d.setHours(0, 0, 0, 0);
+
+        if (start) {
+          const s = new Date(start); s.setHours(0, 0, 0, 0);
+          if (d < s) return false;
+        }
+        if (end) {
+          const e = new Date(end); e.setHours(0, 0, 0, 0);
+          if (d > e) return false;
+        }
+        if (searchQ) {
+          const raw = [item.carrier, item.company, item.item, item.dest, item.officer].join(' ').toLowerCase();
+          if (!raw.includes(searchQ)) return false;
+        }
+        return true;
+      });
+    }
+
+    // Sort
+    filtered.sort((a, b) => new Date(b.timeIn || 0) - new Date(a.timeIn || 0));
+
+    if (filtered.length === 0) {
+      alert("Tidak ada data untuk diexport!");
       return;
     }
 
-    // Disable button to prevent double submit
-    btnSaveInv.disabled = true;
-    btnSaveInv.textContent = 'Menyimpan...';
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF('l', 'mm', 'a4'); // Landscape
 
-    let rec;
+    // Helper
+    const fmt = (ts) => {
+      if (!ts) return '-';
+      return new Date(ts).toLocaleString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+    };
 
-    // EDIT MODE
-    if (idVal) {
-      rec = inventoryData.find(x => x.id === idVal);
-      if (rec) {
-        rec.carrier = carrier;
-        rec.company = company;
-        rec.item = item;
-        rec.dest = dest;
-        rec.officer = officer;
-        rec.type = type;
+    // Header
+    doc.setFontSize(14);
+    doc.text('Laporan Keluar Masuk Barang', 14, 15);
+    doc.setFontSize(10);
+    doc.text(`Dicetak pada: ${new Date().toLocaleString('id-ID')}`, 14, 22);
 
-        // Update Time logic
+    // Table
+    const rows = filtered.map((item, i) => [
+      i + 1,
+      fmt(item.timeIn || item.time).split(' ')[0], // Tanggal
+      fmt(item.timeIn || item.time).split(' ')[1] || '-', // Jam Masuk
+      item.timeOut ? fmt(item.timeOut).split(' ')[1] : '-', // Jam Keluar
+      item.carrier || '-',
+      item.company || '-',
+      item.item || '-',
+      item.dest || '-',
+      item.officer || '-'
+    ]);
+
+    doc.autoTable({
+      head: [['No', 'Tanggal', 'Masuk', 'Keluar', 'Pembawa', 'Perusahaan', 'Barang', 'Tujuan', 'Petugas']],
+      body: rows,
+      startY: 28,
+      theme: 'grid',
+      styles: { fontSize: 8 },
+      headStyles: { fillColor: [22, 163, 74] } // Green header
+    });
+
+    doc.save(`Laporan_Logistik_${new Date().toISOString().slice(0, 10)}.pdf`);
+  };
+
+  // ... (PDF logic remains) ...
+
+  // Bind Buttons
+  document.addEventListener('DOMContentLoaded', () => {
+    // ...
+    const dStart = document.getElementById('invDateStart');
+    const dEnd = document.getElementById('invDateEnd');
+    const invSearch = document.getElementById('invSearch'); // NEW
+    const btnPDF = document.getElementById('btnExportInvPDF');
+
+    if (dStart) dStart.addEventListener('change', renderInventory);
+    if (dEnd) dEnd.addEventListener('change', renderInventory);
+    if (invSearch) invSearch.addEventListener('input', renderInventory);
+    if (btnPDF) btnPDF.addEventListener('click', window.exportInventoryPDF);
+
+    // NEW: Manual Sync Button (Delegated)
+    // NEW: Manual Sync Button (Global Exposure - Fix unresponsive click)
+    // NEW: Manual Sync Button (Global Exposure - Fix unresponsive click)
+    // NEW: Manual Sync Button (Diagnostic Mode)
+    window.forceSyncInventory = async function () {
+      const btnSync = document.getElementById('btnSyncInv');
+      if (btnSync && btnSync.disabled) return;
+
+      // Attempt lazy init if not yet ready
+      if (!window.sb) { if (window.initSupabase) window.initSupabase(); }
+      if (!window.sb) { alert('❌ Mode Offline. Pastikan URL & Key Supabase sudah diisi di index.html'); return; }
+
+      // 1. Production Mode Start
+      // const count = inventoryData.length;
+      // if (!confirm(...)) return;
+
+      if (btnSync) {
+        btnSync.textContent = '⏳ Syncing...';
+        btnSync.disabled = true;
+      }
+
+      try {
+        let success = 0, fail = 0;
+        let lastError = null;
+
+        // 1. Push all local items to server
+
+        for (const item of inventoryData) {
+          // Fix Timestamp Format (ensure ISO with Timezone)
+          const tIn = item.timeIn ? new Date(item.timeIn).toISOString() : null;
+          const tOut = item.timeOut ? new Date(item.timeOut).toISOString() : null;
+
+          const { error } = await window.sb.from('inventory').upsert({
+            id: item.id, carrier: item.carrier, company: item.company,
+            item: item.item, dest: item.dest, officer: item.officer, type: item.type,
+            time_in: tIn, time_out: tOut
+          }, { onConflict: 'id' });
+
+          if (!error) success++;
+          else { fail++; lastError = error; }
+        }
+
+        // 4. Pull
+        const { data: invs } = await window.sb.from('inventory').select('*');
+        if (invs) {
+          const serverMap = new Map(invs.map(x => [x.id, x]));
+          const localMap = new Map(inventoryData.map(x => [x.id, x]));
+          invs.forEach(x => {
+            if (x.item === 'CONNECTION_TEST') return; // Skip test item if stuck
+            localMap.set(x.id, {
+              id: x.id, carrier: x.carrier, company: x.company, item: x.item,
+              dest: x.dest, officer: x.officer, type: x.type, timeIn: x.time_in, timeOut: x.time_out
+            });
+          });
+          inventoryData = Array.from(localMap.values()).sort((a, b) => new Date(b.timeIn || 0) - new Date(a.timeIn || 0));
+          saveInventory();
+        }
+
+        if (fail > 0) {
+          alert(`⚠️ Sync Selesai dengan beberapa gagal.\nSukses: ${success}\nGagal: ${fail}\nPesan: ${lastError?.message}`);
+        } else {
+          alert(`✅ Sync Selesai!\nData Lokal & Cloud sudah sinkron.`);
+        }
+
+      } catch (err) {
+        alert('❌ Error Sync: ' + err.message);
+        console.error(err);
+      } finally {
+        if (btnSync) {
+          btnSync.innerHTML = '🔄 Sync'; // Reset text
+          btnSync.disabled = false;
+        }
+      }
+    };
+
+    // NEW: Backup to CSV (Manual Fallback)
+    window.backupInventoryCSV = function () {
+      if (!inventoryData || inventoryData.length === 0) {
+        alert('Belum ada data untuk dibackup.');
+        return;
+      }
+
+      // CSV Header (Must match Supabase columns for easy import)
+      const headers = ['id', 'carrier', 'company', 'item', 'dest', 'officer', 'type', 'time_in', 'time_out'];
+      const rows = inventoryData.map(item => {
+        // Escape for CSV
+        const escape = (val) => `"${(val || '').toString().replace(/"/g, '""')}"`;
+
+        const tIn = item.timeIn ? new Date(item.timeIn).toISOString() : '';
+        const tOut = item.timeOut ? new Date(item.timeOut).toISOString() : '';
+
+        return [
+          escape(item.id),
+          escape(item.carrier),
+          escape(item.company),
+          escape(item.item),
+          escape(item.dest),
+          escape(item.officer),
+          escape(item.type),
+          escape(tIn),
+          escape(tOut)
+        ].join(',');
+      });
+
+      const csvContent = [headers.join(','), ...rows].join('\n');
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+
+      // Trigger Download
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', 'inventory_backup_' + new Date().toISOString().slice(0, 10) + '.csv');
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    };
+
+    // Ensure status dropdown is visible
+    const elType = document.getElementById('iType');
+    if (elType && elType.closest('label')) {
+      elType.closest('label').style.display = 'block';
+    }
+
+    let invTimeInterval;
+
+    // Expose to window so editInventory can call it
+    window.openInvModal = function () {
+      if (!invModal) { console.error('Inv Modal Missing'); return; }
+
+      const updateTime = () => {
+        const now = new Date();
+        now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+        const elTime = document.getElementById('iTime');
+        if (elTime) elTime.value = now.toISOString().slice(0, 16);
+      };
+
+      // Initial set
+      updateTime();
+
+      // Clear existing interval if any
+      if (invTimeInterval) clearInterval(invTimeInterval);
+
+      // Update every second (1000ms)
+      invTimeInterval = setInterval(updateTime, 1000);
+
+      // Stop auto-update if user manually changes time
+      const elTime = document.getElementById('iTime');
+      if (elTime) {
+        elTime.onfocus = () => clearInterval(invTimeInterval);
+        elTime.onchange = () => clearInterval(invTimeInterval);
+      }
+
+      const elCarrier = document.getElementById('iCarrier');
+      const elCompany = document.getElementById('iCompany');
+      const elItem = document.getElementById('iItem');
+      const elDest = document.getElementById('iDest');
+      const elOfficer = document.getElementById('iOfficer');
+
+      if (elCarrier) elCarrier.value = '';
+      if (elCompany) elCompany.value = '';
+      if (elItem) elItem.value = '';
+      if (elDest) elDest.value = '';
+      if (elOfficer) elOfficer.value = 'Admin/Security'; // Default but editable
+
+      // Reset Dropdown to IN
+      const t = document.getElementById('iType');
+      if (t) t.value = 'IN';
+
+      invModal.showModal();
+    };
+
+    if (btnOpenInv) btnOpenInv.onclick = () => {
+      // Reset Title & ID when opening fresh
+      const elId = document.getElementById('iId');
+      const title = document.getElementById('invModalTitle');
+      if (elId) elId.value = '';
+      if (title) title.textContent = 'Input Barang Masuk / Keluar';
+      window.openInvModal();
+    };
+
+    if (btnBackInv) btnBackInv.onclick = (e) => {
+      e.preventDefault();
+      if (invTimeInterval) clearInterval(invTimeInterval);
+      invModal.close();
+    };
+
+    if (btnSaveInv) btnSaveInv.onclick = async (e) => {
+      e.preventDefault();
+      const idVal = document.getElementById('iId')?.value; // Check hidden ID
+      const type = document.getElementById('iType').value;
+      const timeVal = document.getElementById('iTime').value;
+      const carrier = document.getElementById('iCarrier').value;
+      const company = document.getElementById('iCompany').value;
+      const item = document.getElementById('iItem').value;
+      const dest = document.getElementById('iDest').value;
+      const officer = document.getElementById('iOfficer').value;
+
+      if (!carrier || !item) {
+        alert('Mohon isi Nama Pembawa dan Jenis Barang.');
+        return;
+      }
+
+      // Disable button to prevent double submit
+      btnSaveInv.disabled = true;
+      btnSaveInv.textContent = 'Menyimpan...';
+
+      let rec;
+
+      // EDIT MODE
+      if (idVal) {
+        rec = inventoryData.find(x => x.id === idVal);
+        if (rec) {
+          rec.carrier = carrier;
+          rec.company = company;
+          rec.item = item;
+          rec.dest = dest;
+          rec.officer = officer;
+          rec.type = type;
+
+          // Update Time logic
+          if (type === 'IN') {
+            rec.timeIn = timeVal;
+            // Keep timeOut if exists (don't erase checkout time if only editing name)
+          } else {
+            rec.timeIn = null;
+            rec.timeOut = timeVal;
+          }
+        }
+      }
+      // CREATE MODE
+      else {
+        rec = {
+          id: Date.now().toString(36),
+          carrier, company, item, dest, officer, type
+        };
         if (type === 'IN') {
           rec.timeIn = timeVal;
-          // Keep timeOut if exists (don't erase checkout time if only editing name)
+          rec.timeOut = null;
         } else {
           rec.timeIn = null;
           rec.timeOut = timeVal;
         }
+        inventoryData.push(rec);
       }
+
+      saveInventory();
+
+      // Sync to Supabase
+      try {
+        if (btnSaveInv) btnSaveInv.textContent = 'Syncing Cloud...';
+        await pushInventory(rec);
+        // Note: pushInventory already alerts on error, but we should only close modal if success?
+        // Actually pushInventory returns void currently in original code, I should update it to return boolean.
+        // But for now, let's assume if it throws (which it doesn't, it catches internally), we are fine.
+        // Wait, pushInventory CATCHES error?
+        // Yes, my implementation in step 176 catches and alerts.
+        // So it resolves undefined.
+
+        invModal.close();
+        alert('Data berhasil disimpan dan disinkronkan!');
+      } catch (err) {
+        console.error(err);
+        alert('Error logic: ' + err.message);
+      } finally {
+        if (btnSaveInv) {
+          btnSaveInv.disabled = false;
+          btnSaveInv.textContent = 'Simpan';
+        }
+      }
+    };
+  });
+
+  // Initial Render if on inventory route
+  window.renderInventory = renderInventory;
+
+  // ===== OVERTIME ALERT (Standardized Logic) =====
+  window.showOvertimeList = function () {
+    const now = new Date();
+    const pad = n => String(n).padStart(2, '0');
+    const todayVal = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+
+    const start = new Date(todayVal + 'T00:00:00').getTime();
+    const end = new Date(todayVal + 'T23:59:59').getTime();
+
+    const atts = window.attendance || [];
+    const shfs = window.shifts || {};
+
+    const todays = atts.filter(a => a.ts >= start && a.ts <= end);
+
+    // Logic: DAYTIME ONLY & > End+10m
+    const overs = todays.filter(a => {
+      if (a.status !== 'pulang') return false;
+      // NEW RULE: ONLY DAYTIME SHIFT
+      if (a.shift !== 'DAYTIME') return false;
+
+      const sDef = shfs[a.shift];
+      if (!sDef || !sDef.end) return false;
+
+      const d = new Date(a.ts);
+      const scanMins = d.getHours() * 60 + d.getMinutes();
+
+      const [h, m] = sDef.end.split(':').map(Number);
+      const endMins = h * 60 + m;
+
+      return scanMins > (endMins + 10);
+    });
+
+    if (overs.length === 0) {
+      alert('Belum ada karyawan DAYTIME yang lembur hari ini.');
+      return;
     }
-    // CREATE MODE
-    else {
-      rec = {
-        id: Date.now().toString(36),
-        carrier, company, item, dest, officer, type
-      };
-      if (type === 'IN') {
-        rec.timeIn = timeVal;
-        rec.timeOut = null;
-      } else {
-        rec.timeIn = null;
-        rec.timeOut = timeVal;
-      }
-      inventoryData.push(rec);
-    }
 
-    saveInventory();
+    const list = overs.map((a, i) => {
+      const sEnd = shfs[a.shift]?.end;
+      const d = new Date(a.ts);
+      const [eh, em] = sEnd.split(':').map(Number);
+      const endMins = eh * 60 + em;
+      const scanMins = d.getHours() * 60 + d.getMinutes();
+      const diff = scanMins - endMins;
+      const durH = Math.floor(diff / 60);
+      const durM = diff % 60;
+      const durStr = `+${durH}j ${durM}m`;
 
-    // Sync to Supabase
-    try {
-      if (btnSaveInv) btnSaveInv.textContent = 'Syncing Cloud...';
-      await pushInventory(rec);
-      // Note: pushInventory already alerts on error, but we should only close modal if success?
-      // Actually pushInventory returns void currently in original code, I should update it to return boolean.
-      // But for now, let's assume if it throws (which it doesn't, it catches internally), we are fine.
-      // Wait, pushInventory CATCHES error?
-      // Yes, my implementation in step 176 catches and alerts.
-      // So it resolves undefined.
+      return `${i + 1}. ${a.name} (Shift ${a.shift} ${sEnd}, ${durStr})`;
+    }).join('\n');
 
-      invModal.close();
-      alert('Data berhasil disimpan dan disinkronkan!');
-    } catch (err) {
-      console.error(err);
-      alert('Error logic: ' + err.message);
-    } finally {
-      if (btnSaveInv) {
-        btnSaveInv.disabled = false;
-        btnSaveInv.textContent = 'Simpan';
-      }
+    alert(`Daftar Karyawan Overtime (DAYTIME) Hari Ini:\n\n${list}`);
+  };
+
+  /* 
+    ===== DASHBOARD OVERTIME RENDERER (Clean & Strict) =====
+    Ensures Dashboard Counter matches the Alert List logic exactly.
+  */
+  window.renderOvertimePanel = function () {
+    const elCount = document.getElementById('overtimeCountDash');
+    const elPanel = document.getElementById('overtimePanelDash');
+    if (!elCount || !elPanel) return;
+
+    // 1. Get Data from Global Window (Freshness)
+    const atts = window.attendance || [];
+    const shfs = window.shifts || {};
+
+    // 2. Filter Today (Local YYYY-MM-DD)
+    const now = new Date();
+    const pad = n => String(n).padStart(2, '0');
+    const todayVal = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+    const start = new Date(todayVal + 'T00:00:00').getTime();
+    const end = new Date(todayVal + 'T23:59:59').getTime();
+
+    const todays = atts.filter(a => a.ts >= start && a.ts <= end);
+
+    // 3. Count Strict Overtime (> 10 mins tolerance, DAYTIME ONLY)
+    const overs = todays.filter(a => {
+      if (a.status !== 'pulang') return false;
+
+      // NEW RULE: ONLY DAYTIME SHIFT
+      if (a.shift !== 'DAYTIME') return false;
+
+      const sDef = shfs[a.shift];
+      if (!sDef || !sDef.end) return false;
+
+      const d = new Date(a.ts);
+      const scanMins = d.getHours() * 60 + d.getMinutes();
+
+      // Normalize Shift End
+      const [h, m] = sDef.end.split(':').map(Number);
+      const endMins = h * 60 + m;
+
+      // Logic
+      return scanMins > (endMins + 10);
+    });
+
+    // 4. Update UI
+    const count = overs.length;
+    elCount.textContent = count;
+
+    if (count > 0) {
+      elPanel.style.display = 'flex'; // Show Red Panel
+      // Update tooltip title if possible? No, click handles list.
+    } else {
+      elPanel.style.display = 'none'; // Hide if 0
     }
   };
-});
 
-// Initial Render if on inventory route
-window.renderInventory = renderInventory;
+  // OVERRIDE: Force DAYTIME ONLY Logic & Always Show Panel
+  window.renderOvertimePanel = function () {
+    const elCount = document.getElementById('overtimeCountDash');
+    const elPanel = document.getElementById('overtimePanelDash');
+    if (!elCount || !elPanel) return;
 
-// ===== OVERTIME ALERT (Standardized Logic) =====
-window.showOvertimeList = function () {
-  const now = new Date();
-  const pad = n => String(n).padStart(2, '0');
-  const todayVal = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+    // 1. Get Data from Global Window (Freshness)
+    const atts = window.attendance || [];
+    const shfs = window.shifts || {};
 
-  const start = new Date(todayVal + 'T00:00:00').getTime();
-  const end = new Date(todayVal + 'T23:59:59').getTime();
+    // 2. Filter Today (Local YYYY-MM-DD)
+    const now = new Date();
+    const pad = n => String(n).padStart(2, '0');
+    const todayVal = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`; // Local YYYY-MM-DD
+    const start = new Date(todayVal + 'T00:00:00').getTime();
+    const end = new Date(todayVal + 'T23:59:59').getTime();
 
-  const atts = window.attendance || [];
-  const shfs = window.shifts || {};
+    const todays = atts.filter(a => a.ts >= start && a.ts <= end);
 
-  const todays = atts.filter(a => a.ts >= start && a.ts <= end);
+    // 3. Count Strict Overtime (> 10 mins tolerance, DAYTIME ONLY)
+    const overs = todays.filter(a => {
+      if (a.status !== 'pulang') return false;
 
-  // Logic: DAYTIME ONLY & > End+10m
-  const overs = todays.filter(a => {
-    if (a.status !== 'pulang') return false;
-    // NEW RULE: ONLY DAYTIME SHIFT
-    if (a.shift !== 'DAYTIME') return false;
+      // NEW RULE: ONLY DAYTIME SHIFT
+      if (a.shift !== 'DAYTIME') return false;
 
-    const sDef = shfs[a.shift];
-    if (!sDef || !sDef.end) return false;
+      const sDef = shfs[a.shift];
+      if (!sDef || !sDef.end) return false;
 
-    const d = new Date(a.ts);
-    const scanMins = d.getHours() * 60 + d.getMinutes();
+      const d = new Date(a.ts);
+      const scanMins = d.getHours() * 60 + d.getMinutes();
 
-    const [h, m] = sDef.end.split(':').map(Number);
-    const endMins = h * 60 + m;
+      // Normalize Shift End
+      const [h, m] = sDef.end.split(':').map(Number);
+      const endMins = h * 60 + m;
 
-    return scanMins > (endMins + 10);
-  });
+      // Logic
+      return scanMins > (endMins + 10);
+    });
 
-  if (overs.length === 0) {
-    alert('Belum ada karyawan DAYTIME yang lembur hari ini.');
-    return;
-  }
+    // 4. Update UI
+    const count = overs.length;
+    elCount.textContent = count;
 
-  const list = overs.map((a, i) => {
-    const sEnd = shfs[a.shift]?.end;
-    const d = new Date(a.ts);
-    const [eh, em] = sEnd.split(':').map(Number);
-    const endMins = eh * 60 + em;
-    const scanMins = d.getHours() * 60 + d.getMinutes();
-    const diff = scanMins - endMins;
-    const durH = Math.floor(diff / 60);
-    const durM = diff % 60;
-    const durStr = `+${durH}j ${durM}m`;
+    // ALWAYS SHOW PANEL (User Request)
+    elPanel.style.display = 'flex';
+  };
 
-    return `${i + 1}. ${a.name} (Shift ${a.shift} ${sEnd}, ${durStr})`;
-  }).join('\n');
+  // ===== MOBILE INTERACTIVITY (Scrollable Modal) =====
+  window.showMobileList = function (title, items) {
+    // 1. Remove existing if any
+    const old = document.getElementById('mobListOverlay');
+    if (old) old.remove();
 
-  alert(`Daftar Karyawan Overtime (DAYTIME) Hari Ini:\n\n${list}`);
-};
+    // 2. Create Overlay
+    const ov = document.createElement('div');
+    ov.id = 'mobListOverlay';
+    Object.assign(ov.style, {
+      position: 'fixed', inset: 0, zIndex: 9999,
+      background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px'
+    });
 
-/* 
-  ===== DASHBOARD OVERTIME RENDERER (Clean & Strict) =====
-  Ensures Dashboard Counter matches the Alert List logic exactly.
-*/
-window.renderOvertimePanel = function () {
-  const elCount = document.getElementById('overtimeCountDash');
-  const elPanel = document.getElementById('overtimePanelDash');
-  if (!elCount || !elPanel) return;
+    // 3. Create Card
+    const card = document.createElement('div');
+    Object.assign(card.style, {
+      background: '#fff', width: '100%', maxWidth: '400px', maxHeight: '80vh',
+      borderRadius: '16px', display: 'flex', flexDirection: 'column',
+      boxShadow: '0 10px 25px rgba(0,0,0,0.2)', overflow: 'hidden'
+    });
 
-  // 1. Get Data from Global Window (Freshness)
-  const atts = window.attendance || [];
-  const shfs = window.shifts || {};
-
-  // 2. Filter Today (Local YYYY-MM-DD)
-  const now = new Date();
-  const pad = n => String(n).padStart(2, '0');
-  const todayVal = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
-  const start = new Date(todayVal + 'T00:00:00').getTime();
-  const end = new Date(todayVal + 'T23:59:59').getTime();
-
-  const todays = atts.filter(a => a.ts >= start && a.ts <= end);
-
-  // 3. Count Strict Overtime (> 10 mins tolerance, DAYTIME ONLY)
-  const overs = todays.filter(a => {
-    if (a.status !== 'pulang') return false;
-
-    // NEW RULE: ONLY DAYTIME SHIFT
-    if (a.shift !== 'DAYTIME') return false;
-
-    const sDef = shfs[a.shift];
-    if (!sDef || !sDef.end) return false;
-
-    const d = new Date(a.ts);
-    const scanMins = d.getHours() * 60 + d.getMinutes();
-
-    // Normalize Shift End
-    const [h, m] = sDef.end.split(':').map(Number);
-    const endMins = h * 60 + m;
-
-    // Logic
-    return scanMins > (endMins + 10);
-  });
-
-  // 4. Update UI
-  const count = overs.length;
-  elCount.textContent = count;
-
-  if (count > 0) {
-    elPanel.style.display = 'flex'; // Show Red Panel
-    // Update tooltip title if possible? No, click handles list.
-  } else {
-    elPanel.style.display = 'none'; // Hide if 0
-  }
-};
-
-// OVERRIDE: Force DAYTIME ONLY Logic & Always Show Panel
-window.renderOvertimePanel = function () {
-  const elCount = document.getElementById('overtimeCountDash');
-  const elPanel = document.getElementById('overtimePanelDash');
-  if (!elCount || !elPanel) return;
-
-  // 1. Get Data from Global Window (Freshness)
-  const atts = window.attendance || [];
-  const shfs = window.shifts || {};
-
-  // 2. Filter Today (Local YYYY-MM-DD)
-  const now = new Date();
-  const pad = n => String(n).padStart(2, '0');
-  const todayVal = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`; // Local YYYY-MM-DD
-  const start = new Date(todayVal + 'T00:00:00').getTime();
-  const end = new Date(todayVal + 'T23:59:59').getTime();
-
-  const todays = atts.filter(a => a.ts >= start && a.ts <= end);
-
-  // 3. Count Strict Overtime (> 10 mins tolerance, DAYTIME ONLY)
-  const overs = todays.filter(a => {
-    if (a.status !== 'pulang') return false;
-
-    // NEW RULE: ONLY DAYTIME SHIFT
-    if (a.shift !== 'DAYTIME') return false;
-
-    const sDef = shfs[a.shift];
-    if (!sDef || !sDef.end) return false;
-
-    const d = new Date(a.ts);
-    const scanMins = d.getHours() * 60 + d.getMinutes();
-
-    // Normalize Shift End
-    const [h, m] = sDef.end.split(':').map(Number);
-    const endMins = h * 60 + m;
-
-    // Logic
-    return scanMins > (endMins + 10);
-  });
-
-  // 4. Update UI
-  const count = overs.length;
-  elCount.textContent = count;
-
-  // ALWAYS SHOW PANEL (User Request)
-  elPanel.style.display = 'flex';
-};
-
-// ===== MOBILE INTERACTIVITY (Scrollable Modal) =====
-window.showMobileList = function (title, items) {
-  // 1. Remove existing if any
-  const old = document.getElementById('mobListOverlay');
-  if (old) old.remove();
-
-  // 2. Create Overlay
-  const ov = document.createElement('div');
-  ov.id = 'mobListOverlay';
-  Object.assign(ov.style, {
-    position: 'fixed', inset: 0, zIndex: 9999,
-    background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)',
-    display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px'
-  });
-
-  // 3. Create Card
-  const card = document.createElement('div');
-  Object.assign(card.style, {
-    background: '#fff', width: '100%', maxWidth: '400px', maxHeight: '80vh',
-    borderRadius: '16px', display: 'flex', flexDirection: 'column',
-    boxShadow: '0 10px 25px rgba(0,0,0,0.2)', overflow: 'hidden'
-  });
-
-  // 4. Header
-  const head = document.createElement('div');
-  Object.assign(head.style, {
-    padding: '16px', borderBottom: '1px solid #eee', display: 'flex',
-    justifyContent: 'space-between', alignItems: 'center', background: '#f8fafc'
-  });
-  head.innerHTML = `<h3 style="margin:0; font-size:1.1rem; color:#334155">${title}</h3>
+    // 4. Header
+    const head = document.createElement('div');
+    Object.assign(head.style, {
+      padding: '16px', borderBottom: '1px solid #eee', display: 'flex',
+      justifyContent: 'space-between', alignItems: 'center', background: '#f8fafc'
+    });
+    head.innerHTML = `<h3 style="margin:0; font-size:1.1rem; color:#334155">${title}</h3>
     <button id="btnCloseMobList" style="border:none; background:none; font-size:1.5rem; cursor:pointer; color:#64748b;">&times;</button>`;
 
-  // 5. List Container
-  const list = document.createElement('div');
-  Object.assign(list.style, {
-    padding: '0', overflowY: 'auto', flex: 1
-  });
-
-  if (items.length === 0) {
-    list.innerHTML = `<div style="padding:20px; text-align:center; color:#94a3b8;">Tidak ada data.</div>`;
-  } else {
-    items.forEach((it, i) => {
-      const row = document.createElement('div');
-      Object.assign(row.style, {
-        padding: '12px 16px', borderBottom: '1px solid #f1f5f9', fontSize: '0.9rem', color: '#0f172a'
-      });
-      // Alternate bg
-      if (i % 2 === 0) row.style.background = '#fff';
-      else row.style.background = '#f8fafc';
-
-      row.textContent = `${i + 1}. ${it}`;
-      list.appendChild(row);
-    });
-  }
-
-  // 6. Assemble
-  card.appendChild(head);
-  card.appendChild(list);
-  ov.appendChild(card);
-  document.body.appendChild(ov);
-
-  // 7. Close Logic
-  const close = () => ov.remove();
-  ov.onclick = (e) => { if (e.target === ov) close(); };
-  head.querySelector('#btnCloseMobList').onclick = close;
-};
-
-function setupMobileListeners() {
-  const elLate = document.getElementById('mobStatLate');
-  const elPres = document.getElementById('mobStatPresent');
-  const elTot = document.getElementById('mobStatTotal');
-
-  const getTodayAtts = () => {
-    // FIXED: Use explicit T00:00:00 to force Local Time (matches render logic)
-    const y = new Date().getFullYear();
-    const m = String(new Date().getMonth() + 1).padStart(2, '0');
-    const d = String(new Date().getDate()).padStart(2, '0');
-    const sod = new Date(`${y}-${m}-${d}T00:00:00`).getTime();
-    return (window.attendance || []).filter(a => a.ts >= sod);
-  };
-
-  if (elLate) {
-    const card = elLate.closest('.mob-stat-card');
-    if (card) {
-      card.style.cursor = 'pointer';
-      card.onclick = () => {
-        const today = getTodayAtts();
-        const lates = today.filter(a => a.status === 'datang' && a.late);
-        const names = lates.map(a => `${a.name} (${a.shift})`);
-        showMobileList(`📋 Terlambat (${lates.length})`, names);
-      };
-    }
-  }
-
-  if (elPres) {
-    const card = elPres.closest('.mob-stat-card');
-    if (card) {
-      card.style.cursor = 'pointer';
-      card.onclick = () => {
-        const today = getTodayAtts();
-        const presents = today.filter(a => a.status === 'datang');
-        const names = presents.map(a => `${a.name} (${a.late ? 'Terlambat' : 'On-time'})`);
-        showMobileList(`📋 Hadir (${presents.length})`, names);
-      };
-    }
-  }
-
-  if (elTot) {
-    const card = elTot.closest('.mob-stat-card');
-    if (card) {
-      card.style.cursor = 'pointer';
-      card.onclick = () => {
-        document.querySelector('.navlink[data-route="employees"]')?.click();
-      };
-    }
-  }
-}
-
-// Init safely
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', setupMobileListeners);
-} else {
-  setupMobileListeners();
-}
-
-// ==========================================
-// VIEW EMPLOYEE (READ ONLY)
-// ==========================================
-function showEmployeeDetail(emp) {
-  if (!emp) return;
-  const modal = document.getElementById('viewEmpModal');
-  if (!modal) return;
-
-  // 1. Populate Photo
-  const imgEl = document.getElementById('vPhoto');
-  const phEl = document.getElementById('vPhotoPlaceholder');
-  if (emp.photo && emp.photo.trim() !== '') {
-    imgEl.src = emp.photo;
-    imgEl.style.display = 'block';
-    phEl.style.display = 'none';
-  } else {
-    imgEl.src = '';
-    imgEl.style.display = 'none';
-    phEl.style.display = 'block';
-  }
-
-  // 2. Populate Text
-  document.getElementById('vName').textContent = emp.name || '-';
-  document.getElementById('vNid').textContent = emp.nid || '-';
-  document.getElementById('vTitle').textContent = emp.title || '-';
-
-  // Safe Group Label (emp.shift stores group code)
-  let sLabel = emp.shift;
-  const groupLabelMap = { A: 'Grup A', B: 'Grup B', C: 'Grup C', D: 'Grup D', DAYTIME: 'Grup Daytime' };
-  sLabel = groupLabelMap[emp.shift] || emp.shift || '-';
-  document.getElementById('vShift').textContent = sLabel;
-
-  document.getElementById('vCompany').textContent = emp.company || '-';
-
-  // 3. Show
-  modal.showModal();
-}
-window.showEmployeeDetail = showEmployeeDetail;
-
-// === NEW: Mobile Dashboard Renderer (Gen 2 UI) ===
-// === NEW: Mobile Dashboard Renderer (Gen 2 UI) ===
-window.renderMobileDashboard = function (isRetry = false) {
-  // Debug Log
-  console.log('[MobDash] Render Triggered', {
-    attendance: window.attendance?.length,
-    employees: window.employees?.length,
-    retry: isRetry
-  });
-
-  // 1. Update Active On-Site Count (Realtime Estimate)
-  if (!window.attendance || window.attendance.length === 0) {
-    if (!isRetry) setTimeout(() => window.renderMobileDashboard(true), 1500);
-    return;
-  }
-
-  const rollingStart = Date.now() - (24 * 60 * 60 * 1000); // 24 Hours
-  const activeMap = new Map();
-  const attToday = attendance.filter(a => a.ts >= rollingStart);
-
-  attToday.sort((a, b) => a.ts - b.ts).forEach(r => {
-    activeMap.set(r.nid, r.status);
-  });
-
-  let activeCount = 0;
-  activeMap.forEach(status => {
-    if (status === 'datang' || status === 'break_in') activeCount++;
-  });
-
-  const elCount = document.getElementById('heroActiveCount_v2');
-  if (elCount) {
-    if (elCount.textContent !== String(activeCount)) {
-      elCount.textContent = activeCount;
-      elCount.classList.remove('bump');
-      void elCount.offsetWidth;
-      elCount.classList.add('bump');
-    }
-  } else {
-    console.warn('[MobDash] Hero Count Element NOT FOUND: heroActiveCount_v2');
-  }
-
-  // Sync to small stat card
-  const elCount2 = document.getElementById('mobStatActive');
-  if (elCount2) elCount2.textContent = activeCount;
-
-  // 2. Update Greeting
-  const elGreet = document.getElementById('mobUserGreetName');
-  if (elGreet) {
-    try {
-      const sess = JSON.parse(localStorage.getItem('SA_SESSION') || '{}');
-      let name = sess.user?.name || sess.username || 'Petugas';
-      if (name.length > 15) name = name.split(' ')[0];
-      elGreet.textContent = name.replace(/\b\w/g, c => c.toUpperCase());
-    } catch (e) { elGreet.textContent = 'Petugas'; }
-  }
-
-  // 3. Daily Stats (Chart & Counts)
-  const lbLate = document.getElementById('mobStatLate_v2');
-  const lbOntime = document.getElementById('mobStatOntime_v2');
-  const lbPct = document.getElementById('mobChartPercent_v2');
-  const lbTot = document.getElementById('mobChartTotal_v2');
-  const cvs = document.getElementById('mobDailyChart_v2');
-
-  if (lbLate && lbOntime && cvs) {
-    const sod = new Date(); sod.setHours(0, 0, 0, 0);
-    const todayRecs = attendance.filter(a => a.ts >= sod.getTime() && a.status === 'datang');
-
-    let cntLate = 0;
-    let cntOntime = 0;
-    const unique = new Set();
-
-    todayRecs.sort((a, b) => b.ts - a.ts);
-    todayRecs.forEach(r => {
-      if (!unique.has(r.nid)) {
-        unique.add(r.nid);
-        if (r.late) cntLate++; else cntOntime++;
-      }
+    // 5. List Container
+    const list = document.createElement('div');
+    Object.assign(list.style, {
+      padding: '0', overflowY: 'auto', flex: 1
     });
 
-    const total = cntLate + cntOntime;
-    const rate = total ? Math.round((cntOntime / total) * 100) : 0;
-
-    lbLate.textContent = cntLate;
-    lbOntime.textContent = cntOntime;
-    if (lbPct) lbPct.textContent = rate + '%';
-    if (lbTot) lbTot.textContent = total;
-
-    // Render Chart
-    if (window.Chart) {
-      if (window.mobChartInstance) {
-        window.mobChartInstance.data.datasets[0].data = [cntOntime, cntLate];
-        window.mobChartInstance.update();
-      } else {
-        window.mobChartInstance = new Chart(cvs, {
-          type: 'doughnut',
-          data: {
-            labels: ['Hadir (Ontime)', 'Terlambat'],
-            datasets: [{
-              data: [cntOntime, cntLate],
-              backgroundColor: ['#22c55e', '#ef4444'],
-              borderWidth: 0,
-            }]
-          },
-          options: {
-            responsive: true,
-            cutout: '75%',
-            plugins: { legend: { display: false }, tooltip: { enabled: false } },
-            maintainAspectRatio: false,
-            animation: { duration: 800 }
-          }
+    if (items.length === 0) {
+      list.innerHTML = `<div style="padding:20px; text-align:center; color:#94a3b8;">Tidak ada data.</div>`;
+    } else {
+      items.forEach((it, i) => {
+        const row = document.createElement('div');
+        Object.assign(row.style, {
+          padding: '12px 16px', borderBottom: '1px solid #f1f5f9', fontSize: '0.9rem', color: '#0f172a'
         });
-      }
+        // Alternate bg
+        if (i % 2 === 0) row.style.background = '#fff';
+        else row.style.background = '#f8fafc';
+
+        row.textContent = `${i + 1}. ${it}`;
+        list.appendChild(row);
+      });
     }
-  } else {
-    console.warn('[MobDash] Stats Elements Missing (v2)');
-  }
 
-  // 4. Update Live Presence Grid (Footer)
-  if (window.renderCompanyPresenceMobile) window.renderCompanyPresenceMobile();
-};
+    // 6. Assemble
+    card.appendChild(head);
+    card.appendChild(list);
+    ov.appendChild(card);
+    document.body.appendChild(ov);
 
-
-
-// === NEW: Render Company Presence (Mobile) ===
-window.renderCompanyPresenceMobile = function () {
-  const grid = document.getElementById('companyPresenceGridMobile');
-  if (!grid) return;
-
-  // 1. Calculate Active Per Company
-  const rollingStart = Date.now() - (24 * 60 * 60 * 1000);
-  const activeMap = new Map(); // NID -> Status
-
-  // Get latest status for everyone in last 24h
-  attendance.filter(a => a.ts >= rollingStart)
-    .sort((a, b) => a.ts - b.ts)
-    .forEach(r => activeMap.set(r.nid, r.status));
-
-  const companyCounts = {};
-
-  // Iterate active employees
-  activeMap.forEach((status, nid) => {
-    if (status === 'datang' || status === 'break_in') {
-      const emp = employees.find(e => e.nid === nid);
-      if (emp) {
-        const comp = emp.company || 'Lainnya';
-        companyCounts[comp] = (companyCounts[comp] || 0) + 1;
-      }
-    }
-  });
-
-  // 2. Render Cards
-  const companies = Object.keys(companyCounts).sort();
-  let html = '';
-
-  // Defined colors for companies (optional, can be random or fixed)
-  const compColors = {
-    'PT MKP': 'blue',
-    'PT LINMAS': 'orange',
-    'PT NPN': 'green',
-    'CV NUANSA NUSANTARA': 'purple',
-    'Lainnya': 'gray'
+    // 7. Close Logic
+    const close = () => ov.remove();
+    ov.onclick = (e) => { if (e.target === ov) close(); };
+    head.querySelector('#btnCloseMobList').onclick = close;
   };
 
-  companies.forEach(comp => {
-    const count = companyCounts[comp];
-    const color = compColors[comp] || 'blue'; // Default blue
+  function setupMobileListeners() {
+    const elLate = document.getElementById('mobStatLate');
+    const elPres = document.getElementById('mobStatPresent');
+    const elTot = document.getElementById('mobStatTotal');
 
-    // Map color names to CSS var-like classes or inline styles
-    // We'll use simple classes: mob-comp-card + color modifier
+    const getTodayAtts = () => {
+      // FIXED: Use explicit T00:00:00 to force Local Time (matches render logic)
+      const y = new Date().getFullYear();
+      const m = String(new Date().getMonth() + 1).padStart(2, '0');
+      const d = String(new Date().getDate()).padStart(2, '0');
+      const sod = new Date(`${y}-${m}-${d}T00:00:00`).getTime();
+      return (window.attendance || []).filter(a => a.ts >= sod);
+    };
 
-    html += `
+    if (elLate) {
+      const card = elLate.closest('.mob-stat-card');
+      if (card) {
+        card.style.cursor = 'pointer';
+        card.onclick = () => {
+          const today = getTodayAtts();
+          const lates = today.filter(a => a.status === 'datang' && a.late);
+          const names = lates.map(a => `${a.name} (${a.shift})`);
+          showMobileList(`📋 Terlambat (${lates.length})`, names);
+        };
+      }
+    }
+
+    if (elPres) {
+      const card = elPres.closest('.mob-stat-card');
+      if (card) {
+        card.style.cursor = 'pointer';
+        card.onclick = () => {
+          const today = getTodayAtts();
+          const presents = today.filter(a => a.status === 'datang');
+          const names = presents.map(a => `${a.name} (${a.late ? 'Terlambat' : 'On-time'})`);
+          showMobileList(`📋 Hadir (${presents.length})`, names);
+        };
+      }
+    }
+
+    if (elTot) {
+      const card = elTot.closest('.mob-stat-card');
+      if (card) {
+        card.style.cursor = 'pointer';
+        card.onclick = () => {
+          document.querySelector('.navlink[data-route="employees"]')?.click();
+        };
+      }
+    }
+  }
+
+  // Init safely
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', setupMobileListeners);
+  } else {
+    setupMobileListeners();
+  }
+
+  // ==========================================
+  // VIEW EMPLOYEE (READ ONLY)
+  // ==========================================
+  function showEmployeeDetail(emp) {
+    if (!emp) return;
+    const modal = document.getElementById('viewEmpModal');
+    if (!modal) return;
+
+    // 1. Populate Photo
+    const imgEl = document.getElementById('vPhoto');
+    const phEl = document.getElementById('vPhotoPlaceholder');
+    if (emp.photo && emp.photo.trim() !== '') {
+      imgEl.src = emp.photo;
+      imgEl.style.display = 'block';
+      phEl.style.display = 'none';
+    } else {
+      imgEl.src = '';
+      imgEl.style.display = 'none';
+      phEl.style.display = 'block';
+    }
+
+    // 2. Populate Text
+    document.getElementById('vName').textContent = emp.name || '-';
+    document.getElementById('vNid').textContent = emp.nid || '-';
+    document.getElementById('vTitle').textContent = emp.title || '-';
+
+    // Safe Group Label (emp.shift stores group code)
+    let sLabel = emp.shift;
+    const groupLabelMap = { A: 'Grup A', B: 'Grup B', C: 'Grup C', D: 'Grup D', DAYTIME: 'Grup Daytime' };
+    sLabel = groupLabelMap[emp.shift] || emp.shift || '-';
+    document.getElementById('vShift').textContent = sLabel;
+
+    document.getElementById('vCompany').textContent = emp.company || '-';
+
+    // 3. Show
+    modal.showModal();
+  }
+  window.showEmployeeDetail = showEmployeeDetail;
+
+  // === NEW: Mobile Dashboard Renderer (Gen 2 UI) ===
+  // === NEW: Mobile Dashboard Renderer (Gen 2 UI) ===
+  window.renderMobileDashboard = function (isRetry = false) {
+    // Debug Log
+    console.log('[MobDash] Render Triggered', {
+      attendance: window.attendance?.length,
+      employees: window.employees?.length,
+      retry: isRetry
+    });
+
+    // 1. Update Active On-Site Count (Realtime Estimate)
+    if (!window.attendance || window.attendance.length === 0) {
+      if (!isRetry) setTimeout(() => window.renderMobileDashboard(true), 1500);
+      return;
+    }
+
+    const rollingStart = Date.now() - (24 * 60 * 60 * 1000); // 24 Hours
+    const activeMap = new Map();
+    const attToday = attendance.filter(a => a.ts >= rollingStart);
+
+    attToday.sort((a, b) => a.ts - b.ts).forEach(r => {
+      activeMap.set(r.nid, r.status);
+    });
+
+    let activeCount = 0;
+    activeMap.forEach(status => {
+      if (status === 'datang' || status === 'break_in') activeCount++;
+    });
+
+    const elCount = document.getElementById('heroActiveCount_v2');
+    if (elCount) {
+      if (elCount.textContent !== String(activeCount)) {
+        elCount.textContent = activeCount;
+        elCount.classList.remove('bump');
+        void elCount.offsetWidth;
+        elCount.classList.add('bump');
+      }
+    } else {
+      console.warn('[MobDash] Hero Count Element NOT FOUND: heroActiveCount_v2');
+    }
+
+    // Sync to small stat card
+    const elCount2 = document.getElementById('mobStatActive');
+    if (elCount2) elCount2.textContent = activeCount;
+
+    // 2. Update Greeting
+    const elGreet = document.getElementById('mobUserGreetName');
+    if (elGreet) {
+      try {
+        const sess = JSON.parse(localStorage.getItem('SA_SESSION') || '{}');
+        let name = sess.user?.name || sess.username || 'Petugas';
+        if (name.length > 15) name = name.split(' ')[0];
+        elGreet.textContent = name.replace(/\b\w/g, c => c.toUpperCase());
+      } catch (e) { elGreet.textContent = 'Petugas'; }
+    }
+
+    // 3. Daily Stats (Chart & Counts)
+    const lbLate = document.getElementById('mobStatLate_v2');
+    const lbOntime = document.getElementById('mobStatOntime_v2');
+    const lbPct = document.getElementById('mobChartPercent_v2');
+    const lbTot = document.getElementById('mobChartTotal_v2');
+    const cvs = document.getElementById('mobDailyChart_v2');
+
+    if (lbLate && lbOntime && cvs) {
+      const sod = new Date(); sod.setHours(0, 0, 0, 0);
+      const todayRecs = attendance.filter(a => a.ts >= sod.getTime() && a.status === 'datang');
+
+      let cntLate = 0;
+      let cntOntime = 0;
+      const unique = new Set();
+
+      todayRecs.sort((a, b) => b.ts - a.ts);
+      todayRecs.forEach(r => {
+        if (!unique.has(r.nid)) {
+          unique.add(r.nid);
+          if (r.late) cntLate++; else cntOntime++;
+        }
+      });
+
+      const total = cntLate + cntOntime;
+      const rate = total ? Math.round((cntOntime / total) * 100) : 0;
+
+      lbLate.textContent = cntLate;
+      lbOntime.textContent = cntOntime;
+      if (lbPct) lbPct.textContent = rate + '%';
+      if (lbTot) lbTot.textContent = total;
+
+      // Render Chart
+      if (window.Chart) {
+        if (window.mobChartInstance) {
+          window.mobChartInstance.data.datasets[0].data = [cntOntime, cntLate];
+          window.mobChartInstance.update();
+        } else {
+          window.mobChartInstance = new Chart(cvs, {
+            type: 'doughnut',
+            data: {
+              labels: ['Hadir (Ontime)', 'Terlambat'],
+              datasets: [{
+                data: [cntOntime, cntLate],
+                backgroundColor: ['#22c55e', '#ef4444'],
+                borderWidth: 0,
+              }]
+            },
+            options: {
+              responsive: true,
+              cutout: '75%',
+              plugins: { legend: { display: false }, tooltip: { enabled: false } },
+              maintainAspectRatio: false,
+              animation: { duration: 800 }
+            }
+          });
+        }
+      }
+    } else {
+      console.warn('[MobDash] Stats Elements Missing (v2)');
+    }
+
+    // 4. Update Live Presence Grid (Footer)
+    if (window.renderCompanyPresenceMobile) window.renderCompanyPresenceMobile();
+  };
+
+
+
+  // === NEW: Render Company Presence (Mobile) ===
+  window.renderCompanyPresenceMobile = function () {
+    const grid = document.getElementById('companyPresenceGridMobile');
+    if (!grid) return;
+
+    // 1. Calculate Active Per Company
+    const rollingStart = Date.now() - (24 * 60 * 60 * 1000);
+    const activeMap = new Map(); // NID -> Status
+
+    // Get latest status for everyone in last 24h
+    attendance.filter(a => a.ts >= rollingStart)
+      .sort((a, b) => a.ts - b.ts)
+      .forEach(r => activeMap.set(r.nid, r.status));
+
+    const companyCounts = {};
+
+    // Iterate active employees
+    activeMap.forEach((status, nid) => {
+      if (status === 'datang' || status === 'break_in') {
+        const emp = employees.find(e => e.nid === nid);
+        if (emp) {
+          const comp = emp.company || 'Lainnya';
+          companyCounts[comp] = (companyCounts[comp] || 0) + 1;
+        }
+      }
+    });
+
+    // 2. Render Cards
+    const companies = Object.keys(companyCounts).sort();
+    let html = '';
+
+    // Defined colors for companies (optional, can be random or fixed)
+    const compColors = {
+      'PT MKP': 'blue',
+      'PT LINMAS': 'orange',
+      'PT NPN': 'green',
+      'CV NUANSA NUSANTARA': 'purple',
+      'Lainnya': 'gray'
+    };
+
+    companies.forEach(comp => {
+      const count = companyCounts[comp];
+      const color = compColors[comp] || 'blue'; // Default blue
+
+      // Map color names to CSS var-like classes or inline styles
+      // We'll use simple classes: mob-comp-card + color modifier
+
+      html += `
         <div class="mob-comp-card" onclick="showCompanyDetail('${comp}')">
             <div class="mob-comp-name">${comp}</div>
             <div class="mob-comp-countBadge ${color}">${count}</div>
         </div>
         `;
-  });
-
-  if (companies.length === 0) {
-    html = `<div style="grid-column:1/-1; text-align:center; opacity:0.6; font-size:0.8rem; padding:10px;">Belum ada data kehadiran</div>`;
-  }
-
-  grid.innerHTML = html;
-};
-
-// Detail Modal Trigger
-window.showCompanyDetail = function (compName) {
-  // Re-use existing logic or create new simple modal content
-  // For now, let's just use the existing 'showStatDetail' logic but filtered by company
-  // Or simpler: Just alert for now, or implement a modal if requested.
-  // The user requested "munculkan semua data", so display is priority.
-  // We can reuse the "Active Personnel" modal if available.
-
-  if (window.renderActivePersonnelModal) {
-    window.renderActivePersonnelModal(compName);
-  }
-};
-
-// === NEW: Render Active Personnel Modal (Detail) ===
-window.renderActivePersonnelModal = function (filterCompany) {
-  const modal = document.getElementById('activePersonnelModal');
-  const list = document.getElementById('activePersonnelList');
-  if (!modal || !list) return;
-
-  // 1. Get Active Data
-  const rollingStart = Date.now() - (24 * 60 * 60 * 1000);
-  const activeMap = new Map();
-  const activeRecs = [];
-
-  // Filter & Sort
-  attendance.filter(a => a.ts >= rollingStart)
-    .sort((a, b) => a.ts - b.ts) // Ascending to get last status
-    .forEach(r => {
-      activeMap.set(r.nid, r);
     });
 
-  // Collect active only
-  activeMap.forEach((r, nid) => {
-    if (r.status === 'datang' || r.status === 'break_in') {
-      activeRecs.push(r);
+    if (companies.length === 0) {
+      html = `<div style="grid-column:1/-1; text-align:center; opacity:0.6; font-size:0.8rem; padding:10px;">Belum ada data kehadiran</div>`;
     }
-  });
 
-  // 2. Filter by Company (if specific)
-  let filtered = activeRecs;
-  let title = 'Personil Aktif (Live)';
+    grid.innerHTML = html;
+  };
 
-  if (filterCompany && filterCompany !== 'active_site') {
-    filtered = activeRecs.filter(r => {
-      const emp = employees.find(e => e.nid === r.nid);
-      return emp && (emp.company === filterCompany || (!emp.company && filterCompany === 'Lainnya'));
+  // Detail Modal Trigger
+  window.showCompanyDetail = function (compName) {
+    // Re-use existing logic or create new simple modal content
+    // For now, let's just use the existing 'showStatDetail' logic but filtered by company
+    // Or simpler: Just alert for now, or implement a modal if requested.
+    // The user requested "munculkan semua data", so display is priority.
+    // We can reuse the "Active Personnel" modal if available.
+
+    if (window.renderActivePersonnelModal) {
+      window.renderActivePersonnelModal(compName);
+    }
+  };
+
+  // === NEW: Render Active Personnel Modal (Detail) ===
+  window.renderActivePersonnelModal = function (filterCompany) {
+    const modal = document.getElementById('activePersonnelModal');
+    const list = document.getElementById('activePersonnelList');
+    if (!modal || !list) return;
+
+    // 1. Get Active Data
+    const rollingStart = Date.now() - (24 * 60 * 60 * 1000);
+    const activeMap = new Map();
+    const activeRecs = [];
+
+    // Filter & Sort
+    attendance.filter(a => a.ts >= rollingStart)
+      .sort((a, b) => a.ts - b.ts) // Ascending to get last status
+      .forEach(r => {
+        activeMap.set(r.nid, r);
+      });
+
+    // Collect active only
+    activeMap.forEach((r, nid) => {
+      if (r.status === 'datang' || r.status === 'break_in') {
+        activeRecs.push(r);
+      }
     });
-    title = `Personil Aktif: ${filterCompany}`;
-  }
 
-  // Update Title
-  const h3 = modal.querySelector('h3');
-  if (h3 && h3.childNodes[0]) h3.childNodes[0].nodeValue = title + ' ';
+    // 2. Filter by Company (if specific)
+    let filtered = activeRecs;
+    let title = 'Personil Aktif (Live)';
 
-  // 3. Render List
-  if (filtered.length === 0) {
-    list.innerHTML = `<div style="text-align:center; padding:20px; color:#999;">Tidak ada personil aktif saat ini.</div>`;
-  } else {
-    list.innerHTML = filtered.map(r => {
-      const emp = employees.find(e => e.nid === r.nid);
-      const name = emp ? emp.name : r.name;
-      const job = emp ? emp.job : '-';
-      const company = emp ? emp.company : '-';
-      const time = new Date(r.ts).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+    if (filterCompany && filterCompany !== 'active_site') {
+      filtered = activeRecs.filter(r => {
+        const emp = employees.find(e => e.nid === r.nid);
+        return emp && (emp.company === filterCompany || (!emp.company && filterCompany === 'Lainnya'));
+      });
+      title = `Personil Aktif: ${filterCompany}`;
+    }
 
-      return `
+    // Update Title
+    const h3 = modal.querySelector('h3');
+    if (h3 && h3.childNodes[0]) h3.childNodes[0].nodeValue = title + ' ';
+
+    // 3. Render List
+    if (filtered.length === 0) {
+      list.innerHTML = `<div style="text-align:center; padding:20px; color:#999;">Tidak ada personil aktif saat ini.</div>`;
+    } else {
+      list.innerHTML = filtered.map(r => {
+        const emp = employees.find(e => e.nid === r.nid);
+        const name = emp ? emp.name : r.name;
+        const job = emp ? emp.job : '-';
+        const company = emp ? emp.company : '-';
+        const time = new Date(r.ts).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+
+        return `
             <div style="padding:12px; border-bottom:1px solid #f1f5f9; display:flex; justify-content:space-between; align-items:center;">
                 <div>
                     <div style="font-weight:700; color:#334155; font-size:0.95rem;">${name}</div>
@@ -5924,10 +5938,10 @@ window.renderActivePersonnelModal = function (filterCompany) {
                 </div>
             </div>
             `;
-    }).join('');
-  }
+      }).join('');
+    }
 
-  // 4. Show
-  modal.showModal();
-};
-
+    // 4. Show
+    modal.showModal();
+  };
+});
