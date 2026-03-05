@@ -1572,10 +1572,19 @@ window.addEventListener('DOMContentLoaded', () => {
 
   // ====== SCAN INPUT: clear otomatis & anti-menumpuk ======
   const SCAN_DEBOUNCE = 150, SCAN_WINDOW = 500; let scanTimer = null, lastScan = { v: '', t: 0 };
+
   function clearScanInputNow() {
-    const inp = $('#scanInput'); if (!inp) return;
-    inp.value = ''; inp.blur(); setTimeout(() => inp.focus(), 30);
+    // Clear both desktop and mobile inputs to prevent stacking data (bugs on other devices)
+    const inps = [$('#scanInput'), $('#mobScanInput')];
+    inps.forEach(inp => {
+      if (inp) {
+        inp.value = '';
+        inp.blur();
+        setTimeout(() => inp.focus(), 30);
+      }
+    });
   }
+
   function tryScan(v) {
     const t = Date.now();
     if (v === lastScan.v && (t - lastScan.t) < SCAN_WINDOW) { lastScan.t = t; return; }
@@ -1583,6 +1592,8 @@ window.addEventListener('DOMContentLoaded', () => {
     handleScan(v);
     clearScanInputNow();
   }
+
+  // --- Desktop Input Listeners ---
   $('#scanInput')?.addEventListener('input', e => {
     const v = e.target.value.trim();
     if (scanTimer) clearTimeout(scanTimer);
@@ -1597,7 +1608,35 @@ window.addEventListener('DOMContentLoaded', () => {
       if (v) { tryScan(v); }
     }
   });
-  window.addEventListener('load', () => { $('#scanInput')?.focus(); });
+
+  // --- Mobile Input Listeners (Fix for data stacking on mobile/other devices) ---
+  $('#mobScanInput')?.addEventListener('input', e => {
+    const v = e.target.value.trim();
+    if (scanTimer) clearTimeout(scanTimer);
+    if (!v) return;
+    scanTimer = setTimeout(() => { tryScan(v); }, SCAN_DEBOUNCE);
+  });
+  $('#mobScanInput')?.addEventListener('keydown', e => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      if (scanTimer) { clearTimeout(scanTimer); scanTimer = null; }
+      const v = $('#mobScanInput').value.trim();
+      if (v) { tryScan(v); }
+    }
+  });
+
+  // Submit Button for Mobile Keyboard
+  $('#btnMobSubmit')?.addEventListener('click', e => {
+    e.preventDefault();
+    if (scanTimer) { clearTimeout(scanTimer); scanTimer = null; }
+    const v = $('#mobScanInput')?.value.trim();
+    if (v) { tryScan(v); }
+  });
+
+  window.addEventListener('load', () => {
+    $('#scanInput')?.focus();
+    $('#mobScanInput')?.focus();
+  });
 
   // Update UI on successful scan
   window.addEventListener('scan:success', (e) => {
