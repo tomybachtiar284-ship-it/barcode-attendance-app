@@ -2082,6 +2082,9 @@
             style="display:flex; align-items:center; gap:5px; background-color:#0ea5e9; border-color:#0ea5e9; color:white; margin-left:8px;">
             ☁️ Sync Cloud
           </button>
+          <button id="btnDeleteSelectedAtt" class="btn small danger" style="display:none; margin-left:8px;">
+            🗑️ Hapus Terpilih (<span id="countSelectedAtt">0</span>)
+          </button>
         </div>
       </div>
 
@@ -2090,6 +2093,7 @@
           <table class="table" id="tableAtt">
             <thead>
               <tr>
+                <th style="width: 40px; text-align: center;"><input type="checkbox" id="cbSelectAllAtt"></th>
                 <th style="padding-left:16px">WAKTU</th>
                 <th>STATUS</th>
                 <th>NID</th>

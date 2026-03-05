@@ -2924,7 +2924,9 @@ window.addEventListener('DOMContentLoaded', () => {
         <button class="btn small" data-act="edit-att" title="Edit" style="padding:2px 8px; font-size:12px; margin-right:4px;">✏️</button>
         <button class="btn small danger" data-act="del-att" title="Hapus" style="padding:2px 8px; font-size:12px;">Hapus</button>`;
 
+      const checkboxTd = r.isGhost ? `<td style="text-align: center;"></td>` : `<td style="text-align: center;"><input type="checkbox" class="cb-att-row" data-ts="${r.ts}"></td>`;
       tr.innerHTML = `
+        ${checkboxTd}
         <td>${fmtTs(r.ts)}</td>
         <td>${statusLabel}</td>
         <td>${r.nid}</td>
@@ -2937,7 +2939,80 @@ window.addEventListener('DOMContentLoaded', () => {
       tb.appendChild(tr);
     });
     $('#btnExportAtt').dataset.count = rows.length;
+
+    // Reset selection state on re-render
+    const cbAll = $('#cbSelectAllAtt');
+    if (cbAll) cbAll.checked = false;
+    updateBulkDeleteBtnState();
   }
+
+  function updateBulkDeleteBtnState() {
+    const checkedBoxes = document.querySelectorAll('.cb-att-row:checked');
+    const btnDelSelected = $('#btnDeleteSelectedAtt');
+    const countSpan = $('#countSelectedAtt');
+
+    if (btnDelSelected && countSpan) {
+      const count = checkedBoxes.length;
+      countSpan.textContent = count;
+      btnDelSelected.style.display = count > 0 ? 'flex' : 'none';
+    }
+  }
+
+  // Handle Select All Checkbox
+  $('#cbSelectAllAtt')?.addEventListener('change', (e) => {
+    const isChecked = e.target.checked;
+    document.querySelectorAll('.cb-att-row').forEach(cb => {
+      cb.checked = isChecked;
+    });
+    updateBulkDeleteBtnState();
+  });
+
+  // Handle individual row checkbox change
+  $('#tableAtt tbody')?.addEventListener('change', (e) => {
+    if (e.target.classList.contains('cb-att-row')) {
+      const allCbs = document.querySelectorAll('.cb-att-row');
+      const checkedCbs = document.querySelectorAll('.cb-att-row:checked');
+      const cbAll = $('#cbSelectAllAtt');
+      if (cbAll) {
+        cbAll.checked = (allCbs.length > 0 && allCbs.length === checkedCbs.length);
+      }
+      updateBulkDeleteBtnState();
+    }
+  });
+
+  // Handle Bulk Delete Button Click
+  $('#btnDeleteSelectedAtt')?.addEventListener('click', async () => {
+    const checkedBoxes = Array.from(document.querySelectorAll('.cb-att-row:checked'));
+    if (checkedBoxes.length === 0) return;
+
+    if (confirm(`Apakah Anda yakin ingin menghapus ${checkedBoxes.length} data kehadiran yang dipilih?`)) {
+      const tsToDelete = checkedBoxes.map(cb => Number(cb.dataset.ts)).filter(ts => ts > 0);
+
+      // Remove from local memory
+      attendance = attendance.filter(a => !tsToDelete.includes(a.ts));
+      save(LS_ATT, attendance);
+      syncGlobals();
+
+      // Refresh UI immediately
+      filterAttendance();
+      renderDashboard();
+      renderScanTable();
+      renderScanStats();
+      updateBulkDeleteBtnState(); // hide button again
+
+      toast(`${tsToDelete.length} baris sedang dihapus dari server...`);
+
+      // Delete from cloud one by one
+      for (const ts of tsToDelete) {
+        try {
+          await delAttendance(ts);
+        } catch (err) {
+          console.error(`Failed to delete attendance ${ts}:`, err);
+        }
+      }
+      toast('Proses hapus massal selesai.');
+    }
+  });
   $('#btnFilterAtt')?.addEventListener('click', filterAttendance);
   // Realtime search & group filter & DATE filter
   $('#attSearch')?.addEventListener('input', filterAttendance);
