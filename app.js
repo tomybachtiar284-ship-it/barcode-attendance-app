@@ -2924,7 +2924,7 @@ window.addEventListener('DOMContentLoaded', () => {
         <button class="btn small" data-act="edit-att" title="Edit" style="padding:2px 8px; font-size:12px; margin-right:4px;">✏️</button>
         <button class="btn small danger" data-act="del-att" title="Hapus" style="padding:2px 8px; font-size:12px;">Hapus</button>`;
 
-      const checkboxTd = r.isGhost ? `<td style="text-align: center;"></td>` : `<td style="text-align: center;"><input type="checkbox" class="cb-att-row" data-ts="${r.ts}"></td>`;
+      const checkboxTd = r.isGhost ? `<td style="width: 30px; min-width: 30px; max-width: 30px; padding: 0 4px; text-align: center;"></td>` : `<td style="width: 30px; min-width: 30px; max-width: 30px; padding: 0 4px; text-align: center;"><input type="checkbox" class="cb-att-row" data-ts="${r.ts}"></td>`;
       tr.innerHTML = `
         ${checkboxTd}
         <td>${fmtTs(r.ts)}</td>
