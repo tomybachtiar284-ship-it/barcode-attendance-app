@@ -1603,12 +1603,7 @@ window.addEventListener('DOMContentLoaded', () => {
     if (scanTimer) clearTimeout(scanTimer);
     if (!v) return;
 
-    // Auto-submit if it reaches expected length (NID is typically 6-10 chars, let's trigger at 6 minimum for fast response, or let timeout handle it)
-    if (v.length >= 6) {
-      tryScan(v);
-      return;
-    }
-
+    // Use debounce to wait for fast typing to finish, or rely on Enter key from scanner
     scanTimer = setTimeout(() => { tryScan(v); }, SCAN_DEBOUNCE);
   });
 
@@ -1627,11 +1622,7 @@ window.addEventListener('DOMContentLoaded', () => {
     if (scanTimer) clearTimeout(scanTimer);
     if (!v) return;
 
-    if (v.length >= 6) {
-      tryScan(v);
-      return;
-    }
-
+    // Use debounce to wait for fast typing to finish, or rely on Enter key from scanner
     scanTimer = setTimeout(() => { tryScan(v); }, SCAN_DEBOUNCE);
   });
   $('#mobScanInput')?.addEventListener('keydown', e => {
