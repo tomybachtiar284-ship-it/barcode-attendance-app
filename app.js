@@ -1574,23 +1574,27 @@ window.addEventListener('DOMContentLoaded', () => {
   const SCAN_DEBOUNCE = 150, SCAN_WINDOW = 500; let scanTimer = null, lastScan = { v: '', t: 0 };
 
   function clearScanInputNow() {
-    // Clear both desktop and mobile inputs to prevent stacking data (bugs on other devices)
+    // Force clear synchronously
     const inps = [$('#scanInput'), $('#mobScanInput')];
     inps.forEach(inp => {
       if (inp) {
         inp.value = '';
-        inp.blur();
-        setTimeout(() => inp.focus(), 30);
+        inp.dispatchEvent(new Event('change')); // notify dom
       }
     });
+
+    // Re-focus after UI renders
+    setTimeout(() => {
+      inps.forEach(inp => { if (inp) { inp.focus(); } });
+    }, 50);
   }
 
   function tryScan(v) {
+    clearScanInputNow(); // CLEAR FIRST BEFORE PROCESSING
     const t = Date.now();
     if (v === lastScan.v && (t - lastScan.t) < SCAN_WINDOW) { lastScan.t = t; return; }
     lastScan = { v, t };
     handleScan(v);
-    clearScanInputNow();
   }
 
   // --- Desktop Input Listeners ---
@@ -1598,8 +1602,16 @@ window.addEventListener('DOMContentLoaded', () => {
     const v = e.target.value.trim();
     if (scanTimer) clearTimeout(scanTimer);
     if (!v) return;
+
+    // Auto-submit if it reaches expected length (NID is typically 6-10 chars, let's trigger at 6 minimum for fast response, or let timeout handle it)
+    if (v.length >= 6) {
+      tryScan(v);
+      return;
+    }
+
     scanTimer = setTimeout(() => { tryScan(v); }, SCAN_DEBOUNCE);
   });
+
   $('#scanInput')?.addEventListener('keydown', e => {
     if (e.key === 'Enter') {
       e.preventDefault();
@@ -1614,6 +1626,12 @@ window.addEventListener('DOMContentLoaded', () => {
     const v = e.target.value.trim();
     if (scanTimer) clearTimeout(scanTimer);
     if (!v) return;
+
+    if (v.length >= 6) {
+      tryScan(v);
+      return;
+    }
+
     scanTimer = setTimeout(() => { tryScan(v); }, SCAN_DEBOUNCE);
   });
   $('#mobScanInput')?.addEventListener('keydown', e => {
