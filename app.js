@@ -4093,9 +4093,11 @@ window.addEventListener('DOMContentLoaded', () => {
 
 
   /* =========================================
-     OVERTIME REPORT LOGIC (DAYTIME SPECIAL)
+     OVERTIME REPORT LOGIC
      ========================================= */
-  window.addEventListener('DOMContentLoaded', function initOvertimeReport() {
+  // FIX: Was using 'DOMContentLoaded' but app.js loads AFTER that event fires.
+  // Using a self-invoking function that runs immediately instead.
+  (function initOvertimeReport() {
     const btnGen = document.getElementById('btnGenOtReport');
     const btnPdf = document.getElementById('btnExportOtPdf');
 
@@ -4149,19 +4151,16 @@ window.addEventListener('DOMContentLoaded', () => {
       // Get selected company
       const selComp = elComp ? elComp.value : '';
 
-      // Filter: Daytime Only AND (Company match if selected)
-      const dayUsers = window.employees.filter(e => {
-        const isDay = (e.shift === 'DAYTIME') || (e.shift && e.shift.toLowerCase().includes('day'));
-        if (!isDay) return false;
-
+      // Filter: All Users (Company match if selected)
+      const users = window.employees.filter(e => {
         if (selComp && (e.company || '').trim() !== selComp) return false;
         return true;
       }).sort((a, b) => (a.name || '').localeCompare(b.name || ''));
 
-      dayUsers.forEach(e => {
+      users.forEach(e => {
         const opt = document.createElement('option');
         opt.value = e.name;
-        opt.textContent = `${e.name}`;
+        opt.textContent = `${e.name} (${e.nid})`;
         elName.appendChild(opt);
       });
 
@@ -4191,8 +4190,20 @@ window.addEventListener('DOMContentLoaded', () => {
 
 
     function getOtReportData() {
-      const dStart = new Date(document.getElementById('otRepStart').value + 'T00:00:00');
-      const dEnd = new Date(document.getElementById('otRepEnd').value + 'T23:59:59');
+      const elStart = document.getElementById('otRepStart').value;
+      const elEnd = document.getElementById('otRepEnd').value;
+      let dStart = new Date(0);
+      let dEnd = new Date(0);
+
+      // Robust local timezone parsing
+      if (elStart) {
+        const parts1 = elStart.split('-');
+        dStart = new Date(parts1[0], parts1[1] - 1, parts1[2], 0, 0, 0);
+      }
+      if (elEnd) {
+        const parts2 = elEnd.split('-');
+        dEnd = new Date(parts2[0], parts2[1] - 1, parts2[2], 23, 59, 59);
+      }
       const fComp = document.getElementById('otRepCompany')?.value || '';
       const fName = document.getElementById('otRepName')?.value || '';
 
@@ -4236,32 +4247,45 @@ window.addEventListener('DOMContentLoaded', () => {
         // Filter Name (New)
         if (fName && e.name !== fName) return;
 
-        // --- LOGIC FILTER STRICT DAYTIME (REUSED) ---
-        // Fix: Use rec.date because rec.datang might be missing
-        const tDate = new Date(rec.date + 'T12:00:00'); // Use noon to avoid timezone issues
-        const effCode = window.effectiveShiftFor ? window.effectiveShiftFor(e, tDate) : null;
-        // Fallback Logic: Check if shift string contains 'day' (e.g. "DAYTIME", "Grup Daytime")
-        // User Request: STRICTLY "Grup Daytime" / "Daytime" only.
-        let shiftStr = (e.shift || '').toLowerCase();
-        let isDaytime = shiftStr.includes('day');
+        // --- DYNAMIC SHIFT FILTER ---
+        // Use noon to avoid timezone issues when resolving shift for the day
+        const tDate = new Date(rec.date + 'T12:00:00');
+        let effCode = window.effectiveShiftFor ? window.effectiveShiftFor(e, tDate) : null;
 
-        // Trust effective shift if available and specific
-        if (effCode && effCode !== 'OFF' && effCode !== 'DAYTIME') {
-          // If effective shift is NOT Daytime (e.g. 'Malam'), exclude.
-          if (!effCode.toLowerCase().includes('day')) isDaytime = false;
+        // Handle Fallback
+        if (!effCode || effCode === 'OFF') {
+          if (e.shift && e.shift !== 'OFF') {
+            effCode = e.shift.toUpperCase(); // Ensure it maps to the shift keys properly (P, S, M, DAYTIME)
+            if (effCode.startsWith('GROUP ')) effCode = effCode.replace('GROUP ', ''); // Quick group normalizer
+          }
         }
 
-        if (!isDaytime) return;
+        if (!effCode || effCode === 'OFF') return; // Cannot calc without a valid work shift
         // ---------------------------------------------
 
         // Calculate Overtime
-        // Shift End Rule
-        const s = (window.shifts && window.shifts.DAYTIME) ? window.shifts.DAYTIME : { end: '16:00' };
+        const s = (window.shifts && window.shifts[effCode]) ? window.shifts[effCode] : null;
+        if (!s || !s.end) return;
+
         const [eh, em] = s.end.split(':').map(Number);
+        const [sh, sm] = s.start ? s.start.split(':').map(Number) : [8, 0]; // Usually start exists
 
-        const schedEnd = new Date(`${rec.date}T${s.end}:00`); // Base on Date + Shift End
-        // schedEnd.setHours(eh, em, 0, 0); // Already set by string construction
+        // Calculate the base Date of the Shift End
+        let schedEnd = new Date(`${rec.date}T${s.end.substring(0, 5)}:00`);
 
+        // IF shift is overnight (e.g. Malam 24:00 - 07:00 or 23:00 to 07:00), the End Date is mathematically on the NEXT day.
+        if (eh < sh && schedEnd.getHours() === eh) {
+          schedEnd.setDate(schedEnd.getDate() + 1);
+        } else if (eh === 0 || s.end === "24:00" || s.end === "00:00") {
+          // Handle midnight special case
+          schedEnd = new Date(`${rec.date}T00:00:00`);
+          schedEnd.setDate(schedEnd.getDate() + 1);
+        }
+
+        // Handle next-day ending shifts (e.g. Malam ends at 07:00 next day if they started before mid-night)
+        // For simplicity, if actualOutTs is 12+ hours later from shift start day, we add 1 day
+        // But our system groups records on the day they occur.
+        // Let's rely on standard calculation:
         let actualOutTs = rec.pulang;
         let noteSuffix = '';
 
@@ -4269,15 +4293,19 @@ window.addEventListener('DOMContentLoaded', () => {
         // If no Pulang, check if Datang is actually a late Pulang (after Shift End)
         if (!actualOutTs && rec.datang && rec.datang > schedEnd.getTime()) {
           actualOutTs = rec.datang;
-          noteSuffix = ' (Salah Scan Masuk)';
+          noteSuffix = ' (Hanya 1x Scan)';
         }
 
-        if (!actualOutTs) return; // Must have a valid Out time (Real or Smart Detected)
+        if (!actualOutTs) return;
 
         if (actualOutTs > schedEnd.getTime()) {
           const diffMs = actualOutTs - schedEnd.getTime();
-          // Threshold check (e.g. 1 min)
+          // Threshold check (e.g. 1 min / 60000 ms)
           if (diffMs > 60000) {
+
+            // Limit overtime to max 12 hours (43200000 ms) to prevent crazy bugs if missed scan
+            if (diffMs > 43200000) return;
+
             const hours = Math.floor(diffMs / 3600000);
             const mins = Math.floor((diffMs % 3600000) / 60000);
 
@@ -4285,7 +4313,8 @@ window.addEventListener('DOMContentLoaded', () => {
               date: rec.date,
               nid: rec.nid,
               name: e.name,
-              shiftEnd: s.end,
+              shiftCode: effCode,
+              shiftEnd: s.end.substring(0, 5),
               actualOut: new Date(actualOutTs).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
               durationMs: diffMs,
               desc: `${hours}h ${mins}m${noteSuffix}`
@@ -4321,8 +4350,11 @@ window.addEventListener('DOMContentLoaded', () => {
           const startDateStr = document.getElementById('otRepStart')?.value || '';
           const endDateStr = document.getElementById('otRepEnd')?.value || '';
           if (startDateStr && endDateStr) {
-            const startMs = new Date(startDateStr + 'T00:00:00').getTime();
-            const endMs = new Date(endDateStr + 'T23:59:59').getTime();
+            const startParts = startDateStr.split('-');
+            const endParts = endDateStr.split('-');
+            const startMs = new Date(startParts[0], startParts[1] - 1, startParts[2], 0, 0, 0).getTime();
+            const endMs = new Date(endParts[0], endParts[1] - 1, endParts[2], 23, 59, 59).getTime();
+
             await ensureHistory(startMs, endMs);
           }
         }
@@ -4349,7 +4381,7 @@ window.addEventListener('DOMContentLoaded', () => {
             tr.innerHTML = `
                 <td>${r.date}</td>
                 <td><b style="color:var(--primary-700)">${r.name}</b><br><small class="muted">${r.nid}</small></td>
-                <td>DAYTIME (${r.shiftEnd})</td>
+                <td><span class="badgess">${r.shiftCode}</span> (${r.shiftEnd})</td>
                 <td>${r.actualOut}</td>
                 <td><span class="badgess green">${r.desc}</span></td>
                 <td>Lembur Harian</td>
@@ -4364,7 +4396,7 @@ window.addEventListener('DOMContentLoaded', () => {
           document.getElementById('otRepTotalHours').textContent = `${h}h ${m}m`;
 
           if (list.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:20px;">Tidak ada data lembur Daytime pada periode ini.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:20px;">Tidak ada data lembur pada periode ini.</td></tr>';
           }
         } catch (error) {
           console.error(error);
@@ -4394,8 +4426,11 @@ window.addEventListener('DOMContentLoaded', () => {
           const startDateStr = document.getElementById('otRepStart')?.value || '';
           const endDateStr = document.getElementById('otRepEnd')?.value || '';
           if (startDateStr && endDateStr) {
-            const startMs = new Date(startDateStr + 'T00:00:00').getTime();
-            const endMs = new Date(endDateStr + 'T23:59:59').getTime();
+            const startParts = startDateStr.split('-');
+            const endParts = endDateStr.split('-');
+            const startMs = new Date(startParts[0], startParts[1] - 1, startParts[2], 0, 0, 0).getTime();
+            const endMs = new Date(endParts[0], endParts[1] - 1, endParts[2], 23, 59, 59).getTime();
+
             await ensureHistory(startMs, endMs);
           }
         }
@@ -4412,12 +4447,12 @@ window.addEventListener('DOMContentLoaded', () => {
 
         // Simple Header
         doc.setFontSize(16);
-        doc.text('Laporan Overtime (Daytime)', 14, 15);
+        doc.text('Laporan Overtime', 14, 15);
         doc.setFontSize(10);
         doc.text(`Periode: ${document.getElementById('otRepStart').value} s.d ${document.getElementById('otRepEnd').value}`, 14, 22);
 
         const data = list.map((r, i) => [
-          i + 1, r.date, r.name, r.nid, 'DAYTIME', r.actualOut, r.desc
+          i + 1, r.date, r.name, r.nid, r.shiftCode, r.actualOut, r.desc
         ]);
 
         doc.autoTable({
@@ -4428,7 +4463,7 @@ window.addEventListener('DOMContentLoaded', () => {
           headStyles: { fillColor: [220, 38, 38] } // Red header for overtime
         });
 
-        doc.save('Laporan_Overtime_Daytime.pdf');
+        doc.save('Laporan_Overtime.pdf');
       } catch (error) {
         console.error("Gagal export PDF:", error);
         alert("Terjadi kesalahan saat membuat PDF.");
@@ -4446,7 +4481,7 @@ window.addEventListener('DOMContentLoaded', () => {
     // Expose for debugging if needed
     window.renderOvertimeReport = renderReport;
     window.getOtReportData = getOtReportData; // Expose for Console Test Script
-  });
+  })(); // IIFE - runs immediately when app.js is parsed
 
 
 
@@ -5889,28 +5924,26 @@ window.addEventListener('DOMContentLoaded', () => {
       // Render Chart
       if (window.Chart) {
         if (window.mobChartInstance) {
-          window.mobChartInstance.data.datasets[0].data = [cntOntime, cntLate];
-          window.mobChartInstance.update();
-        } else {
-          window.mobChartInstance = new Chart(cvs, {
-            type: 'doughnut',
-            data: {
-              labels: ['Hadir (Ontime)', 'Terlambat'],
-              datasets: [{
-                data: [cntOntime, cntLate],
-                backgroundColor: ['#22c55e', '#ef4444'],
-                borderWidth: 0,
-              }]
-            },
-            options: {
-              responsive: true,
-              cutout: '75%',
-              plugins: { legend: { display: false }, tooltip: { enabled: false } },
-              maintainAspectRatio: false,
-              animation: { duration: 800 }
-            }
-          });
+          try { window.mobChartInstance.destroy(); } catch (e) { } // Destroy safely before re-render
         }
+        window.mobChartInstance = new Chart(cvs, {
+          type: 'doughnut',
+          data: {
+            labels: ['Hadir (Ontime)', 'Terlambat'],
+            datasets: [{
+              data: [cntOntime, cntLate],
+              backgroundColor: ['#22c55e', '#ef4444'],
+              borderWidth: 0,
+            }]
+          },
+          options: {
+            responsive: true,
+            cutout: '75%',
+            plugins: { legend: { display: false }, tooltip: { enabled: false } },
+            maintainAspectRatio: false,
+            animation: { duration: 800 }
+          }
+        });
       }
     } else {
       console.warn('[MobDash] Stats Elements Missing (v2)');
