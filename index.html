@@ -2035,10 +2035,27 @@
       <!-- BARU: Panel Laporan Bulanan -->
       <div class="card" style="margin-bottom: 20px; border-left: 4px solid var(--primary-500);">
         <div class="card-title">📊 Laporan Efektifitas & Kinerja Bulanan</div>
-        <div class="toolbar" style="margin-top:10px;">
-          <div class="left" style="align-items: center; gap: 10px;">
+        <div class="toolbar" style="margin-top:10px; flex-wrap:wrap; gap:8px;">
+          <div class="left" style="align-items: center; gap: 10px; flex-wrap:wrap;">
             <label>Pilih Bulan: <input type="month" id="reportMonth"
                 style="padding: 8px; border: 1px solid var(--line); border-radius: 8px;"></label>
+            <select id="reportCompanyFilter" class="input" style="width:auto; padding:8px 10px;">
+              <option value="">Semua Perusahaan</option>
+            </select>
+            <select id="reportGroupFilter" class="input" style="width:auto; padding:8px 10px;">
+              <option value="">Semua Group</option>
+              <option value="A">Group A</option>
+              <option value="B">Group B</option>
+              <option value="C">Group C</option>
+              <option value="D">Group D</option>
+              <option value="DAYTIME">Daytime</option>
+            </select>
+            <select id="reportStatusFilter" class="input" style="width:auto; padding:8px 10px;">
+              <option value="">Semua Status</option>
+              <option value="LATE">Ada Keterlambatan</option>
+              <option value="ONTIME">Tepat Waktu (0 Terlambat)</option>
+              <option value="OVERTIME">Ada Lembur</option>
+            </select>
             <button id="btnDownloadMonthlyReport" class="btn primary">⬇️ Download Laporan Kinerja (PDF)</button>
           </div>
         </div>

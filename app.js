@@ -3905,13 +3905,31 @@ window.addEventListener('DOMContentLoaded', () => {
   });
 
   // ===== Laporan Bulanan (Performance Report) =====
-  document.addEventListener('DOMContentLoaded', () => {
+  // FIX: Was using 'DOMContentLoaded' but app.js loads AFTER that event fires.
+  // Using a self-invoking function that runs immediately instead.
+  (function initMonthlyReport() {
     const btn = document.getElementById('btnDownloadMonthlyReport');
     if (!btn) return;
 
     const pad = n => n < 10 ? '0' + n : n;
 
-    btn.addEventListener('click', async () => {
+    // Isi dropdown perusahaan dari data employees (dinamis)
+    function populateCompanyDropdown() {
+      const compSel = document.getElementById('reportCompanyFilter');
+      if (!compSel || !window.employees || compSel.options.length > 1) return;
+      const comps = [...new Set(window.employees.map(e => (e.company || '').trim()).filter(Boolean))].sort();
+      comps.forEach(c => {
+        const opt = document.createElement('option');
+        opt.value = c; opt.textContent = c;
+        compSel.appendChild(opt);
+      });
+    }
+    // Coba isi saat init, dan saat data employees tersedia
+    populateCompanyDropdown();
+    window.addEventListener('employees:loaded', populateCompanyDropdown);
+    window.addEventListener('attendance:changed', populateCompanyDropdown);
+
+    btn.onclick = async () => {
       const mInput = document.getElementById('reportMonth');
       const mStr = mInput ? mInput.value : '';
 
@@ -3926,14 +3944,46 @@ window.addEventListener('DOMContentLoaded', () => {
         return;
       }
 
+      // Baca nilai filter
+      const fCompany = (document.getElementById('reportCompanyFilter')?.value || '').trim();
+      const fGroup = (document.getElementById('reportGroupFilter')?.value || '').trim();
+      const fStatus = (document.getElementById('reportStatusFilter')?.value || '').trim();
+
       try {
         const [year, month] = mStr.split('-').map(Number);
         const startTs = new Date(year, month - 1, 1).getTime();
         const endTs = new Date(year, month, 1).getTime();
 
+        // 0. Fetch history dari server agar data bulan yang dipilih lengkap
+        if (typeof window.ensureHistory === 'function') {
+          btn.disabled = true;
+          btn.textContent = '⏳ Memuat data...';
+          try {
+            await window.ensureHistory(startTs, endTs);
+          } catch (e) {
+            console.warn('ensureHistory gagal (offline?):', e);
+          } finally {
+            btn.disabled = false;
+            btn.textContent = '⬇️ Download Laporan Kinerja (PDF)';
+          }
+        }
+
         // 1. Init stats object
         const report = {};
-        const atts = window.attendance || [];
+        let atts = window.attendance || [];
+
+        // Filter berdasarkan perusahaan dan group shift (jika dipilih)
+        // Gunakan employee master data sebagai fallback jika field di record kosong
+        if (fCompany || fGroup) {
+          atts = atts.filter(a => {
+            const emp = window.employees?.find(e => e.nid === a.nid);
+            const recCompany = (a.company || emp?.company || '').trim();
+            const recShift = (a.shift || emp?.shift || '').trim();
+            if (fCompany && recCompany !== fCompany) return false;
+            if (fGroup && recShift !== fGroup) return false;
+            return true;
+          });
+        }
 
         // 2. Process logs (Build report dynamically from logs)
         atts.forEach(a => {
@@ -3986,6 +4036,18 @@ window.addEventListener('DOMContentLoaded', () => {
             }
           }
         });
+
+        // 2b. Filter report per karyawan berdasarkan status
+        let reportEntries = Object.values(report);
+        if (fStatus === 'LATE') reportEntries = reportEntries.filter(r => r.lateCount > 0);
+        if (fStatus === 'ONTIME') reportEntries = reportEntries.filter(r => r.lateCount === 0);
+        if (fStatus === 'OVERTIME') reportEntries = reportEntries.filter(r => r.overtimeMins > 0);
+
+        if (reportEntries.length === 0) {
+          if (window.toast) toast('Tidak ada data yang cocok dengan filter yang dipilih.');
+          else alert('Tidak ada data yang cocok dengan filter yang dipilih.');
+          return;
+        }
 
         // 3. Prepare PDF
         const { jsPDF } = window.jspdf;
@@ -4051,9 +4113,17 @@ window.addEventListener('DOMContentLoaded', () => {
         doc.text('Laporan Efektifitas & Kinerja Bulanan', 14, yPos);
         doc.setFontSize(10);
         doc.text(`Periode: ${mStr}`, 14, yPos + 6);
+        // Tampilkan semua filter aktif di subtitle PDF
+        const statusLabel = { LATE: 'Ada Keterlambatan', ONTIME: 'Tepat Waktu', OVERTIME: 'Ada Lembur' };
+        const filterInfo = [
+          fCompany || 'Semua Perusahaan',
+          fGroup ? `Group ${fGroup}` : 'Semua Group',
+          fStatus ? statusLabel[fStatus] : 'Semua Status'
+        ].join(' | ');
+        doc.text(`Filter: ${filterInfo}`, 14, yPos + 11);
 
-        // 4. Flatten Data for autoTable
-        const tableData = Object.values(report).map((r, i) => {
+        // 4. Flatten Data for autoTable (gunakan reportEntries yang sudah difilter)
+        const tableData = reportEntries.map((r, i) => {
           const h = Math.floor(r.overtimeMins / 60);
           const m = r.overtimeMins % 60;
           const otStr = r.overtimeMins > 0 ? `${h}h ${m}m` : '0';
@@ -4087,8 +4157,8 @@ window.addEventListener('DOMContentLoaded', () => {
         console.error(err);
         alert('Gagal membuat laporan: ' + err.message);
       }
-    });
-  });
+    };
+  })();
 
 
 
@@ -4682,9 +4752,25 @@ window.addEventListener('DOMContentLoaded', () => {
       let filtered = allRecords.filter(r => {
         // Status Filter
         if (fStatus) {
-          if (fStatus === 'LATE' && !r.late) return false;
+          if (fStatus === 'LATE') {
+            // Hanya tampilkan record MASUK yang benar-benar terlambat (late === true)
+            if (!r.late || r.status !== 'datang') return false;
+          }
           if (fStatus === 'ONTIME' && (r.late || r.status !== 'datang')) return false;
           if (fStatus === 'UNKNOWN' && r.status !== 'UNKNOWN') return false;
+          if (fStatus === 'OVERTIME') {
+            // Hanya record PULANG yang melewati jam akhir shift > 30 menit
+            if (r.status !== 'pulang') return false;
+            const sh = window.shifts?.[r.shift];
+            if (!sh || !sh.end) return false;
+            const d = new Date(r.ts);
+            const [h, m] = sh.end.split(':').map(Number);
+            const sEnd = new Date(d);
+            sEnd.setHours(h, m, 0, 0);
+            // Tangani shift malam yang melewati tengah malam
+            if (sh.end < sh.start) sEnd.setTime(sEnd.getTime() + 86400000);
+            if (r.ts <= sEnd.getTime() + (30 * 60000)) return false; // Belum lembur (< buffer 30 menit)
+          }
         }
 
         // Group Filter
@@ -4713,12 +4799,19 @@ window.addEventListener('DOMContentLoaded', () => {
 
       tableBody.innerHTML = filtered.map(r => {
         const rowClass = r.isGhost ? 'style="background-color:#fef2f2"' : ''; // Red tint for absent
+        // STATUS badge: tampilkan badge Terlambat di samping badge Masuk jika late === true
         const statusBadge = r.isGhost
-          ? `<span class="badge danger">Alpha / Tanpa Keterangan</span>`
-          : (r.status === 'datang' ? '<span class="badge success">Masuk</span>' : (r.status === 'break_out' ? '<span class="badge warning">Istirahat</span>' : '<span class="badge">Pulang</span>'));
+          ? `<span class="badge danger">Tanpa Keterangan</span>`
+          : r.status === 'datang'
+            ? (r.late
+              ? `<span class="badge danger">Masuk</span>&nbsp;<span class="badge warning" style="font-size:0.78rem;">Terlambat</span>`
+              : `<span class="badge success">Masuk</span>`)
+            : r.status === 'break_out'
+              ? `<span class="badge warning">Istirahat</span>`
+              : `<span class="badge">Pulang</span>`;
 
-        const lateBadge = r.late ? `<span class="badge danger">Telat</span>` : '';
-        const noteAndLate = `<div>${r.note || '-'} ${lateBadge}</div>`;
+        const lateBadge = ''; // Badge Terlambat sudah ditampilkan di STATUS, tidak perlu duplikasi di KETERANGAN
+        const noteAndLate = `<div>${r.note || '-'}${lateBadge}</div>`;
 
         // Use safe access for properties
         // FIX: Lookup employee master data to ensure fields are populated
