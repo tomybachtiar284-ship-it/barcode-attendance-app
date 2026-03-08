@@ -4666,8 +4666,22 @@ window.addEventListener('DOMContentLoaded', () => {
       const fFrom = document.getElementById('attFrom')?.value || todayISO();
       const fTo = document.getElementById('attTo')?.value || todayISO();
       const fGroup = document.getElementById('attGroupFilter')?.value || '';
+      const fCompany = document.getElementById('attCompanyFilter')?.value || '';
       const fStatus = document.getElementById('attStatusFilter')?.value || '';
       const fSearch = document.getElementById('attSearch')?.value?.toLowerCase() || '';
+
+      // Isi dropdown perusahaan jika masih kosong
+      const compSel = document.getElementById('attCompanyFilter');
+      if (compSel && compSel.options.length <= 1 && window.employees?.length) {
+        const comps = [...new Set(window.employees.map(e => (e.company || '').trim()).filter(Boolean))].sort();
+        comps.forEach(c => {
+          const opt = document.createElement('option');
+          opt.value = c; opt.textContent = c;
+          compSel.appendChild(opt);
+        });
+        // Kembalikan nilai yang dipilih setelah repopulate
+        if (fCompany) compSel.value = fCompany;
+      }
 
       // 2. FETCH HISTORY IF NEEDED
       const startMs = new Date(fFrom + 'T00:00:00').getTime();
@@ -4686,7 +4700,10 @@ window.addEventListener('DOMContentLoaded', () => {
       // Only if filter is ALL or UNKNOWN
       if (fStatus === '' || fStatus === 'UNKNOWN') {
         const dates = getDates(fFrom, fTo);
-        const emps = employees; // Global
+        // Filter employees untuk ghost records sesuai filter company & group
+        let emps = employees;
+        if (fCompany) emps = emps.filter(e => (e.company || '').trim() === fCompany);
+        if (fGroup) emps = emps.filter(e => (e.shift || '').trim() === fGroup);
 
         dates.forEach(dObj => {
           const dateStr = `${dObj.getFullYear()}-${pad(dObj.getMonth() + 1)}-${pad(dObj.getDate())}`; // YYYY-MM-DD
@@ -4761,21 +4778,53 @@ window.addEventListener('DOMContentLoaded', () => {
           if (fStatus === 'OVERTIME') {
             // Hanya record PULANG yang melewati jam akhir shift > 30 menit
             if (r.status !== 'pulang') return false;
-            const sh = window.shifts?.[r.shift];
-            if (!sh || !sh.end) return false;
-            const d = new Date(r.ts);
-            const [h, m] = sh.end.split(':').map(Number);
-            const sEnd = new Date(d);
-            sEnd.setHours(h, m, 0, 0);
-            // Tangani shift malam yang melewati tengah malam
-            if (sh.end < sh.start) sEnd.setTime(sEnd.getTime() + 86400000);
-            if (r.ts <= sEnd.getTime() + (30 * 60000)) return false; // Belum lembur (< buffer 30 menit)
+
+            // Helper: normalisasi shift key ke key yang dipakai di window.shifts (P/S/M/DAYTIME)
+            const resolveShiftConfig = (shiftVal) => {
+              if (!shiftVal) return null;
+              const s = shiftVal.toString().toUpperCase().trim();
+              if (window.shifts?.[s]) return window.shifts[s];
+              const groupMap = { A: 'P', B: 'S', C: 'M', D: 'P' };
+              if (groupMap[s]) return window.shifts?.[groupMap[s]] || null;
+              if (s.includes('DAYTIME')) return window.shifts?.['DAYTIME'] || null;
+              if (s.includes('PAGI')) return window.shifts?.['P'] || null;
+              if (s.includes('SORE')) return window.shifts?.['S'] || null;
+              if (s.includes('MALAM')) return window.shifts?.['M'] || null;
+              return null;
+            };
+
+            const sh = resolveShiftConfig(r.shift);
+            if (!sh) {
+              // Fallback: jika okShift=false → di luar jam shift → lolos overtime check
+              // Jika tidak bisa ditentukan → exclude
+              if (r.okShift !== false && r.okShift !== 0) return false;
+              // okShift false: lolos, lanjut ke filter company/group di bawah
+            } else {
+              let [h, m] = sh.end.split(':').map(Number);
+              if (h === 24) h = 0;
+              const sEnd = new Date(r.ts);
+              sEnd.setHours(h, m, 0, 0);
+              // Tangani shift malam yang melewati tengah malam
+              if (sh.end <= sh.start) sEnd.setTime(sEnd.getTime() + 86400000);
+              // Jika pulang sebelum/sama dengan jam akhir + 30 menit → bukan overtime → exclude
+              if (r.ts <= sEnd.getTime() + (30 * 60000)) return false;
+              // Lolos → lanjut ke filter company/group di bawah
+            }
           }
         }
 
-        // Group Filter
+        // Company Filter — gunakan fallback ke employee master jika field di record kosong
+        if (fCompany) {
+          const empMaster = window.employees?.find(e => e.nid === r.nid);
+          const recCompany = (r.company || empMaster?.company || '').trim();
+          if (recCompany !== fCompany) return false;
+        }
+
+        // Group Filter — gunakan fallback ke employee master jika field di record kosong
         if (fGroup && fGroup !== '') {
-          if (r.shift !== fGroup) return false;
+          const empMaster = window.employees?.find(e => e.nid === r.nid);
+          const recShift = (r.shift || empMaster?.shift || '').trim();
+          if (recShift !== fGroup) return false;
         }
 
         // Search Filter
