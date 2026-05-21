@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="id">
 
 <head>
@@ -18,7 +18,12 @@
     rel="stylesheet">
 
   <!-- Styles -->
-  <link rel="stylesheet" href="styles.css?v=mobile_redesign_v1" />
+  <!-- Premium Web Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet">
+  
+  <link rel="stylesheet" href="styles.css?v=fullscreen_fix_v4" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script> <!-- Required for New Mobile Dashboard -->
 
   <!-- Libraries -->
@@ -866,8 +871,35 @@
           </div>
         </div>
       </div>
+      <!-- ============================================== -->
+      <!-- CENTER-STAGE POP-UP MODAL UNTUK HASIL SCAN     -->
+      <!-- ============================================== -->
+      <div id="scanSuccessModal" class="hidden">
+        <div class="ss-modal-overlay"></div>
+        <div class="ss-modal-card">
+          <div class="ss-modal-header">
+            <div class="ss-modal-logo">AMAN-S APP</div>
+            <div class="ss-modal-time" id="ssModalTime">--:--</div>
+          </div>
+          <div class="ss-modal-body">
+            <div class="ss-photo-wrap">
+              <div id="ssPhoto" class="ss-photo"></div>
+              <div id="ssStatusBadge" class="ss-status-badge">✅ MASUK</div>
+            </div>
+            <div class="ss-info-wrap">
+              <h2 id="ssName">Nama Karyawan</h2>
+              <p id="ssNID" class="ss-nid">NID: -</p>
+              <div class="ss-divider"></div>
+              <p id="ssTitle" class="ss-title">-</p>
+              <p id="ssCompany" class="ss-company">-</p>
+            </div>
+          </div>
+          <div class="ss-modal-footer">
+            <div id="ssNote" class="ss-note">Scan Berhasil</div>
+          </div>
+        </div>
+      </div>
     </section>
-
     <!-- EMPLOYEES -->
     <section class="route hidden" id="route-employees">
       <div class="toolbar">
@@ -1777,210 +1809,15 @@
     </div>
   </nav>
 
-
-  <script>
-    // FIX: Force Unregister Service Worker to prevent loading loop
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.getRegistrations().then(function (registrations) {
-        for (let registration of registrations) {
-          registration.unregister();
-        }
-      });
-    }
-  </script>
-  <script src="app.js?v=ot_fix_8"></script>
-
-  <script src="mobile-camera.js"></script>
-
-  <!-- Company Detail Modal -->
-  <div id="companyDetailModal" class="modal-overlay">
-    <div class="modal-card modal-lg">
-      <div class="modal-header">
-        <h3 id="compDetailTitle">Personil Aktif Di Lokasi (Live)</h3>
-        <button class="close-btn" onclick="closeCompanyDetail()">×</button>
-      </div>
-      <div class="modal-body" style="padding: 0;">
-        <div id="compDetailList" class="comp-detail-list">
-          <!-- Items injected here -->
-        </div>
-      </div>
-      <div class="modal-footer" style="justify-content: center; padding-top: 12px;">
-        <button class="btn-primary" onclick="closeCompanyDetail()"
-          style="width: 100%; max-width: 120px; border-radius: 20px;">Tutup</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- EDIT ATTENDANCE MODAL -->
-  <dialog id="modalEditAtt" class="modal">
-    <div class="modal-content" style="max-width: 500px;">
-      <h3 style="margin-top:0">Edit Data Absensi</h3>
-      <input type="hidden" id="editAttOriginalTs">
-
-      <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px;">
-        <!-- WAKTU -->
-        <div class="form-group" style="grid-column: 1 / -1;">
-          <label>Waktu (Tanggal & Jam)</label>
-          <div style="display:flex; gap:8px;">
-            <input type="date" id="editAttDate" class="input-field" style="flex:1">
-            <input type="time" id="editAttTime" class="input-field" style="width:120px">
-          </div>
-        </div>
-
-        <!-- STATUS -->
-        <div class="form-group" style="grid-column: 1 / -1;">
-          <label>Status</label>
-          <select id="editAttStatus" class="input-field">
-            <option value="datang">Masuk (Datang)</option>
-            <option value="pulang">Pulang</option>
-            <option value="break_out">Izin Keluar / Istirahat</option>
-            <option value="break_in">Kembali Masuk</option>
-            <option value="alpha">Tanpa Keterangan (Alpha)</option>
-          </select>
-        </div>
-
-        <!-- NID -->
-        <div class="form-group">
-          <label>NID</label>
-          <input type="text" id="editAttNid" readonly style="background:#f3f4f6; color:#666">
-        </div>
-
-        <!-- NAMA (DROPDOWN) -->
-        <div class="form-group">
-          <label>Nama</label>
-          <select id="editAttName" class="input-field"></select>
-        </div>
-
-        <!-- JABATAN (DROPDOWN) -->
-        <div class="form-group">
-          <label>Jabatan</label>
-          <select id="editAttTitle" class="input-field"></select>
-        </div>
-
-        <!-- PERUSAHAAN (DROPDOWN) -->
-        <div class="form-group">
-          <label>Perusahaan</label>
-          <select id="editAttCompany" class="input-field"></select>
-        </div>
-
-        <!-- SHIFT -->
-        <div class="form-group" style="grid-column: 1 / -1;">
-          <label>Shift (Group)</label>
-          <select id="editAttShift" class="input-field">
-            <option value="A">Group A</option>
-            <option value="B">Group B</option>
-            <option value="C">Group C</option>
-            <option value="D">Group D</option>
-            <option value="DAYTIME">Daytime</option>
-            <option value="OFF">Libur / Off</option>
-          </select>
-        </div>
-
-        <!-- KETERANGAN -->
-        <div class="form-group" style="grid-column: 1 / -1;">
-          <label>Keterangan</label>
-          <textarea id="editAttNote" class="input-field" rows="2" placeholder="Keterangan tambahan..."></textarea>
-        </div>
-      </div>
-
-      <div class="modal-actions" style="margin-top:20px;">
-        <button onclick="document.getElementById('modalEditAtt').close()" class="btn ghost">Batal</button>
-        <button id="btnSaveEditAtt" class="btn primary">Simpan Perubahan</button>
-      </div>
-    </div>
-  </dialog>
-
-  <!-- Modal: Active Personnel List -->
-  <dialog id="activePersonnelModal" class="modal">
-    <div class="modal-content"
-      style="max-width: 500px; width: 90%; max-height: 80vh; display: flex; flex-direction: column;">
-      <h3
-        style="margin-top:0; border-bottom:1px solid #eee; padding-bottom:10px; display:flex; justify-content:space-between; align-items:center;">
-        Personil Aktif (Live)
-        <button onclick="document.getElementById('activePersonnelModal').close()"
-          style="background:none; border:none; font-size:1.2rem; cursor:pointer;">&times;</button>
-      </h3>
-      <div id="activePersonnelList" style="overflow-y: auto; flex: 1; padding: 5px 0;">
-        <!-- List injected by JS -->
-      </div>
-      <div style="margin-top:10px; text-align:right; border-top:1px solid #eee; padding-top:10px;">
-        <button class="btn primary small"
-          onclick="document.getElementById('activePersonnelModal').close()">Tutup</button>
-      </div>
-    </div>
-  </dialog>
-
-
-  <!-- EMERGENCY SPINNER KILLER -->
-  <script>
-    (function () {
-      // Fallback: If app.js fails, this ensures the screen is usable
-      setTimeout(() => {
-        const ids = ['loadingOverlay', 'loader', 'spinner', 'loading'];
-        ids.forEach(id => {
-          const el = document.getElementById(id);
-          if (el) {
-            console.log('Force removing loader:', id);
-            el.style.display = 'none';
-            el.remove();
-          }
-        });
-        // Also try class
-        document.querySelectorAll('.loading-overlay, .loader').forEach(el => {
-          el.style.display = 'none';
-          el.remove();
-        });
-
-        // NUCLEAR OPTION: Force Browser to stop "Loading" state (Spinning Tab)
-        // This stops any hanging resource or socket
-        if (window.stop) {
-          console.log('Nuclear Option: window.stop() triggered.');
-          window.stop();
-        }
-      }, 5000); // 5 Seconds max wait
-    })();
-  </script>
-
-  <!-- Company Detail Modal -->
-  <div id="companyDetailModal" class="modal-overlay">
-    <div class="modal-card modal-lg">
-      <div class="modal-header">
-        <h3 id="compDetailTitle">Personil Aktif Di Lokasi (Live)</h3>
-        <button class="close-btn" onclick="closeCompanyDetail()">×</button>
-      </div>
-      <div class="modal-body" style="padding: 0;">
-        <div id="compDetailList" class="comp-detail-list">
-          <!-- Items injected here -->
-        </div>
-      </div>
-      <div class="modal-footer" style="justify-content: center; padding-top: 12px;">
-        <button class="btn-primary" onclick="closeCompanyDetail()"
-          style="width: 100%; max-width: 120px; border-radius: 20px;">Tutup</button>
-      </div>
-    </div>
-  </div>
-  <!-- MOBILE BOTTOM NAV (5 Items) -->
-  <nav class="mobile-bottom-nav">
-    <div class="mb-item active" data-route="dashboard" onclick="window.appRoute('dashboard')">
-      <div class="icon">🏠</div><span>Beranda</span>
-    </div>
-    <div class="mb-item" data-route="scan" onclick="window.appRoute('scan')">
-      <div class="icon">📸</div><span>Absen</span>
-    </div>
-    <div class="mb-item" data-route="employees" onclick="window.appRoute('employees')">
-      <div class="icon">👥</div><span>Karyawan</span>
-    </div>
-    <div class="mb-item" data-route="inventory" onclick="window.appRoute('inventory')">
-      <div class="icon">📦</div><span>Logistik</span>
-    </div>
-    <div class="mb-item" onclick="window.toggleMobileMenu()">
-      <div class="icon">☰</div><span>Menu</span>
-    </div>
-  </nav>
-
+  <script src="js/utils.js"></script>
   <script src="app.js"></script>
   <script src="mobile-camera.js"></script>
   <script src="mobile-stats.js?v=20260212f"></script>
 </body>
 
 </html>
+
+
+
+
+

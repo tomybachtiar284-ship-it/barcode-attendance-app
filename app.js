@@ -12,19 +12,6 @@ window.addEventListener('DOMContentLoaded', () => {
 
   const BLINK_ALL_COMPANY_CARDS = true;
 
-  const $ = (s, r = document) => r.querySelector(s);
-  const $$ = (s, r = document) => [...r.querySelectorAll(s)];
-  const now = () => new Date();
-  const pad = n => String(n).padStart(2, '0');
-  const fmtTs = ts => { const d = new Date(ts); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`; }
-  const todayISO = () => { const d = now(); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; }
-  const capStatus = s => { if (s === 'datang') return 'Masuk'; if (s === 'break_out') return 'Izin'; if (s === 'break_in') return 'Kembali'; if (s === 'alpha') return 'Tanpa Ket.'; return 'Keluar'; };
-  const load = (k, f) => { try { return JSON.parse(localStorage.getItem(k)) ?? f; } catch { return f; } };
-  const save = (k, v) => localStorage.setItem(k, JSON.stringify(v));
-  const loadEdu = () => { try { return JSON.parse(localStorage.getItem(LS_EDU) || '[]'); } catch { return []; } };
-  const saveEdu = (arr) => localStorage.setItem(LS_EDU, JSON.stringify(arr));
-  const esc = s => String(s ?? '').replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
-  function toast(m) { const t = document.createElement('div'); t.textContent = m; t.style.position = 'fixed'; t.style.right = '18px'; t.style.bottom = '18px'; t.style.background = 'rgba(12,18,32,.95)'; t.style.border = '1px solid #1f2636'; t.style.padding = '10px 14px'; t.style.borderRadius = '12px'; t.style.color = '#e8edf3'; t.style.zIndex = 999999; document.body.appendChild(t); setTimeout(() => t.remove(), 2200); }
 
   let employees = load(LS_EMP, []),
     attendance = load(LS_ATT, []),
@@ -1536,17 +1523,61 @@ window.addEventListener('DOMContentLoaded', () => {
     renderMobileScanFeed();
   }
   function renderScanPreview(emp, rec) {
-    $('#scanName') && ($('#scanName').textContent = emp?.name || '—');
-    $('#scanNID') && ($('#scanNID').textContent = emp?.nid || '—');
-    $('#scanTitle') && ($('#scanTitle').textContent = emp?.title || '—');
-    $('#scanCompany') && ($('#scanCompany').textContent = emp?.company || '—');
-    const shiftLabel = rec ? (CODE_TO_LABEL[rec.shift] || rec.shift) : (emp?.shift ? `Grup ${emp.shift}` : '—');
+    // 1. Update existing small UI (fallback)
+    $('#scanName') && ($('#scanName').textContent = emp?.name || '-');
+    $('#scanNID') && ($('#scanNID').textContent = emp?.nid || '-');
+    $('#scanTitle') && ($('#scanTitle').textContent = emp?.title || '-');
+    $('#scanCompany') && ($('#scanCompany').textContent = emp?.company || '-');
+    const shiftLabel = rec ? (CODE_TO_LABEL[rec.shift] || rec.shift) : (emp?.shift ? `Grup ${emp.shift}` : '-');
     $('#scanShift') && ($('#scanShift').textContent = shiftLabel);
     $('#scanPhoto') && ($('#scanPhoto').style && ($('#scanPhoto').style.backgroundImage = emp?.photo ? `url(${emp.photo})` : ''));
     const pill = $('#scanShiftCheck');
     if (pill) {
       if (rec) { pill.textContent = rec.note; pill.className = 'pill light ' + (rec.okShift ? (rec.late ? 'warn' : '') : 'danger'); $('#scanTs') && ($('#scanTs').textContent = fmtTs(rec.ts)); }
-      else { pill.textContent = '—'; $('#scanTs') && ($('#scanTs').textContent = '—'); }
+      else { pill.textContent = '-'; $('#scanTs') && ($('#scanTs').textContent = '-'); }
+    }
+
+    // 2. Center-Stage Pop-Up Modal Logic
+    if (emp && rec) {
+      const modal = $('#scanSuccessModal');
+      if (modal) {
+        // Populate Data
+        $('#ssName').textContent = emp.name || '-';
+        $('#ssNID').textContent = 'NID: ' + (emp.nid || '-');
+        $('#ssTitle').textContent = emp.title || '-';
+        $('#ssCompany').textContent = emp.company || '-';
+        $('#ssPhoto').style.backgroundImage = emp.photo ? `url(${emp.photo})` : '';
+        $('#ssModalTime').textContent = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }).replace('.', ':');
+        
+        // Status Badge Logic
+        const badge = $('#ssStatusBadge');
+        if (rec.type === 'IN') {
+          if (!rec.okShift) {
+             badge.textContent = '⛔ SALAH SHIFT';
+             badge.className = 'ss-status-badge danger';
+          } else if (rec.late) {
+             badge.textContent = '⚠️ TERLAMBAT';
+             badge.className = 'ss-status-badge late';
+          } else {
+             badge.textContent = '✅ MASUK TEPAT WAKTU';
+             badge.className = 'ss-status-badge';
+          }
+        } else {
+           badge.textContent = '👋 PULANG';
+           badge.className = 'ss-status-badge late'; // Yellow/Orange tint for out
+        }
+
+        $('#ssNote').textContent = rec.note || 'Scan Berhasil';
+
+        // Show Modal
+        modal.classList.remove('hidden');
+
+        // Hide after 3 seconds
+        if (window._scanModalTimer) clearTimeout(window._scanModalTimer);
+        window._scanModalTimer = setTimeout(() => {
+          modal.classList.add('hidden');
+        }, 3000);
+      }
     }
   }
   function nextStatusFor(nid) {
