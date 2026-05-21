@@ -3879,3 +3879,1003 @@ h1.page-title {
   background: #cbd5e1;
   border-radius: 3px;
 }
+/* Extracted from index.html */
+
+    /* Styling for Inventory, Latest Info, Education, Attendance & Employee Table Borders */
+    #route-inventory table,
+    #route-latest table,
+    #route-education table,
+    #route-attendance table,
+    .emp-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    #route-inventory table th,
+    #route-inventory table td,
+    #route-latest table th,
+    #route-latest table td,
+    #route-education table th,
+    #route-education table td,
+    #route-attendance table th,
+    #route-attendance table td,
+    .emp-table th,
+    .emp-table td {
+      border: 1px solid #ccc;
+      padding: 8px;
+      text-align: left;
+    }
+
+    #route-inventory table th,
+    #route-latest table th,
+    #route-education table th,
+    #route-attendance table th,
+    .emp-table th {
+      background: #f3f4f6;
+    }
+
+    /* === CRITICAL FIX: MOBILE GAUGE CSS (Direct Injection) === */
+    .mob-stat-grid-3 {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 8px;
+    }
+
+    .mob-stat-card {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 12px 4px;
+      text-align: center;
+      border-radius: 16px;
+      background: #fff;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    }
+
+    .mob-stat-card.stat-red {
+      border-bottom: 3px solid var(--danger);
+    }
+
+    .mob-stat-card.stat-blue {
+      border-bottom: 3px solid var(--primary);
+    }
+
+    .mob-stat-card.stat-gray {
+      border-bottom: 3px solid #64748b;
+    }
+
+    .mob-stat-card .lbl-sm {
+      font-size: 0.7rem;
+      font-weight: 700;
+      color: #64748b;
+      letter-spacing: 0.5px;
+      margin-bottom: 4px;
+      text-transform: uppercase;
+    }
+
+    .mob-stat-card .val {
+      font-size: 1.6rem;
+      font-weight: 800;
+      line-height: 1;
+      margin-bottom: 2px;
+      color: #0f172a;
+    }
+
+    .mob-stat-card .lbl-xs {
+      font-size: 0.7rem;
+      color: #94a3b8;
+    }
+
+    /* Gauge styles */
+    .gauge-simple {
+      position: relative;
+      width: 140px;
+      height: 140px;
+      margin: 0 auto;
+      border-radius: 50%;
+      background: conic-gradient(#0ea5e9 0%, #e2e8f0 0%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .gauge-simple::before {
+      content: '';
+      position: absolute;
+      width: 110px;
+      height: 110px;
+      background: #fff;
+      border-radius: 50%;
+    }
+
+    .gauge-val {
+      position: relative;
+      z-index: 2;
+      font-size: 2rem;
+      font-weight: 800;
+      color: #0ea5e9;
+    }
+
+    /* Mobile Company Grid */
+    .company-grid-mobile {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 4px;
+    }
+
+    .company-grid-mobile .company-card {
+      padding: 4px 6px !important;
+      border-radius: 8px !important;
+      flex-direction: column !important;
+      align-items: flex-start !important;
+      text-align: left !important;
+      border: 1px solid #e2e8f0;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+      background: #fff;
+    }
+
+    .company-grid-mobile .company-card .name {
+      font-size: 0.65rem !important;
+      margin-bottom: 2px;
+      white-space: normal !important;
+      /* Allow wrapping */
+      line-height: 1.1;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 100%;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      /* Limit to 2 lines */
+      line-clamp: 2;
+      /* Standard property */
+      -webkit-box-orient: vertical;
+    }
+
+    .company-grid-mobile .company-card .sub {
+      display: none !important;
+    }
+
+    .company-grid-mobile .company-card .badge {
+      font-size: 1rem !important;
+      font-weight: 800;
+      color: var(--primary-600);
+      align-self: flex-end;
+      margin-top: -4px;
+    }
+
+    .company-grid-mobile .company-card.live {
+      background: #f0f9ff;
+      border-color: #bae6fd;
+    }
+
+    .company-grid-mobile .company-card.live .badge {
+      color: #0284c7;
+    }
+
+/* Extracted from index.html */
+
+    #empModal .modal {
+      position: relative
+    }
+
+    #empModal .modal-close {
+      position: absolute;
+      right: 10px;
+      top: 8px;
+      border: 0;
+      background: transparent;
+      font-size: 24px;
+      line-height: 1;
+      cursor: pointer
+    }
+
+    .camera-actions {
+      display: flex;
+      gap: 10px;
+      align-items: center
+    }
+
+    .hidden {
+      display: none
+    }
+
+    .company-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 10px
+    }
+
+    .company-card {
+      background: var(--panel, #fff);
+      border: 1px solid #e5e7eb;
+      border-radius: 12px;
+      padding: 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, .04)
+    }
+
+    .company-card .name {
+      font-weight: 600
+    }
+
+    .company-card .sub {
+      color: #64748b;
+      font-size: 12px;
+      margin-top: 2px
+    }
+
+    .company-card .badge {
+      font-weight: 800;
+      font-size: 22px
+    }
+
+    #tableShiftTime input[type="time"] {
+      width: 140px;
+      max-width: 100%
+    }
+
+    @media (max-width:1100px) {
+      #route-scan .scan-stats-grid {
+        grid-template-columns: 1fr
+      }
+    }
+
+    /* === EDUCATION UI (dasar) === */
+    .img-preview {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-top: 6px
+    }
+
+    .img-preview img {
+      width: 96px;
+      height: 96px;
+      object-fit: cover;
+      border-radius: 10px;
+      border: 1px solid #e5e7eb
+    }
+
+    .edu-thumb {
+      width: 56px;
+      height: 56px;
+      object-fit: cover;
+      border-radius: 8px;
+      border: 1px solid #e5e7eb;
+      cursor: pointer
+    }
+
+    #eduHighlightsCard .card-title {
+      display: flex;
+      align-items: center;
+      gap: 8px
+    }
+
+    .edu-list {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 12px
+    }
+
+    .edu-item {
+      background: var(--surface, #fff);
+      border: 1px solid var(--line, #e6eefc);
+      border-radius: 16px;
+      padding: 12px;
+      box-shadow: 0 4px 14px rgba(0, 0, 0, .05);
+      display: grid;
+      grid-template-columns: 72px 1fr;
+      gap: 12px
+    }
+
+    .edu-item .thumb {
+      width: 72px;
+      height: 72px;
+      border-radius: 12px;
+      object-fit: cover;
+      border: 1px solid var(--line, #e6eefc);
+      background: #f3f4f6
+    }
+
+    .edu-item .t {
+      font-weight: 700;
+      line-height: 1.25;
+      margin-bottom: 2px
+    }
+
+    .edu-item .d {
+      color: #64748b;
+      font-size: 13px;
+      line-height: 1.35;
+      display: -webkit-box;
+      -webkit-box-orient: vertical;
+      -webkit-line-clamp: 2;
+      line-clamp: 2;
+      overflow: hidden;
+    }
+
+    .edu-item .meta {
+      color: #94a3b8;
+      font-size: 12px;
+      margin-top: 6px
+    }
+
+    .edu-bar {
+      position: relative;
+      margin-top: 10px;
+      height: 14px;
+      border-radius: 999px;
+      background: var(--line, #e6eefc);
+      overflow: hidden;
+      box-shadow: inset 0 1px 2px rgba(0, 0, 0, .05)
+    }
+
+    .edu-bar i {
+      display: block;
+      height: 100%;
+      width: var(--pct, 60%);
+      border-radius: inherit;
+      background: linear-gradient(90deg, var(--primary-500, #4a8cff), var(--primary-300, #a6c8ff))
+    }
+
+    .edu-bar .val {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 12px;
+      color: #0b2545
+    }
+
+    /* ===== BRAND CORNER (Logo kiri-atas untuk Dashboard & Scan) ===== */
+    :root {
+      --brand-size: 150px;
+      /* 76–150px sesuai kebutuhan */
+      --brand-gap: 12px;
+    }
+
+    #route-dashboard,
+    #route-scan {
+      position: relative;
+    }
+
+    .brand-corner {
+      --panel-alpha: .55;
+      /* opasitas panel logo */
+
+      position: absolute;
+      top: 12px;
+      left: 12px;
+      width: var(--brand-size);
+      height: var(--brand-size);
+      display: grid;
+      place-items: center;
+      padding: 10px;
+      background: rgba(255, 255, 255, var(--panel-alpha));
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      box-shadow: var(--shadow);
+      z-index: 4;
+      backdrop-filter: blur(6px);
+    }
+
+    .brand-corner img {
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+      display: block;
+    }
+
+    /* Geser konten agar tidak ketimpa logo - DIHAPUS karena logo sudah di header */
+    /* #route-dashboard .greet {
+      margin-left: calc(var(--brand-size) + var(--brand-gap));
+    }
+
+    #route-scan .scan-hero-left {
+      margin-left: calc(var(--brand-size) + var(--brand-gap));
+    } */
+
+    /* Responsif */
+    @media (max-width: 1100px) {
+      .header-modern {
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+        padding: 12px;
+        height: auto;
+        gap: 12px;
+      }
+
+      .header-logo {
+        position: relative;
+        left: auto;
+        top: auto;
+        margin-bottom: 8px;
+        /* Allow wider logo on mobile */
+        width: auto;
+        height: auto;
+        max-width: 280px;
+        max-height: 100px;
+      }
+
+      .header-logo img {
+        width: auto;
+        height: auto;
+        max-width: 100%;
+        max-height: 100%;
+        object-fit: contain;
+      }
+
+      .brand-corner {
+        --brand-size: 70px;
+        top: 10px;
+        left: 10px;
+      }
+
+      .header-content {
+        margin-left: 0;
+        margin-right: 0;
+        max-width: 100%;
+      }
+
+      .header-title {
+        font-size: 1.1rem;
+        line-height: 1.3;
+      }
+
+      .header-subtitle {
+        font-size: 0.85rem;
+      }
+
+      .header-right {
+        position: relative;
+        right: auto;
+        top: auto;
+        flex-direction: row;
+        justify-content: center;
+        margin-top: 4px;
+      }
+
+      .header-clock {
+        font-size: 1.5rem;
+      }
+    }
+
+    /* Tetap tampil saat fullscreen */
+    #route-dashboard:fullscreen .brand-corner,
+    #route-dashboard:-webkit-full-screen .brand-corner,
+    #route-scan:fullscreen .brand-corner,
+    #route-scan:-webkit-full-screen .brand-corner {
+      position: absolute;
+      top: 12px;
+      left: 12px;
+    }
+
+    /* =========================
+       PATCH: LOCK SIZE + HIDE % LABEL
+       ========================= */
+    .edu-bar .val {
+      display: none !important;
+    }
+
+    /* sembunyikan label % */
+
+    /* Kunci ukuran logo panel (dua lokasi) */
+    #brandLogoPanelDash.brand-corner,
+    #brandLogoPanelScan.brand-corner {
+      inline-size: var(--brand-size) !important;
+      block-size: var(--brand-size) !important;
+      min-inline-size: var(--brand-size) !important;
+      min-block-size: var(--brand-size) !important;
+      aspect-ratio: 1 / 1;
+      border-radius: 50% !important;
+      /* buat bulat */
+      flex: 0 0 auto !important;
+    }
+
+    #brandLogoPanelDash.brand-corner img,
+    #brandLogoPanelScan.brand-corner img {
+      inline-size: 100% !important;
+      block-size: 100% !important;
+      object-fit: contain !important;
+    }
+
+    /* ====== Layout gabungan: Recent + Education ====== */
+    #recentCard .subhead {
+      font-weight: 700;
+      margin: 0 0 8px;
+      color: var(--text)
+    }
+
+    #recentCard .recent-flex {
+      display: grid;
+      grid-template-columns: minmax(260px, 0.95fr) 1.05fr;
+      /* kiri=Education, kanan=Tabel */
+      gap: 12px;
+      align-items: start;
+      min-height: 0;
+    }
+
+    #recentCard .recent-edu {
+      display: flex;
+      flex-direction: column;
+      min-height: 0
+    }
+
+    #recentCard .recent-table {
+      min-width: 0
+    }
+
+    #recentCard .edu-list.compact {
+      grid-template-columns: 1fr
+    }
+
+    #recentCard .edu-list.compact .edu-item {
+      grid-template-columns: 56px 1fr;
+      gap: 10px;
+      padding: 10px;
+      border-radius: 12px
+    }
+
+    #recentCard .edu-list.compact .thumb {
+      width: 56px;
+      height: 56px;
+      border-radius: 10px
+    }
+
+    /* Jika Education kosong → sembunyikan kolom kiri & tabel full */
+    #recentCard[data-has-edu="0"] .recent-edu {
+      display: none
+    }
+
+    #recentCard[data-has-edu="0"] .recent-table {
+      grid-column: 1 / -1
+    }
+
+    /* Responsif */
+    @media (max-width:1100px) {
+      #recentCard .recent-flex {
+        grid-template-columns: 1fr
+      }
+
+      #recentCard .recent-edu {
+        order: 2
+      }
+    }
+
+    /* =========================
+       >> BARU: Animasi “hidup” untuk Education (Highlights)
+       ========================= */
+    .edu-item {
+      position: relative;
+      will-change: transform, box-shadow;
+      animation: eduPulse 3.4s ease-in-out infinite;
+    }
+
+    .edu-item::after {
+      content: "";
+      position: absolute;
+      inset: -20% -10% auto -10%;
+      height: 60%;
+      background: radial-gradient(60% 50% at 20% 0%, rgba(255, 255, 255, .55), rgba(255, 255, 255, 0) 60%);
+      pointer-events: none;
+      animation: eduGlow 3.4s ease-in-out infinite;
+    }
+
+    .edu-item::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(130deg, transparent 5%, rgba(255, 255, 255, .55) 50%, transparent 95%);
+      mix-blend-mode: screen;
+      transform: translateX(-130%);
+      animation: eduSweep 6s linear infinite;
+      pointer-events: none;
+    }
+
+    .edu-item .thumb {
+      animation: eduPing 2.6s ease-in-out infinite;
+      transform-origin: center;
+    }
+
+    .edu-bar i {
+      position: relative;
+    }
+
+    .edu-bar i::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      transform: translateX(-120%);
+      background: linear-gradient(120deg, transparent 0%, rgba(255, 255, 255, .65) 50%, transparent 100%);
+      animation: eduBarShine 2.6s linear infinite;
+    }
+
+    @keyframes eduPulse {
+
+      0%,
+      100% {
+        box-shadow: 0 8px 18px rgba(2, 6, 23, .08);
+        transform: translateY(0)
+      }
+
+      50% {
+        box-shadow: 0 14px 28px rgba(2, 6, 23, .16);
+        transform: translateY(-2px)
+      }
+    }
+
+    @keyframes eduGlow {
+
+      0%,
+      100% {
+        opacity: .18;
+        transform: translateY(0)
+      }
+
+      50% {
+        opacity: .34;
+        transform: translateY(-4px)
+      }
+    }
+
+    @keyframes eduSweep {
+      0% {
+        transform: translateX(-130%)
+      }
+
+      100% {
+        transform: translateX(130%)
+      }
+    }
+
+    @keyframes eduPing {
+
+      0%,
+      100% {
+        transform: scale(1)
+      }
+
+      50% {
+        transform: scale(1.04)
+      }
+    }
+
+    @keyframes eduBarShine {
+      0% {
+        transform: translateX(-120%)
+      }
+
+      100% {
+        transform: translateX(120%)
+      }
+    }
+
+    @media (prefers-reduced-motion:reduce) {
+
+      .edu-item,
+      .edu-item::before,
+      .edu-item::after,
+      .edu-item .thumb,
+      .edu-bar i::after {
+        animation: none !important;
+      }
+    }
+
+    /* Sidebar Close Button (Mobile Only) */
+    @media (max-width: 768px) {
+      .btn-close-sidebar {
+        display: block !important;
+      }
+
+      /* === MOBILE SCAN REDESIGN (REF STYLE) === */
+      .mobile-only {
+        display: block !important;
+      }
+
+      .desktop-only {
+        display: none !important;
+      }
+
+      /* Mobile Container */
+      #mobScanView {
+        background: #f8fafc;
+        min-height: 80vh;
+        padding-bottom: 80px;
+        /* Space for scroll */
+      }
+
+      /* 1. Curved Blue Header */
+      .mob-scan-header {
+        background: linear-gradient(135deg, var(--primary-700), var(--primary-600));
+        padding: 24px 20px 40px;
+        /* Extra bottom pad for curve */
+        border-bottom-left-radius: 32px;
+        border-bottom-right-radius: 32px;
+        color: #fff;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        box-shadow: 0 10px 30px rgba(0, 141, 191, 0.25);
+        margin-bottom: -20px;
+        /* Pull content up overlap */
+      }
+
+      .mob-scan-header .logo-area {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .mob-scan-header img {
+        height: 40px;
+        width: auto;
+        background: #fff;
+        border-radius: 8px;
+        padding: 2px;
+      }
+
+      .mob-scan-header .title-area h2 {
+        margin: 0;
+        font-size: 1.1rem;
+        font-weight: 700;
+      }
+
+      .mob-scan-header .title-area p {
+        margin: 0;
+        font-size: 0.8rem;
+        opacity: 0.9;
+      }
+
+      /* 2. Overlap Card (Stats) */
+      .mob-stats-overlap {
+        margin: 0 16px 20px;
+        position: relative;
+        z-index: 2;
+      }
+
+      /* Re-use .grid-4 but flattened/styled */
+      .mob-stats-overlap .grid-4 {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+      }
+
+      .mob-stats-overlap .card-solid {
+        background: #fff;
+        border-radius: 16px;
+        padding: 14px;
+        text-align: center;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+        border: none;
+      }
+
+      .mob-stats-overlap .card-solid .val {
+        font-size: 1.4rem;
+        color: var(--primary-700);
+        font-weight: 800;
+      }
+
+      .mob-stats-overlap .card-solid .lbl {
+        font-size: 0.75rem;
+        color: #64748b;
+        margin-top: 4px;
+      }
+
+      /* 3. Action Area (Camera & Input) */
+      .mob-action-area {
+        padding: 0 20px;
+        margin-bottom: 24px;
+        position: relative;
+        z-index: 10;
+      }
+
+      #btnCamToggleMob {
+        width: 100%;
+        background: var(--primary-500);
+        color: #fff;
+        border: none;
+        padding: 16px;
+        border-radius: 16px;
+        font-size: 1rem;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        box-shadow: 0 8px 20px rgba(51, 190, 255, 0.3);
+        margin-bottom: 12px;
+      }
+
+      #mobScanInput {
+        width: 100%;
+        padding: 14px;
+        border: 1px solid #e2e8f0;
+        background: #fff;
+        border-radius: 12px;
+        text-align: center;
+        font-size: 1rem;
+      }
+
+      /* 4. Vertical Feed (Recent Scans) */
+      .mob-feed-title {
+        padding: 0 20px;
+        font-size: 1rem;
+        font-weight: 700;
+        color: #334155;
+        margin-bottom: 12px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      #mobScanFeed {
+        padding: 0 20px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+
+      .mob-feed-card {
+        background: #fff;
+        padding: 12px;
+        border-radius: 16px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
+        border: 1px solid #f1f5f9;
+        animation: slideInUp 0.3s ease;
+      }
+
+      .mob-feed-card img {
+        width: 48px;
+        height: 48px;
+        border-radius: 10px;
+        object-fit: cover;
+        background: #eee;
+      }
+
+      .mob-feed-card .info {
+        flex: 1;
+      }
+
+      .mob-feed-card .info h4 {
+        margin: 0 0 4px;
+        font-size: 0.95rem;
+        color: #0f172a;
+      }
+
+      .mob-feed-card .info p {
+        margin: 0;
+        font-size: 0.8rem;
+        color: #64748b;
+      }
+
+      .mob-feed-card .status {
+        padding: 4px 10px;
+        border-radius: 8px;
+        font-size: 0.75rem;
+        font-weight: 600;
+      }
+
+      .mob-feed-card .status.in {
+        background: #ecfdf5;
+        color: #059669;
+      }
+
+      .mob-feed-card .status.out {
+        background: #fff1f2;
+        color: #e11d48;
+      }
+
+      @keyframes slideInUp {
+        from {
+          opacity: 0;
+          transform: translateY(10px);
+        }
+
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+    }
+
+    /* Desktop Default */
+    /* Desktop Default */
+    .mobile-only,
+    .mobile-bottom-nav {
+      display: none;
+    }
+
+    @media (max-width: 768px) {
+      .mobile-only {
+        display: block !important;
+      }
+
+      .mobile-bottom-nav {
+        display: flex !important;
+      }
+
+      .desktop-only {
+        display: none !important;
+      }
+
+
+      /* Compact Cards */
+      #route-scan .card-solid {
+        padding: 10px !important;
+        min-height: 80px !important;
+      }
+
+      #route-scan .card-solid .pills {
+        display: none !important;
+      }
+
+      /* Hide pills */
+      #route-scan .card-solid .lbl {
+        font-size: 0.7rem !important;
+        margin-bottom: 0 !important;
+        opacity: 0.9;
+      }
+
+      #route-scan .card-solid .val {
+        font-size: 1.6rem !important;
+        margin-top: 2px !important;
+      }
+
+      /* Input Field */
+      #route-scan .scan-input.light {
+        padding: 10px 12px !important;
+        font-size: 0.95rem !important;
+        margin: 10px 0 !important;
+      }
+
+      /* Company Grid Compact */
+      .company-card {
+        padding: 8px 10px !important;
+        flex-direction: row !important;
+        align-items: center !important;
+        gap: 8px !important;
+        border-radius: 8px !important;
+      }
+
+      .company-card .name {
+        font-size: 0.8rem !important;
+      }
+
+      .company-card .sub {
+        font-size: 0.65rem !important;
+      }
+
+      .company-card .badge {
+        font-size: 1.1rem !important;
+      }
+
+      /* Hide Active Shifts Time Range */
+      #activeShiftsContainer .shift-card {
+        padding: 6px 10px !important;
+      }
+
+      #activeShiftsContainer h4 {
+        font-size: 0.85rem !important;
+      }
+
+      #activeShiftsContainer small {
+        font-size: 0.7rem !important;
+      }
+    }
+
+/* Extracted from index.html */
+
+                /* Local override for right panel scroll */
+                #scanResult {
+                  overflow-y: auto;
+                  justify-content: flex-start;
+                }
