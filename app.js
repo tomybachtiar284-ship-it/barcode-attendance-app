@@ -395,12 +395,11 @@ window.addEventListener('DOMContentLoaded', () => {
 
     try {
       // Employees
-      console.log('>> pullAll: Fetching Employees (LIGHTWEIGHT MODE)...');
+      console.log('>> pullAll: Fetching Employees...');
 
-      // OPTIMIZATION: EXCLUDE PHOTO COLUMN
-      // Only fetch text data to prevent network choke
+      // Fetch text data and photo
       const { data: emps, error: errEmp } = await safeBrowse(
-        sb.from('employees').select('nid, name, title, company, shift'),
+        sb.from('employees').select('nid, name, title, company, shift, photo'),
         'Employees',
         5000 // 5s timeout
       );
@@ -413,7 +412,7 @@ window.addEventListener('DOMContentLoaded', () => {
         employees = emps.map(x => ({
           nid: x.nid, name: x.name, title: x.title, company: x.company,
           shift: x.shift,
-          photo: null // Photo disabled in sync to save bandwidth
+          photo: x.photo || '' // Include photo to prevent it from disappearing
         }));
         save(LS_EMP, employees);
       }
