@@ -184,8 +184,16 @@ window.addEventListener('DOMContentLoaded', () => {
   async function delAttendance(ts) {
     if (!sb) return;
     // Try delete from both to be safe
-    await sb.from('attendance').delete().eq('ts', ts);
-    await sb.from('breaks').delete().eq('ts', ts);
+    const { error: err1 } = await sb.from('attendance').delete().eq('ts', ts);
+    if (err1) {
+      console.error('Supabase Delete Error (attendance):', err1);
+      alert('Gagal menghapus data dari Supabase (Cek Policy DELETE RLS Anda!). Pesan: ' + err1.message);
+      throw err1;
+    }
+    const { error: err2 } = await sb.from('breaks').delete().eq('ts', ts);
+    if (err2) {
+      console.error('Supabase Delete Error (breaks):', err2);
+    }
   }
 
   async function pushNews(n) {
@@ -647,9 +655,18 @@ window.addEventListener('DOMContentLoaded', () => {
 
   // Clock
   function tick() {
-    const t = fmtTs(Date.now()).split(' ')[1];
+    const d = new Date();
+    const t = fmtTs(d.getTime()).split(' ')[1];
     $('#liveClock') && ($('#liveClock').textContent = t);
     $('#liveClockScan') && ($('#liveClockScan').textContent = t);
+
+    // Mobile clock update
+    const timeStr = d.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' }).replace(/\./g, ':');
+    const dateStr = d.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+    const elClock = document.getElementById('mobClock');
+    const elDate = document.getElementById('mobDate');
+    if (elClock) elClock.textContent = timeStr;
+    if (elDate) elDate.textContent = dateStr;
   }
   setInterval(tick, 1000); tick();
 
@@ -1374,13 +1391,8 @@ window.addEventListener('DOMContentLoaded', () => {
   window.renderMobileDashboard = function () {
     if (window.innerWidth > 768) return;
     // 1. Clock & Date
+    // Note: Clock is updated by tick()
     const d = new Date();
-    const timeStr = d.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' }).replace(/\./g, ':');
-    const dateStr = d.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
-    const elClock = document.getElementById('mobClock');
-    const elDate = document.getElementById('mobDate');
-    if (elClock) elClock.textContent = timeStr;
-    if (elDate) elDate.textContent = dateStr;
 
     // 2. Stats
     const total = employees.length;
@@ -1426,10 +1438,7 @@ window.addEventListener('DOMContentLoaded', () => {
     }
   };
 
-  // Auto-tick mobile clock
-  setInterval(() => {
-    if (window.innerWidth <= 768 && window.renderMobileDashboard) window.renderMobileDashboard();
-  }, 1000);
+  // Auto-tick mobile clock is now handled by the global tick() function to avoid heavy rendering every second
   renderDashboard();
   setInterval(renderLiveCompanyStats, 30000);
 
@@ -1896,9 +1905,11 @@ window.addEventListener('DOMContentLoaded', () => {
         // A. It's Morning (< 14:00) - Typical Night Shift checkout time.
         // B. Last scan was recent (< 20 hours) but not too recent (avoid double tap).
         // C. Last scan was NOT today (Must be a cross-day shift).
+        // D. Last scan was ACTUALLY for Shift Malam ('M') or late at night.
         const isSameDay = new Date(lastRec.ts).getDate() === ts.getDate();
+        const wasNightShift = lastRec.shift === 'M' || new Date(lastRec.ts).getHours() >= 18;
 
-        if (ts.getHours() < 14 && hoursSinceLast < 20 && !isSameDay) {
+        if (ts.getHours() < 14 && hoursSinceLast < 20 && !isSameDay && wasNightShift) {
           console.log(`Context-Aware: Detected Night Shift Checkout for ${emp.name}. Gap: ${hoursSinceLast.toFixed(1)}h`);
 
           status = 'pulang';
@@ -1906,6 +1917,11 @@ window.addEventListener('DOMContentLoaded', () => {
           // This fixes the "Outside Shift" bug when Roster says "OFF" or "P"
           effShift = 'M';
           noteOverride = 'Pulang Shift Malam (Auto-Detected)';
+        } else if (!isSameDay && !wasNightShift) {
+           // If it's a new day and they didn't work the night shift yesterday,
+           // we assume they just forgot to check out yesterday.
+           // So today is a fresh IN (Datang).
+           status = 'datang';
         }
       }
     }
@@ -2569,10 +2585,11 @@ window.addEventListener('DOMContentLoaded', () => {
     } else if (fileInput && fileInput.files && fileInput.files[0]) {
       try {
         // Compress to max 800x800, quality 0.8
-        imgDataUrl = await compressImage(fileInput.files[0], 800, 800, 0.8);
+        imgDataUrl = await compressImage(fileInput.files[0], 400, 400, 0.6);
       } catch (err) {
         console.error("Compression error", err);
-        return toast('Gagal memproses gambar: ' + err.message);
+        alert('Gagal memproses gambar: ' + err.message);
+        return;
       }
     } else {
       // Read from URL input or keep existing
@@ -2597,11 +2614,17 @@ window.addEventListener('DOMContentLoaded', () => {
       photo: finalPhoto || ''
     };
 
-    if (!emp.nid || !emp.name) return toast('NID & Nama wajib diisi.');
+    if (!emp.nid || !emp.name) {
+      alert('NID & Nama wajib diisi!');
+      return;
+    }
 
     if (editIdx >= 0) { employees[editIdx] = emp; }
     else {
-      if (employees.some(e => e.nid == emp.nid)) return toast('NID sudah ada.');
+      if (employees.some(e => e.nid == emp.nid)) {
+        alert('Data Gagal Disimpan!\n\nNID "' + emp.nid + '" sudah terdaftar.\n\nJika Anda bermaksud memperbarui foto atau data karyawan ini, silakan tutup kotak ini (x), lalu cari namanya di tabel, dan klik tombol EDIT (ikon pensil ✏️) di baris tersebut.');
+        return;
+      }
       employees.push(emp);
     }
 
@@ -6274,3 +6297,29 @@ window.addEventListener('DOMContentLoaded', () => {
     modal.showModal();
   };
 });
+
+  // ==========================================
+  // GLOBAL DELETE ATTENDANCE (FIX HAPUS INLINE)
+  // ==========================================
+  window.deleteAttendance = async function(ts) {
+    if (!confirm('Hapus baris kehadiran ini? Data akan terhapus dari server.')) return;
+    
+    // Hapus dari cloud
+    try {
+      await delAttendance(ts);
+    } catch(err) {
+      return; // Berhenti jika gagal di cloud (misal karena RLS)
+    }
+
+    // Jika sukses di cloud, baru hapus di memori lokal
+    const idx = attendance.findIndex(a => a.ts === ts);
+    if (idx >= 0) {
+      attendance.splice(idx, 1);
+      save(LS_ATT, attendance); 
+      syncGlobals(); 
+      if (typeof filterAttendance === 'function') filterAttendance();
+      toast('Data berhasil dihapus selamanya.');
+    }
+  };
+
+
