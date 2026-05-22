@@ -2472,7 +2472,8 @@ window.addEventListener('DOMContentLoaded', () => {
   }
 
   // Employees open/save/delete
-  empTBody?.addEventListener('click', e => {
+  const employeeContainer = document.getElementById('employeeListContainer');
+  employeeContainer?.addEventListener('click', e => {
     const b = e.target.closest('button'); if (!b) return; const nid = b.dataset.id; const idx = employees.findIndex(x => x.nid == nid); if (idx < 0) return;
     if (b.dataset.act === 'edit') { openEmp(employees[idx], idx); }
     else if (b.dataset.act === 'del') {
