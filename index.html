@@ -1478,6 +1478,53 @@
       <!-- List injected by JS -->
     </div>
   </dialog>
+
+  <!-- MODAL: EDIT ATTENDANCE -->
+  <dialog id="modalEditAtt">
+    <form method="dialog" class="modal">
+      <button type="button" class="modal-close" aria-label="Tutup" onclick="document.getElementById('modalEditAtt').close()">×</button>
+      <h3>Edit Data Kehadiran</h3>
+      <input type="hidden" id="editAttOriginalTs">
+      
+      <div class="grid-2">
+        <label><span>Tanggal</span> <input type="date" id="editAttDate" required></label>
+        <label><span>Jam</span> <input type="time" id="editAttTime" required></label>
+        
+        <label><span>Status</span>
+          <select id="editAttStatus">
+            <option value="datang">Masuk</option>
+            <option value="pulang">Pulang</option>
+            <option value="break_out">Izin Keluar</option>
+            <option value="break_in">Kembali</option>
+            <option value="alpha">Tanpa Keterangan</option>
+          </select>
+        </label>
+        <label><span>Keterangan / Note</span> <input id="editAttNote" placeholder="Catatan tambahan..."></label>
+        
+        <label><span>Nama</span> <select id="editAttName"></select></label>
+        <label><span>NID</span> <input id="editAttNid" readonly style="background:#f1f5f9; cursor:not-allowed;"></label>
+        
+        <label><span>Jabatan</span> <select id="editAttTitle"></select></label>
+        <label><span>Perusahaan</span> <select id="editAttCompany"></select></label>
+        
+        <label><span>Grup / Shift</span>
+          <select id="editAttShift">
+            <option value="A">Group A</option>
+            <option value="B">Group B</option>
+            <option value="C">Group C</option>
+            <option value="D">Group D</option>
+            <option value="DAYTIME">Daytime</option>
+          </select>
+        </label>
+      </div>
+
+      <div style="margin-top: 20px; text-align: right;">
+        <button type="button" class="btn" onclick="document.getElementById('modalEditAtt').close()" style="background:#e2e8f0; color:#334155; margin-right:8px; border:none;">Batal</button>
+        <button type="button" class="btn primary" id="btnSaveEditAtt">Simpan Perubahan</button>
+      </div>
+    </form>
+  </dialog>
+
   <!-- MODAL: EMPLOYEES -->
   <dialog id="empModal">
     <form method="dialog" class="modal">
