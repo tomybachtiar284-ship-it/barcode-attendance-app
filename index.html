@@ -911,7 +911,11 @@
           <button id="btnTemplateEmp" class="btn ghost" data-i18n="btn_template">📄 Unduh Template</button>
           <button id="btnSyncEmp" class="btn primary" title="Upload data lokal ke Cloud">☁️ Sync Cloud</button>
         </div>
-        <div class="right" style="display:flex; gap:8px;">
+        <div class="right" style="display:flex; gap:8px; align-items:center;">
+          <label style="font-size:12px; display:flex; align-items:center; gap:4px; margin-right:8px; cursor:pointer;">
+            <input type="checkbox" id="showInactiveEmp" style="width:16px; height:16px;">
+            Tampilkan Non-Aktif
+          </label>
           <select id="filterEmpGroup" class="input" style="padding:8px; border-radius:8px; width:140px;">
             <option value="">Semua Grup</option>
             <option value="A">Group A</option>
@@ -1474,44 +1478,6 @@
       <!-- List injected by JS -->
     </div>
   </dialog>
-
-
-  <!-- MODAL: EMPLOYEES -->
-  <dialog id="empModal">
-    <form method="dialog" class="modal">
-      <button type="button" class="modal-close" id="btnCloseEmp" aria-label="Tutup">×</button>
-      <h3 id="empModalTitle" data-i18n="modal_title_add_emp">Tambah Karyawan</h3>
-      <div class="grid-2">
-        <label><span data-i18n="modal_label_nid">NID</span> <input id="fNid" required></label>
-        <label><span data-i18n="modal_label_name">Nama</span> <input id="fName" required></label>
-        <label><span data-i18n="modal_label_job">Jabatan</span> <input id="fTitle" required></label>
-
-        <label><span data-i18n="modal_label_company">Perusahaan</span>
-          <select id="fCompanySel" required>
-            <option value="">Pilih…</option>
-            <option>PT PLN</option>
-            <option>PT PLN NP</option>
-            <option>PT PLN NPS</option>
-            <option>PT MKP</option>
-            <option>PT MKP IC</option>
-            <option>PENGAMANAN/SECURITY</option>
-            <option>VISITOR</option>
-            <option>PIHAK KE 3</option>
-            <option value="OTHER">OTHER</option>
-          </select>
-        </label>
-        <label id="wrapCompanyOther" class="hidden"><span data-i18n="modal_label_other">Nama Perusahaan (Other)</span>
-          <input id="fCompanyOther" placeholder="Tulis nama perusahaan…">
-        </label>
-
-        <label><span data-i18n="modal_label_shift">Grup</span>
-          <select id="fShift">
-            <option value="A">Group A</option>
-            <option value="B">Group B</option>
-            <option value="C">Group C</option>
-            <option value="D">Group D</option>
-            <option value="DAYTIME">Daytime</option>
-          </select>
         </label>
 
         <label><span data-i18n="modal_label_photo_url">Foto (URL)</span> <input id="fPhoto"

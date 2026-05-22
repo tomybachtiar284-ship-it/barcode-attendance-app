@@ -147,7 +147,7 @@ window.addEventListener('DOMContentLoaded', () => {
     if (!sb) { alert('Gagal simpan ke Cloud: Supabase belum terkoneksi.'); return false; }
     const { error } = await sb.from('employees').upsert({
       nid: e.nid, name: e.name, title: e.title, company: e.company,
-      shift: e.shift, photo: e.photo, updated_at: new Date().toISOString()
+      shift: e.shift, photo: e.photo, status: e.status || 'Aktif', updated_at: new Date().toISOString()
     }, { onConflict: 'nid' });
     if (error) {
       console.error('Push emp error:', error);
@@ -313,7 +313,7 @@ window.addEventListener('DOMContentLoaded', () => {
         // Map ke format DB
         const empRows = employees.map(e => ({
           nid: e.nid, name: e.name, title: e.title, company: e.company,
-          shift: e.shift, photo: e.photo, updated_at: new Date().toISOString()
+          shift: e.shift, photo: e.photo, status: e.status || 'Aktif', updated_at: new Date().toISOString()
         }));
 
         const { error: errEmp } = await sb.from('employees').upsert(empRows, { onConflict: 'nid' });
@@ -399,7 +399,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
       // Fetch text data and photo
       const { data: emps, error: errEmp } = await safeBrowse(
-        sb.from('employees').select('nid, name, title, company, shift, photo'),
+        sb.from('employees').select('nid, name, title, company, shift, photo, status'),
         'Employees',
         5000 // 5s timeout
       );
@@ -412,7 +412,8 @@ window.addEventListener('DOMContentLoaded', () => {
         employees = emps.map(x => ({
           nid: x.nid, name: x.name, title: x.title, company: x.company,
           shift: x.shift,
-          photo: x.photo || '' // Include photo to prevent it from disappearing
+          photo: x.photo || '', // Include photo to prevent it from disappearing
+          status: x.status || 'Aktif'
         }));
         save(LS_EMP, employees);
       }
@@ -1325,10 +1326,11 @@ window.addEventListener('DOMContentLoaded', () => {
 
   // ===== Dashboard render =====
   function renderDashboard() {
-    setTextAndBump('#statTotalEmp', employees.length);
-    setTextAndBump('#statTotalEmpScan', employees.length);
+    const activeEmps = employees.filter(e => e.status !== 'Non-Aktif');
+    setTextAndBump('#statTotalEmp', activeEmps.length);
+    setTextAndBump('#statTotalEmpScan', activeEmps.length);
 
-    const byGroup = employees.reduce((a, e) => (a[e.shift] = (a[e.shift] || 0) + 1, a), {});
+    const byGroup = activeEmps.reduce((a, e) => (a[e.shift] = (a[e.shift] || 0) + 1, a), {});
     const breakdown = Object.entries(byGroup).map(([k, v]) => `Grup ${k}:${v}`).join(' • ') || '—';
     $('#statShiftBreakdown') && ($('#statShiftBreakdown').textContent = breakdown);
 
@@ -1867,6 +1869,13 @@ window.addEventListener('DOMContentLoaded', () => {
       $('#scanTs') && ($('#scanTs').textContent = fmtTs(ts)); return;
     }
 
+    if (emp.status === 'Non-Aktif') {
+      toast('Karyawan berstatus Non-Aktif. Scan ditolak.');
+      renderScanPreview(emp, null);
+      const pill = $('#scanShiftCheck'); if (pill) { pill.textContent = 'Status: Non-Aktif'; pill.className = 'pill light danger'; }
+      $('#scanTs') && ($('#scanTs').textContent = fmtTs(ts)); return;
+    }
+
     // === DOUBLE SCAN PREVENTION (7 Seconds Cooldown) ===
     const lastTime = lastScanMap.get(emp.nid) || 0;
     if (ts.getTime() - lastTime < 7000) {
@@ -2205,14 +2214,17 @@ window.addEventListener('DOMContentLoaded', () => {
       empLimit = empStep;
       const q = $('#searchEmp')?.value?.toLowerCase() || '';
       const gr = $('#filterEmpGroup')?.value || ''; // Group filter
+      const showInactive = $('#showInactiveEmp')?.checked;
 
       currentFilteredEmp = employees.filter(e => {
         // 1. Text Search
         const matchText = (e.nid + ' ' + e.name + ' ' + (e.company || '')).toLowerCase().includes(q);
         // 2. Group Filter
         const matchGroup = gr ? (e.shift === gr) : true;
+        // 3. Status Filter
+        const matchStatus = showInactive ? true : e.status !== 'Non-Aktif';
 
-        return matchText && matchGroup;
+        return matchText && matchGroup && matchStatus;
       });
       currentFilteredEmp.sort((a, b) => a.name.localeCompare(b.name));
     }
@@ -2281,13 +2293,17 @@ window.addEventListener('DOMContentLoaded', () => {
       `;
 
       list.forEach(e => {
+        const isInactive = e.status === 'Non-Aktif';
+        const rowStyle = isInactive ? 'opacity: 0.6; background: var(--surface-2);' : '';
+        const groupLabel = isInactive ? `<span style="background:var(--danger); padding:4px 8px; border-radius:6px; font-size:0.85rem; font-weight:600; color:#fff">Non-Aktif</span>` : `<span style="background:var(--surface-2); padding:4px 8px; border-radius:6px; font-size:0.85rem; font-weight:600; color:var(--primary-700)">Grup ${e.shift || '-'}</span>`;
+
         tableHtml += `
-          <tr>
+          <tr style="${rowStyle}">
             <td data-label="Foto"><div style="width:40px;height:40px;border-radius:10px;background:#eef4ff url('${e.photo || ''}') center/cover no-repeat; border:1px solid var(--line)"></div></td>
             <td data-label="NID">${e.nid}</td>
             <td data-label="Nama">${e.name}</td>
             <td data-label="Jabatan">${e.title}</td>
-            <td data-label="Grup"><span style="background:var(--surface-2); padding:4px 8px; border-radius:6px; font-size:0.85rem; font-weight:600; color:var(--primary-700)">Grup ${e.shift || '-'}</span></td>
+            <td data-label="Grup">${groupLabel}</td>
             <td data-label="Aksi">
               <div style="display:flex; justify-content:flex-end; gap:6px;">
                 <button class='btn small' data-act='view' data-id='${e.nid}' title="Lihat Detail" style="padding:4px;width:28px;height:28px;display:grid;place-items:center;">👁️</button>
@@ -2471,6 +2487,7 @@ window.addEventListener('DOMContentLoaded', () => {
   $('#btnExportEmp')?.addEventListener('click', () => exportExcelEmployees());
   $('#searchEmp')?.addEventListener('input', debounce(() => renderEmployees(true), 300));
   $('#filterEmpGroup')?.addEventListener('change', () => renderEmployees(true)); // Filter Group
+  $('#showInactiveEmp')?.addEventListener('change', () => renderEmployees(true)); // Status filter
   $('#btnAddEmp')?.addEventListener('click', () => openEmp());
 
   function exportExcelEmployees() {
@@ -2527,6 +2544,7 @@ window.addEventListener('DOMContentLoaded', () => {
     $('#fTitle').value = data?.title || '';
     setCompanyUI(data?.company || '');
     $('#fShift').value = (data?.shift && SHIFT_KEYS.includes(data.shift)) ? data.shift : 'A';
+    if ($('#fStatus')) $('#fStatus').value = data?.status || 'Aktif';
     $('#fPhoto').value = data?.photo || '';
     $('#fPhotoFile').value = '';
     $('#empModal')?.showModal();
@@ -2610,7 +2628,8 @@ window.addEventListener('DOMContentLoaded', () => {
       title: $('#fTitle').value.trim(),
       company: readCompanyFromUI(),
       shift: $('#fShift').value,
-      photo: finalPhoto || ''
+      photo: finalPhoto || '',
+      status: $('#fStatus') ? $('#fStatus').value : 'Aktif'
     };
 
     if (!emp.nid || !emp.name) {
