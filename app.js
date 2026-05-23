@@ -228,69 +228,9 @@ window.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  async function pushEdu(e) {
-    if (!sb) return;
-    const { error } = await sb.from('education').upsert({
-      id: e.id, ts: e.ts, title: e.title, body: e.body, img: e.img
-    }, { onConflict: 'id' });
-    if (error) {
-      console.error('Push edu error:', error);
-      throw error;
-    }
-  }
-  window.pushEdu = pushEdu;
-
-  async function delEdu(id) {
-    if (!sb) return;
-    await sb.from('education').delete().eq('id', id);
-  }
-  window.delEdu = delEdu;
-
-  async function pushInventory(inv) {
-    if (!sb) { console.warn('Skip push inventory: no sb'); return; }
-    const { error } = await sb.from('inventory').upsert({
-      id: inv.id, carrier: inv.carrier, company: inv.company,
-      item: inv.item, dest: inv.dest, officer: inv.officer, type: inv.type,
-      time_in: inv.timeIn, time_out: inv.timeOut
-    }, { onConflict: 'id' });
-    if (error) {
-      console.error('Push inv error:', error);
-      alert('Gagal Push Inventory: ' + error.message);
-    }
-  }
-  window.pushInventory = pushInventory;
-
-  async function delInventory(id) {
-    if (!sb) return;
-    await sb.from('inventory').delete().eq('id', id);
-  }
-  window.delInventory = delInventory;
-
-  async function pushShifts() {
-    if (!sb) return;
-    // Map internal shifts object to array of rows
-    const rows = Object.entries(shifts).map(([code, val]) => ({
-      code: code,
-      label: SHIFT_LABEL?.[code] || code, // Use shift label (Pagi/Sore/Malam)
-      start_time: val.start,
-      end_time: val.end,
-      updated_at: new Date().toISOString()
-    }));
-
-    // Upsert all rows
-    const { error } = await sb.from('shifts').upsert(rows, { onConflict: 'code' });
-    if (error) {
-      console.error('Push shifts error:', error);
-      alert('GAGAL SIMPAN SHIFT KE DB: ' + error.message);
-    } else {
-      // Debug only (optional, remove later if annoying)
-      // toast('Shift berhasil disimpan ke Database SQL');
-    }
-  }
-  async function pushSched(monthId) {
-    if (!sb || !monthId) return;
-    await sb.from('shift_monthly').upsert({ month: monthId, data: sched[monthId] }, { onConflict: 'month' });
-  }
+  // The push and del functions (Edu, Inventory, Shifts, Sched) 
+  // have been removed from here because they are properly 
+  // implemented with offline support in js/db.js.
 
   // === FITUR BARU: MANUAL BULK SYNC ===
   window.manualSyncAttendance = async function () {
@@ -375,7 +315,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
 
 
-  async function pullAll() {
+  window.pullAll = async function pullAll() {
     if (isSyncing) { console.warn('⚠️ pullAll ignored: Sync already in progress.'); return; }
     isSyncing = true;
 
@@ -658,6 +598,7 @@ window.addEventListener('DOMContentLoaded', () => {
     const d = new Date();
     const t = fmtTs(d.getTime()).split(' ')[1];
     $('#liveClock') && ($('#liveClock').textContent = t);
+    $('#clockDisplay') && ($('#clockDisplay').textContent = t);
     $('#liveClockScan') && ($('#liveClockScan').textContent = t);
 
     // Mobile clock update
@@ -1987,6 +1928,14 @@ window.addEventListener('DOMContentLoaded', () => {
     }
   }
 
+  // NEW: Helper for human readable duration
+  function formatDuration(mins) {
+    if (mins < 60) return mins + 'm';
+    const h = Math.floor(mins / 60);
+    const m = mins % 60;
+    return m > 0 ? `${h}j ${m}m` : `${h}j`;
+  }
+
   window.renderBreakAnalysis = async function () {
     const m = $('#filterAnalysisMonth')?.value;
     const c = $('#filterAnalysisCompany')?.value || '';
@@ -2004,13 +1953,13 @@ window.addEventListener('DOMContentLoaded', () => {
       const year = parseInt(m.split('-')[0]), month = parseInt(m.split('-')[1]);
       const end = new Date(year, month, 0, 23, 59, 59).getTime();
 
-      // Fetch history for the selected month
+      // Fetch history for the selected month (include 1 day before for cross-boundary breaks)
       if (typeof window.ensureHistory === 'function') {
-        await window.ensureHistory(start, end);
+        await window.ensureHistory(start - 86400000, end);
       }
 
-      // Filter Data
-      let rawBreaks = attendance.filter(a => a.ts >= start && a.ts <= end && (a.status === 'break_out' || a.status === 'break_in'));
+      // Filter Data (include 1 day before)
+      let rawBreaks = attendance.filter(a => a.ts >= (start - 86400000) && a.ts <= end && (a.status === 'break_out' || a.status === 'break_in'));
 
       // Filter Company if selected
       if (c) {
@@ -2040,11 +1989,21 @@ window.addEventListener('DOMContentLoaded', () => {
         }
       });
 
-      // Convert to array and filter only checks that have at least one OUT
-      const sorted = Object.entries(grouped)
-        .map(([nid, val]) => ({ nid, ...val, count: val.sessions.length }))
-        .filter(x => x.count > 0)
-        .sort((a, b) => b.count - a.count);
+      // Convert to array, filter out sessions outside selected month, and sum valid sessions
+      const sorted = [];
+      for (const [nid, val] of Object.entries(grouped)) {
+        // Only keep sessions that touch the current month
+        const validSessions = val.sessions.filter(s => {
+           const sOut = s.out || 0;
+           const sIn = s.in || end; // if not back yet, assume it reaches end
+           return sOut <= end && sIn >= start;
+        });
+
+        if (validSessions.length > 0) {
+           sorted.push({ nid, ...val, sessions: validSessions, count: validSessions.length });
+        }
+      }
+      sorted.sort((a, b) => b.count - a.count);
 
       // Render
       if (sorted.length === 0) {
@@ -2062,9 +2021,19 @@ window.addEventListener('DOMContentLoaded', () => {
           const tDate = dt(s.out);
           const tOut = hm(s.out);
           const tIn = hm(s.in);
-          const dur = (s.out && s.in) ? Math.round((s.in - s.out) / 60000) + 'm' : '?';
+          let durHtml = '';
+          if (s.out && s.in) {
+            const mins = Math.round((s.in - s.out) / 60000);
+            const isLong = mins > 60;
+            const durColor = isLong ? 'var(--danger)' : 'inherit';
+            const fontWeight = isLong ? '700' : 'normal';
+            durHtml = `<span style="color:${durColor}; font-weight:${fontWeight};">(${formatDuration(mins)})</span>`;
+          } else {
+            durHtml = `<span style="color:var(--danger); font-weight:700;">(Belum Kembali)</span>`;
+          }
+
           return `<div class="chip-sm" style="margin-bottom:2px; font-size:0.75rem; display:inline-flex; align-items:center;">
-                 <span style="color:var(--primary-600); font-weight:600; margin-right:4px;">${tDate}:</span> ${tOut} - ${tIn} (${dur})
+                 <span style="color:var(--primary-600); font-weight:600; margin-right:4px;">${tDate}:</span> ${tOut} - ${tIn} ${durHtml}
                  <button onclick="deleteBreakSession(${s.out}, ${s.in || 'null'})" title="Hapus Sesi" style="background:none; border:none; color:var(--danger); cursor:pointer; margin-left:6px; font-size:1.1em; line-height:1;">&times;</button>
             </div>`;
         }).join('');
@@ -2120,7 +2089,8 @@ window.addEventListener('DOMContentLoaded', () => {
     const year = parseInt(m.split('-')[0]), month = parseInt(m.split('-')[1]);
     const end = new Date(year, month, 0, 23, 59, 59).getTime();
 
-    let rawBreaks = attendance.filter(a => a.ts >= start && a.ts <= end && (a.status === 'break_out' || a.status === 'break_in'));
+    // Pull with 1 day lookback
+    let rawBreaks = attendance.filter(a => a.ts >= (start - 86400000) && a.ts <= end && (a.status === 'break_out' || a.status === 'break_in'));
     if (c) rawBreaks = rawBreaks.filter(b => (b.company || '').trim() === c);
 
     rawBreaks.sort((a, b) => a.ts - b.ts);
@@ -2135,7 +2105,19 @@ window.addEventListener('DOMContentLoaded', () => {
       }
     });
 
-    const sorted = Object.values(grouped).map(v => ({ ...v, count: v.sessions.length })).filter(x => x.count > 0).sort((a, b) => b.count - a.count);
+    const sorted = [];
+    for (const [nid, val] of Object.entries(grouped)) {
+      const validSessions = val.sessions.filter(s => {
+         const sOut = s.out || 0;
+         const sIn = s.in || end;
+         return sOut <= end && sIn >= start;
+      });
+      if (validSessions.length > 0) {
+         sorted.push({ nid, ...val, sessions: validSessions, count: validSessions.length });
+      }
+    }
+    sorted.sort((a, b) => b.count - a.count);
+
     if (sorted.length === 0) { alert('Tidak ada data untuk diekspor.'); return; }
 
     const doc = new jsPDF();
@@ -2151,15 +2133,22 @@ window.addEventListener('DOMContentLoaded', () => {
     const headers = [["Rank", "Nama", "Total", "Detail Waktu (Keluar - Masuk)"]];
 
     const fullData = [];
-    const hm = (ts) => ts ? new Date(ts).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', day: '2-digit' }) : '...';
+    const hm = (ts) => ts ? new Date(ts).toLocaleString('id-ID', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '...';
 
     sorted.forEach((row, i) => {
       const detailStr = row.sessions.map(s => {
         const strOut = hm(s.out);
-        const strIn = s.in ? new Date(s.in).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : '...'; // Show only hour:min for IN if same day
-        // If different day, maybe show date?
-        // Let's simplified as: DD HH:mm
-        return `${strOut} s/d ${strIn}`;
+        const strIn = s.in ? hm(s.in) : '...';
+        
+        let durStr = '';
+        if (s.out && s.in) {
+          const mins = Math.round((s.in - s.out) / 60000);
+          durStr = ` (${formatDuration(mins)})`;
+        } else {
+          durStr = ` (Belum Kembali)`;
+        }
+        
+        return `${strOut} s/d ${strIn}${durStr}`;
       }).join('\n');
 
       fullData.push([
@@ -4294,9 +4283,16 @@ window.addEventListener('DOMContentLoaded', () => {
       // Get selected company
       const selComp = elComp ? elComp.value : '';
 
-      // Filter: All Users (Company match if selected)
+      // Filter: All Users (Company match if selected, and ONLY DAYTIME)
       const users = window.employees.filter(e => {
         if (selComp && (e.company || '').trim() !== selComp) return false;
+
+        // Strictly Daytime Only
+        let empGroup = (e.shift || '').toUpperCase();
+        if (empGroup.startsWith('GROUP ')) empGroup = empGroup.replace('GROUP ', '');
+        if (empGroup.startsWith('GRUP ')) empGroup = empGroup.replace('GRUP ', '');
+        if (empGroup !== 'DAYTIME') return false;
+
         return true;
       }).sort((a, b) => (a.name || '').localeCompare(b.name || ''));
 
@@ -4389,6 +4385,12 @@ window.addEventListener('DOMContentLoaded', () => {
 
         // Filter Name (New)
         if (fName && e.name !== fName) return;
+
+        // --- FILTER HANYA DAYTIME (Sesuai Aturan: Grup A,B,C,D tidak dihitung lembur) ---
+        let empGroup = (e.shift || '').toUpperCase();
+        if (empGroup.startsWith('GROUP ')) empGroup = empGroup.replace('GROUP ', '');
+        if (empGroup.startsWith('GRUP ')) empGroup = empGroup.replace('GRUP ', '');
+        if (empGroup !== 'DAYTIME') return;
 
         // --- DYNAMIC SHIFT FILTER ---
         // Use noon to avoid timezone issues when resolving shift for the day
@@ -5332,26 +5334,15 @@ window.addEventListener('DOMContentLoaded', () => {
   window.deleteInventory = async function (id) {
     if (!confirm('⚠️ YAKIN INGIN MENGHAPUS DATA INI?\nData yang dihapus akan hilang permanen dari server juga.')) return;
 
-    // 1. Remove Cloud First (Verify it works)
-    if (window.sb) {
-      try {
-        // Show loading indicator implicitly by freezing UI or just notify?
-        // Since it's row action, we just await.
-        const { error } = await window.sb.from('inventory').delete().eq('id', id);
-        if (error) {
-          throw error;
-        }
-      } catch (err) {
-        alert('Gagal menghapus dari Cloud: ' + err.message);
-        return; // Stop if cloud delete fails
-      }
-    }
-
-    // 2. Remove Local (Only if Cloud success or Offline)
+    // Remove Local First (Optimistic Update)
     inventoryData = inventoryData.filter(x => x.id !== id);
     saveInventory(); // Updates UI
 
-    if (window.sb) if (window.toast) toast('Data berhasil dihapus dari Cloud.');
+    // Sync to Cloud (with offline queueing via db.js)
+    if (window.delInventory) {
+      await window.delInventory(id);
+      if (window.toast) toast('Data berhasil dihapus.');
+    }
   };
 
 
@@ -5441,12 +5432,18 @@ window.addEventListener('DOMContentLoaded', () => {
   // ... (PDF logic remains) ...
 
   // Bind Buttons
-  document.addEventListener('DOMContentLoaded', () => {
+  (() => {
     // ...
     const dStart = document.getElementById('invDateStart');
     const dEnd = document.getElementById('invDateEnd');
     const invSearch = document.getElementById('invSearch'); // NEW
     const btnPDF = document.getElementById('btnExportInvPDF');
+
+    // EXPLICITLY DECLARE INVENTORY MODAL ELEMENTS
+    const btnOpenInv = document.getElementById('btnOpenInv');
+    const invModal = document.getElementById('invModal');
+    const btnBackInv = document.getElementById('btnBackInv');
+    const btnSaveInv = document.getElementById('btnSaveInv');
 
     if (dStart) dStart.addEventListener('change', renderInventory);
     if (dEnd) dEnd.addEventListener('change', renderInventory);
@@ -5576,146 +5573,146 @@ window.addEventListener('DOMContentLoaded', () => {
       elType.closest('label').style.display = 'block';
     }
 
-    let invTimeInterval;
-
-    // Expose to window so editInventory can call it
     window.openInvModal = function () {
-      if (!invModal) { console.error('Inv Modal Missing'); return; }
+      try {
+        const invModal = document.getElementById('invModal');
+        if (!invModal) { alert('ERROR: Elemen Jendela Modal (invModal) tidak ditemukan di HTML!'); return; }
 
-      const updateTime = () => {
-        const now = new Date();
-        now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+        const updateTime = () => {
+          const now = new Date();
+          now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+          const elTime = document.getElementById('iTime');
+          if (elTime) elTime.value = now.toISOString().slice(0, 16);
+        };
+
+        // Reset Title & ID when opening fresh
+        const elId = document.getElementById('iId');
+        const title = document.getElementById('invModalTitle');
+        if (elId) elId.value = '';
+        if (title) title.textContent = 'Input Barang Masuk / Keluar';
+
+        // Initial set
+        updateTime();
+
+        // Clear existing interval if any
+        if (typeof invTimeInterval !== 'undefined' && invTimeInterval) clearInterval(invTimeInterval);
+
+        // Update every second (1000ms)
+        invTimeInterval = setInterval(updateTime, 1000);
+
+        // Stop auto-update if user manually changes time
         const elTime = document.getElementById('iTime');
-        if (elTime) elTime.value = now.toISOString().slice(0, 16);
-      };
+        if (elTime) {
+          elTime.addEventListener('input', () => {
+            clearInterval(invTimeInterval);
+          }, { once: true });
+        }
 
-      // Initial set
-      updateTime();
+        const elCarrier = document.getElementById('iCarrier');
+        const elCompany = document.getElementById('iCompany');
+        const elItem = document.getElementById('iItem');
+        const elDest = document.getElementById('iDest');
+        const elOfficer = document.getElementById('iOfficer');
 
-      // Clear existing interval if any
-      if (invTimeInterval) clearInterval(invTimeInterval);
+        if (elCarrier) elCarrier.value = '';
+        if (elCompany) elCompany.value = '';
+        if (elItem) elItem.value = '';
+        if (elDest) elDest.value = '';
+        if (elOfficer) elOfficer.value = 'Admin/Security'; // Default but editable
 
-      // Update every second (1000ms)
-      invTimeInterval = setInterval(updateTime, 1000);
+        // Reset Dropdown to IN
+        const t = document.getElementById('iType');
+        if (t) t.value = 'IN';
 
-      // Stop auto-update if user manually changes time
-      const elTime = document.getElementById('iTime');
-      if (elTime) {
-        elTime.onfocus = () => clearInterval(invTimeInterval);
-        elTime.onchange = () => clearInterval(invTimeInterval);
+        invModal.showModal();
+      } catch (err) {
+        alert("Gagal membuka Form: " + err.message);
+        console.error("Open Modal Error:", err);
       }
-
-      const elCarrier = document.getElementById('iCarrier');
-      const elCompany = document.getElementById('iCompany');
-      const elItem = document.getElementById('iItem');
-      const elDest = document.getElementById('iDest');
-      const elOfficer = document.getElementById('iOfficer');
-
-      if (elCarrier) elCarrier.value = '';
-      if (elCompany) elCompany.value = '';
-      if (elItem) elItem.value = '';
-      if (elDest) elDest.value = '';
-      if (elOfficer) elOfficer.value = 'Admin/Security'; // Default but editable
-
-      // Reset Dropdown to IN
-      const t = document.getElementById('iType');
-      if (t) t.value = 'IN';
-
-      invModal.showModal();
     };
 
-    if (btnOpenInv) btnOpenInv.onclick = () => {
-      // Reset Title & ID when opening fresh
-      const elId = document.getElementById('iId');
-      const title = document.getElementById('invModalTitle');
-      if (elId) elId.value = '';
-      if (title) title.textContent = 'Input Barang Masuk / Keluar';
-      window.openInvModal();
-    };
 
-    if (btnBackInv) btnBackInv.onclick = (e) => {
+    // The click listener for btnOpenInv has been removed here. 
+    // It is handled exclusively by inline onclick in index.html.
+
+
+    window.saveInventoryItem = async (e) => {
       e.preventDefault();
-      if (invTimeInterval) clearInterval(invTimeInterval);
-      invModal.close();
-    };
+      const btnSaveInv = document.getElementById('btnSaveInv');
+      try {
+        const idVal = document.getElementById('iId')?.value; // Check hidden ID
+        const type = document.getElementById('iType').value;
+        const timeVal = document.getElementById('iTime').value;
+        const carrier = document.getElementById('iCarrier').value;
+        const company = document.getElementById('iCompany').value;
+        const item = document.getElementById('iItem').value;
+        const dest = document.getElementById('iDest').value;
+        const officer = document.getElementById('iOfficer').value;
 
-    if (btnSaveInv) btnSaveInv.onclick = async (e) => {
-      e.preventDefault();
-      const idVal = document.getElementById('iId')?.value; // Check hidden ID
-      const type = document.getElementById('iType').value;
-      const timeVal = document.getElementById('iTime').value;
-      const carrier = document.getElementById('iCarrier').value;
-      const company = document.getElementById('iCompany').value;
-      const item = document.getElementById('iItem').value;
-      const dest = document.getElementById('iDest').value;
-      const officer = document.getElementById('iOfficer').value;
+        if (!carrier || !item) {
+          alert('Mohon isi Nama Pembawa dan Jenis Barang.');
+          return;
+        }
 
-      if (!carrier || !item) {
-        alert('Mohon isi Nama Pembawa dan Jenis Barang.');
-        return;
-      }
+        // Disable button to prevent double submit
+        if (btnSaveInv) {
+          btnSaveInv.disabled = true;
+          btnSaveInv.textContent = 'Menyimpan...';
+        }
 
-      // Disable button to prevent double submit
-      btnSaveInv.disabled = true;
-      btnSaveInv.textContent = 'Menyimpan...';
+        let rec;
 
-      let rec;
+        // EDIT MODE
+        if (idVal) {
+          rec = inventoryData.find(x => x.id === idVal);
+          if (rec) {
+            rec.carrier = carrier;
+            rec.company = company;
+            rec.item = item;
+            rec.dest = dest;
+            rec.officer = officer;
+            rec.type = type;
 
-      // EDIT MODE
-      if (idVal) {
-        rec = inventoryData.find(x => x.id === idVal);
-        if (rec) {
-          rec.carrier = carrier;
-          rec.company = company;
-          rec.item = item;
-          rec.dest = dest;
-          rec.officer = officer;
-          rec.type = type;
-
-          // Update Time logic
+            // Update Time logic
+            if (type === 'IN') {
+              rec.timeIn = timeVal;
+              // Keep timeOut if exists (don't erase checkout time if only editing name)
+            } else {
+              rec.timeIn = null;
+              rec.timeOut = timeVal;
+            }
+          }
+        }
+        // CREATE MODE
+        else {
+          rec = {
+            id: Date.now().toString(36),
+            carrier, company, item, dest, officer, type
+          };
           if (type === 'IN') {
             rec.timeIn = timeVal;
-            // Keep timeOut if exists (don't erase checkout time if only editing name)
+            rec.timeOut = null;
           } else {
             rec.timeIn = null;
             rec.timeOut = timeVal;
           }
+          inventoryData.push(rec);
         }
-      }
-      // CREATE MODE
-      else {
-        rec = {
-          id: Date.now().toString(36),
-          carrier, company, item, dest, officer, type
-        };
-        if (type === 'IN') {
-          rec.timeIn = timeVal;
-          rec.timeOut = null;
-        } else {
-          rec.timeIn = null;
-          rec.timeOut = timeVal;
-        }
-        inventoryData.push(rec);
-      }
 
-      saveInventory();
+        saveInventory();
 
-      // Sync to Supabase
-      try {
+        // Sync to Supabase
         if (btnSaveInv) btnSaveInv.textContent = 'Syncing Cloud...';
-        await pushInventory(rec);
-        // Note: pushInventory already alerts on error, but we should only close modal if success?
-        // Actually pushInventory returns void currently in original code, I should update it to return boolean.
-        // But for now, let's assume if it throws (which it doesn't, it catches internally), we are fine.
-        // Wait, pushInventory CATCHES error?
-        // Yes, my implementation in step 176 catches and alerts.
-        // So it resolves undefined.
+        if (window.pushInventory) {
+           await window.pushInventory(rec);
+        }
 
-        invModal.close();
-        alert('Data berhasil disimpan dan disinkronkan!');
+        const invModal = document.getElementById('invModal');
+        if (invModal) invModal.close();
+        // alert('Data berhasil disimpan!'); // Removed annoying success alert since ui updates
       } catch (err) {
         console.error(err);
-        alert('Error logic: ' + err.message);
+        alert('Gagal menyimpan: ' + err.message);
       } finally {
         if (btnSaveInv) {
           btnSaveInv.disabled = false;
@@ -5723,7 +5720,7 @@ window.addEventListener('DOMContentLoaded', () => {
         }
       }
     };
-  });
+  })();
 
   // Initial Render if on inventory route
   window.renderInventory = renderInventory;

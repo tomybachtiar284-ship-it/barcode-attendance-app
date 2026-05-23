@@ -5218,3 +5218,76 @@ body::after {
   z-index: 99999 !important;
 }
 
+
+/* ============================================================================
+   AREA 18: STICKY ACTION COLUMN FOR TABLES
+   Membuat kolom aksi selalu terlihat di layar
+   ========================================================================== */
+.table th:last-child,
+.table td:last-child {
+  position: sticky;
+  right: 0;
+  background-color: #ffffff;
+  z-index: 10;
+}
+
+.table th:last-child {
+  z-index: 11;
+  box-shadow: -2px 0 5px rgba(0,0,0,0.05);
+}
+
+.table td:last-child {
+  box-shadow: -2px 0 5px rgba(0,0,0,0.05);
+}
+
+.table tr:hover td:last-child {
+  background-color: var(--primary-100);
+}
+
+/* ============================================================================
+   AREA 19: PRINT STYLES FOR EMERGENCY MUSTER (AND OTHERS)
+   ========================================================================== */
+@media print {
+  /* Sembunyikan elemen yang tidak perlu dicetak */
+  .sidebar, .nav, .toolbar button, #btnSyncManual, .mobile-bottom-nav, .mobile-top-nav, .header-right {
+    display: none !important;
+  }
+
+  /* Hilangkan margin/padding dari area utama */
+  .main {
+    margin-left: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+  }
+
+  /* Bersihkan warna latar belakang agar tidak boros tinta */
+  body, .app, .main, .route, .card {
+    background: #fff !important;
+    box-shadow: none !important;
+    color: #000 !important;
+  }
+
+  /* Pastikan header Muster Point tetap terlihat jelas */
+  .header-modern {
+    background: transparent !important;
+    color: #000 !important;
+    border-bottom: 2px solid #ef4444 !important;
+    margin-bottom: 10px !important;
+    padding: 0 !important;
+  }
+  
+  .header-modern * {
+    color: #000 !important;
+  }
+
+  /* Reset layout agar ukuran kertas penuh digunakan */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  @page {
+    margin: 1cm;
+  }
+}
+
