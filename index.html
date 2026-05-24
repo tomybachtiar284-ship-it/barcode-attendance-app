@@ -114,6 +114,10 @@
 
       <!-- MOBILE DASHBOARD (Visible ONLY on Mobile) -->
       <div class="mob-dash-container mob-modern-wrapper mobile-only">
+        
+        <!-- Toast Container for Realtime Notifications -->
+        <div id="mobToastContainer"></div>
+
         <!-- 1. Header (Gradient) -->
         <div class="mob-modern-header">
           <div class="mob-header-row">
@@ -132,8 +136,24 @@
           </div>
 
           <div class="mob-greet">
-            <p style="opacity:0.8; font-size:0.85rem; margin-bottom:4px;">Selamat Siang,</p>
+            <p id="mobGreetingText" style="opacity:0.8; font-size:0.85rem; margin-bottom:4px;">Selamat Siang,</p>
             <h1><span id="mobUserGreetName">Tomy</span> 👋</h1>
+            <script>
+              (function(){
+                function updateGreeting() {
+                  var hr = new Date().getHours();
+                  var text = "Selamat Malam,";
+                  if (hr >= 4 && hr < 11) text = "Selamat Pagi,";
+                  else if (hr >= 11 && hr < 15) text = "Selamat Siang,";
+                  else if (hr >= 15 && hr < 18) text = "Selamat Sore,";
+                  
+                  var el = document.getElementById("mobGreetingText");
+                  if(el) el.textContent = text;
+                }
+                updateGreeting();
+                setInterval(updateGreeting, 60000); // Check every minute
+              })();
+            </script>
           </div>
         </div>
 
@@ -142,7 +162,7 @@
           <div class="mob-hero-card" onclick="window._showActiveDetail && window._showActiveDetail()"
             style="cursor:pointer">
             <div class="mob-hero-title">
-              <span class="dot"></span>
+              <span class="dot live-pulse"></span>
               Hadir di Lokasi
             </div>
             <div class="mob-hero-count" id="heroActiveCount_v2">--</div>

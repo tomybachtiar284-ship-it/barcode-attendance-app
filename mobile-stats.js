@@ -460,8 +460,43 @@
         // === 6. SHIFT INFO BADGE ===
         renderShiftInfo();
 
-        // Keep updating
-        setTimeout(renderStats, 10000);
+        // Keep updating via fallback interval instead of fast poll
+        if (!window._mobileStatsInterval) {
+            window._mobileStatsInterval = setInterval(renderStats, 30000); // 30s fallback
+        }
+    }
+
+    // Expose global trigger for realtime updates
+    window.triggerMobileUpdate = function(newRecord) {
+        renderStats();
+        if (newRecord && newRecord.status) {
+            var actionText = newRecord.status === 'datang' ? 'hadir' : (newRecord.status === 'pulang' ? 'pulang' : newRecord.status);
+            var colorClass = newRecord.status === 'datang' ? (newRecord.late ? 'red' : 'green') : 'blue';
+            showMobileToast('<b>' + (newRecord.name || newRecord.nid) + '</b> baru saja ' + actionText, colorClass);
+        }
+    };
+
+    function showMobileToast(msg, colorClass) {
+        var container = document.getElementById('mobToastContainer');
+        if (!container) return;
+
+        var toast = document.createElement('div');
+        toast.className = 'mob-toast ' + (colorClass || 'blue');
+        toast.innerHTML = '<div class="toast-icon">' + (colorClass === 'green' ? '✅' : (colorClass === 'red' ? '⏰' : 'ℹ️')) + '</div>' +
+                          '<div class="toast-msg">' + msg + '</div>';
+        
+        container.appendChild(toast);
+        
+        // Trigger reflow
+        void toast.offsetWidth;
+        toast.classList.add('show');
+
+        setTimeout(function() {
+            toast.classList.remove('show');
+            setTimeout(function() {
+                if (toast.parentNode) toast.parentNode.removeChild(toast);
+            }, 300); // match transition
+        }, 4000);
     }
 
     // ============================================

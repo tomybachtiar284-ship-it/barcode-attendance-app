@@ -5291,3 +5291,759 @@ body::after {
   }
 }
 
+
+/* =========================================
+   MOBILE REALTIME & INTERACTIVE ENHANCEMENTS
+   ========================================= */
+
+/* Toast Container */
+#mobToastContainer {
+  position: fixed;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 90%;
+  max-width: 400px;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  pointer-events: none;
+}
+
+/* Toast Element */
+.mob-toast {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(8px);
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  transform: translateY(-20px);
+  opacity: 0;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  border-left: 4px solid #3b82f6;
+  pointer-events: auto;
+}
+
+.mob-toast.show {
+  transform: translateY(0);
+  opacity: 1;
+}
+
+.mob-toast.green { border-left-color: #22c55e; }
+.mob-toast.red { border-left-color: #ef4444; }
+
+.mob-toast .toast-icon {
+  font-size: 1.25rem;
+}
+
+.mob-toast .toast-msg {
+  font-size: 0.85rem;
+  color: #1e293b;
+  line-height: 1.3;
+}
+.mob-toast .toast-msg b {
+  font-weight: 700;
+  color: #0f172a;
+}
+
+/* Live Pulse Indicator */
+@keyframes pulseHeartbeat {
+  0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7); }
+  70% { transform: scale(1); box-shadow: 0 0 0 6px rgba(34, 197, 94, 0); }
+  100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
+}
+
+.live-pulse {
+  animation: pulseHeartbeat 2s infinite;
+  background: #22c55e !important;
+}
+
+/* Micro-animations for Cards */
+.mob-hero-card, .mob-stat-row, .mob-quick-item, .mob-comp-card {
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.mob-hero-card:active, .mob-stat-row:active, .mob-quick-item:active, .mob-comp-card:active {
+  transform: scale(0.96);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* FIX MOBILE BOTTOM PADDING FOR NAV OVERLAP */
+.mob-dash-container {
+  padding-bottom: 100px !important;
+}
+#mobScanView {
+  padding-bottom: 100px !important;
+}
+
+
+/* =========================================
+   MOBILE SIDEBAR SMOOTHNESS ENHANCEMENTS
+   ========================================= */
+
+.sidebar.active-mobile {
+  background-color: #0f172a !important;
+  border-top-right-radius: 24px;
+  border-bottom-right-radius: 24px;
+  box-shadow: 15px 0 40px rgba(0,0,0,0.4) !important;
+  transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.sidebar-overlay {
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  transition: opacity 0.3s ease;
+}
+
+.navlink {
+  transition: all 0.25s ease !important;
+}
+
+.navlink.active {
+  transform: translateX(6px);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15) !important;
+}
+
+.navlink:active {
+  transform: scale(0.96);
+}
+
+
+/* =========================================
+   MOBILE RESPONSIVENESS & TABLE FIXES
+   ========================================= */
+@media (max-width: 768px) {
+  /* Generic Layout Tweaks */
+  .main {
+    padding-left: 12px;
+    padding-right: 12px;
+    overflow-x: hidden;
+  }
+  .card {
+    padding: 16px;
+    width: 100%;
+    box-sizing: border-box;
+    overflow: hidden;
+  }
+  
+  /* Global Table Wrap for scrolling */
+  .table-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    width: 100%;
+    border-radius: 12px;
+  }
+
+  /* Toolbars and Inputs */
+  .toolbar {
+    flex-direction: column;
+    align-items: stretch !important;
+    gap: 12px;
+  }
+  .toolbar .left, .toolbar .right {
+    width: 100%;
+    justify-content: flex-start;
+  }
+  .search, input[type="text"], input[type="date"], input[type="month"], select {
+    min-width: 0 !important;
+    width: 100% !important;
+    box-sizing: border-box;
+  }
+  .card .btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  /* Fix Pengaturan Shift Table (#tableShiftTime) */
+  #tableShiftTime {
+    display: block;
+    width: 100%;
+  }
+  #tableShiftTime thead {
+    display: none;
+  }
+  #tableShiftTime tbody {
+    display: block;
+    width: 100%;
+  }
+  #tableShiftTime tr {
+    display: flex;
+    flex-direction: column;
+    background: #f8fafc;
+    margin-bottom: 16px;
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    padding: 16px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.02);
+  }
+  #tableShiftTime td {
+    display: flex;
+    flex-direction: column;
+    border: none;
+    padding: 6px 0;
+  }
+  #tableShiftTime td:nth-child(1)::before { content: "Shift: "; font-weight: bold; color: var(--muted); font-size: 0.85rem; margin-bottom: 4px; }
+  #tableShiftTime td:nth-child(2)::before { content: "Datang: "; font-weight: bold; color: var(--muted); font-size: 0.85rem; margin-bottom: 4px; }
+  #tableShiftTime td:nth-child(3)::before { content: "Pulang: "; font-weight: bold; color: var(--muted); font-size: 0.85rem; margin-bottom: 4px; }
+  #tableShiftTime td:nth-child(4) { display: none; }
+  
+  #tableShiftTime input[type="time"], #tableShiftTime select {
+    width: 100%;
+    box-sizing: border-box;
+  }
+}
+
+
+@media (max-width: 768px) {
+  /* FIX FOR JADWAL GRUP BULANAN TABLE SQUISHING */
+  #tableSched {
+    display: table;
+    width: max-content;
+    min-width: 100%;
+  }
+  #tableSched th, #tableSched td {
+    padding: 8px 4px;
+    min-width: 65px;
+    text-align: center;
+  }
+  #tableSched select {
+    width: auto !important;
+    min-width: 60px !important;
+    padding: 6px 4px !important;
+    font-size: 0.85rem;
+  }
+}
+
+
+/* FIX STICKY LAST COLUMN FOR Sched Table */
+#tableSched th:last-child,
+#tableSched td:last-child {
+  position: static !important;
+  box-shadow: none !important;
+  z-index: auto !important;
+}
+
+
+/* VISIBLE SCROLLBAR FOR TABLE-WRAP */
+.table-wrap::-webkit-scrollbar {
+  height: 8px;
+}
+.table-wrap::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 4px;
+}
+.table-wrap::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+
+
+/* ============================================================================
+   LAPORAN 24 JAM (ROUTE-ATTENDANCE) MOBILE REDESIGN
+   ========================================================================== */
+@media (max-width: 768px) {
+  /* 1. FILTER LAYOUT */
+  #route-attendance .toolbar {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 12px !important;
+  }
+  #route-attendance .toolbar .left {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    width: 100% !important;
+    gap: 12px !important;
+  }
+  #route-attendance .toolbar label {
+    display: flex;
+    flex-direction: column;
+    font-size: 13px;
+    color: var(--muted);
+    font-weight: 600;
+    width: 100%;
+  }
+  #route-attendance .toolbar label input,
+  #route-attendance .toolbar select,
+  #route-attendance .toolbar input[type="search"] {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin-top: 6px;
+    padding: 12px 14px !important;
+    border-radius: 8px !important;
+    border: 1px solid var(--line) !important;
+    font-size: 14px;
+    background-color: #f8fafc;
+  }
+  #route-attendance .toolbar .btn {
+    width: 100% !important;
+    margin-left: 0 !important;
+    margin-top: 4px;
+    padding: 12px !important;
+    justify-content: center;
+  }
+  
+  /* 2. TABLE TO CARD VIEW (#tableAtt) */
+  #route-attendance #tableAtt,
+  #route-attendance #tableAtt tbody,
+  #route-attendance #tableAtt tr,
+  #route-attendance #tableAtt td {
+    display: block !important;
+    width: 100% !important;
+  }
+  
+  #route-attendance #tableAtt thead,
+  #route-attendance #tableAtt colgroup {
+    display: none !important;
+  }
+  
+  #route-attendance #tableAtt tr {
+    background: #ffffff;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    margin-bottom: 16px;
+    padding: 16px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+    position: relative;
+  }
+  
+  #route-attendance #tableAtt td {
+    padding: 8px 0 !important;
+    border: none !important;
+    text-align: right !important;
+    font-size: 14px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+  }
+  
+  #route-attendance #tableAtt td::before {
+    font-size: 12px;
+    color: var(--muted);
+    font-weight: 600;
+    text-transform: uppercase;
+    flex-shrink: 0;
+    width: 40%;
+    text-align: left;
+  }
+  
+  /* Hide checkbox */
+  #route-attendance #tableAtt td:nth-child(1) {
+    display: none !important;
+  }
+  
+  /* Nama */
+  #route-attendance #tableAtt td:nth-child(2)::before { content: "Nama"; }
+  #route-attendance #tableAtt td:nth-child(2) {
+    font-weight: 700;
+    font-size: 16px !important;
+    color: var(--dark);
+    border-bottom: 1px dashed var(--line) !important;
+    padding-bottom: 12px !important;
+    margin-bottom: 8px !important;
+  }
+  
+  /* NID */
+  #route-attendance #tableAtt td:nth-child(3)::before { content: "NID"; }
+  
+  /* Tanggal */
+  #route-attendance #tableAtt td:nth-child(4)::before { content: "Tanggal"; }
+  
+  /* Group */
+  #route-attendance #tableAtt td:nth-child(5)::before { content: "Grup"; }
+  
+  /* Masuk */
+  #route-attendance #tableAtt td:nth-child(6)::before { content: "Masuk"; }
+  
+  /* Pulang */
+  #route-attendance #tableAtt td:nth-child(7)::before { content: "Pulang"; }
+  
+  /* Status */
+  #route-attendance #tableAtt td:nth-child(8)::before { content: "Status"; }
+  #route-attendance #tableAtt td:nth-child(8) .status-badge {
+    margin: 0 !important;
+  }
+  
+  /* Actions */
+  #route-attendance #tableAtt td:nth-child(9)::before { content: "Aksi"; display: none; }
+  #route-attendance #tableAtt td:nth-child(9) {
+    margin-top: 12px !important;
+    padding-top: 12px !important;
+    border-top: 1px dashed var(--line) !important;
+    justify-content: flex-end !important;
+    gap: 8px;
+    position: static !important; /* Override sticky actions */
+  }
+  #route-attendance #tableAtt td:nth-child(9) .btn {
+    width: auto !important;
+    padding: 6px 12px !important;
+    margin: 0 !important;
+  }
+}
+
+
+/* ============================================================================
+   LAPORAN OVERTIME (ROUTE-OVERTIME-REPORT) MOBILE REDESIGN
+   ========================================================================== */
+@media (max-width: 768px) {
+  /* 1. FILTER LAYOUT */
+  #route-overtime-report .toolbar {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 12px !important;
+  }
+  #route-overtime-report .toolbar .left {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    width: 100% !important;
+    gap: 12px !important;
+  }
+  #route-overtime-report .toolbar label {
+    display: flex;
+    flex-direction: column;
+    font-size: 13px;
+    color: var(--muted);
+    font-weight: 600;
+    width: 100%;
+  }
+  #route-overtime-report .toolbar label input,
+  #route-overtime-report .toolbar select {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin-top: 6px;
+    padding: 12px 14px !important;
+    border-radius: 8px !important;
+    border: 1px solid var(--line) !important;
+    font-size: 14px;
+    background-color: #f8fafc;
+  }
+  #route-overtime-report .toolbar .right,
+  #route-overtime-report .toolbar .btn {
+    width: 100% !important;
+    margin-left: 0 !important;
+    margin-top: 4px;
+    padding: 12px !important;
+    justify-content: center;
+  }
+  #route-overtime-report .toolbar > .left > span {
+     display: none; /* Hide the - span between dates */
+  }
+
+  /* 2. SUMMARY CARDS ADJUSTMENT */
+  #route-overtime-report .grid-3 {
+    grid-template-columns: 1fr !important; /* Stack summary cards */
+  }
+
+  /* 3. TABLE TO CARD VIEW (#tableOtReport) */
+  #route-overtime-report #tableOtReport,
+  #route-overtime-report #tableOtReport tbody,
+  #route-overtime-report #tableOtReport tr,
+  #route-overtime-report #tableOtReport td {
+    display: block !important;
+    width: 100% !important;
+  }
+
+  #route-overtime-report #tableOtReport thead,
+  #route-overtime-report #tableOtReport colgroup {
+    display: none !important;
+  }
+
+  #route-overtime-report #tableOtReport tr {
+    background: #ffffff;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    margin-bottom: 16px;
+    padding: 16px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+    position: relative;
+  }
+
+  #route-overtime-report #tableOtReport td {
+    padding: 8px 0 !important;
+    border: none !important;
+    text-align: right !important;
+    font-size: 14px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+  }
+
+  #route-overtime-report #tableOtReport td::before {
+    font-size: 12px;
+    color: var(--muted);
+    font-weight: 600;
+    text-transform: uppercase;
+    flex-shrink: 0;
+    width: 40%;
+    text-align: left;
+  }
+
+  /* 1: Tanggal */
+  #route-overtime-report #tableOtReport td:nth-child(1)::before { content: "Tanggal"; }
+  
+  /* 2: Nama */
+  #route-overtime-report #tableOtReport td:nth-child(2)::before { content: "Nama"; }
+  #route-overtime-report #tableOtReport td:nth-child(2) {
+    font-weight: 700;
+    font-size: 16px !important;
+    color: var(--dark);
+    border-bottom: 1px dashed var(--line) !important;
+    padding-bottom: 12px !important;
+    margin-bottom: 8px !important;
+  }
+
+  /* 3: Shift */
+  #route-overtime-report #tableOtReport td:nth-child(3)::before { content: "Shift"; }
+
+  /* 4: Jam Pulang */
+  #route-overtime-report #tableOtReport td:nth-child(4)::before { content: "Jam Pulang"; }
+
+  /* 5: Durasi */
+  #route-overtime-report #tableOtReport td:nth-child(5)::before { content: "Durasi"; }
+  #route-overtime-report #tableOtReport td:nth-child(5) {
+    color: var(--danger) !important;
+    font-weight: 700;
+  }
+
+  /* 6: Keterangan */
+  #route-overtime-report #tableOtReport td:nth-child(6)::before { content: "Keterangan"; }
+}
+
+
+/* ============================================================================
+   GENERAL REPORT (ROUTE-GENERAL-REPORT) MOBILE REDESIGN
+   ========================================================================== */
+@media (max-width: 768px) {
+  /* 1. FILTER LAYOUT */
+  #route-general-report .toolbar > div {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 12px !important;
+  }
+  #route-general-report .toolbar > div > div {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    width: 100% !important;
+    gap: 6px !important;
+  }
+  #route-general-report .toolbar label {
+    font-size: 13px !important;
+    color: var(--muted);
+    font-weight: 600;
+    width: 100%;
+  }
+  #route-general-report .toolbar input,
+  #route-general-report .toolbar select {
+    width: 100% !important;
+    max-width: 100% !important;
+    padding: 12px 14px !important;
+    border-radius: 8px !important;
+    border: 1px solid var(--line) !important;
+    font-size: 14px;
+    background-color: #f8fafc;
+  }
+  #route-general-report .toolbar .btn {
+    width: 100% !important;
+    margin-left: 0 !important;
+    margin-top: 8px;
+    padding: 12px !important;
+    justify-content: center;
+  }
+  #route-general-report .toolbar span {
+     display: none; /* Hide the - span between dates */
+  }
+
+  /* 2. CHARTS GRID FIX */
+  /* Target the inline style grid of charts */
+  #route-general-report > div[style*="display:grid"] {
+    grid-template-columns: 1fr !important;
+    gap: 16px !important;
+  }
+  
+  #route-general-report .card {
+    padding: 16px !important;
+  }
+  
+  #route-general-report .card-title {
+    font-size: 14px !important;
+    margin-bottom: 12px !important;
+  }
+  
+  /* Make canvases responsive and not too tall on mobile */
+  #route-general-report .card > div[style*="height:320px"] {
+    height: 250px !important;
+  }
+}
+
+
+/* ============================================================================
+   GENERAL REPORT FIX CUTOFF
+   ========================================================================== */
+@media (max-width: 768px) {
+  #route-general-report .toolbar {
+    display: block !important;
+    height: auto !important;
+    overflow: visible !important;
+    padding: 16px !important;
+  }
+  #route-general-report .toolbar > div {
+    display: flex !important;
+    flex-direction: column !important;
+    flex-wrap: nowrap !important;
+    gap: 16px !important;
+    width: 100% !important;
+    overflow: visible !important;
+  }
+  #route-general-report .toolbar > div > div {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    width: 100% !important;
+    gap: 8px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: none !important;
+    background: transparent !important;
+  }
+}
+
+
+/* ============================================================================
+   EMERGENCY MUSTER (ROUTE-EMERGENCY) MOBILE REDESIGN
+   ========================================================================== */
+@media (max-width: 768px) {
+  /* 1. Show the Live Count (override .header-right display:none) */
+  #route-emergency .header-modern {
+    flex-direction: column !important;
+    gap: 16px !important;
+    text-align: center !important;
+    padding: 24px 16px !important;
+  }
+  #route-emergency .header-right {
+    display: flex !important;
+    justify-content: center !important;
+    width: 100% !important;
+  }
+  #route-emergency .header-right > div {
+    text-align: center !important;
+  }
+  
+  /* 2. Toolbar layout */
+  #route-emergency .toolbar {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 12px !important;
+  }
+  #route-emergency .toolbar .left,
+  #route-emergency .toolbar .right {
+    flex-direction: column !important;
+    width: 100% !important;
+    align-items: stretch !important;
+    gap: 8px !important;
+  }
+  #route-emergency .toolbar .btn {
+    width: 100% !important;
+    margin: 0 !important;
+    justify-content: center !important;
+  }
+  
+  /* 3. TABLE TO CARD VIEW (#tableMuster) */
+  #route-emergency #tableMuster,
+  #route-emergency #tableMuster tbody,
+  #route-emergency #tableMuster tr,
+  #route-emergency #tableMuster td {
+    display: block !important;
+    width: 100% !important;
+  }
+
+  #route-emergency #tableMuster thead,
+  #route-emergency #tableMuster colgroup {
+    display: none !important;
+  }
+
+  #route-emergency #tableMuster tr {
+    background: #ffffff;
+    border: 1px solid var(--danger);
+    border-radius: 12px;
+    margin-bottom: 16px;
+    padding: 16px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+    position: relative;
+    border-left: 6px solid var(--danger);
+  }
+
+  #route-emergency #tableMuster td {
+    padding: 8px 0 !important;
+    border: none !important;
+    text-align: right !important;
+    font-size: 14px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+  }
+
+  #route-emergency #tableMuster td::before {
+    font-size: 12px;
+    color: var(--muted);
+    font-weight: 600;
+    text-transform: uppercase;
+    flex-shrink: 0;
+    width: 40%;
+    text-align: left;
+  }
+
+  /* 1: Jam Masuk */
+  #route-emergency #tableMuster td:nth-child(1)::before { content: "Jam Masuk"; }
+  
+  /* 2: Nama & ID */
+  #route-emergency #tableMuster td:nth-child(2)::before { content: "Nama / ID"; }
+  #route-emergency #tableMuster td:nth-child(2) {
+    font-weight: 700;
+    font-size: 16px !important;
+    color: var(--dark);
+    border-bottom: 1px dashed var(--line) !important;
+    padding-bottom: 12px !important;
+    margin-bottom: 8px !important;
+  }
+
+  /* 3: Perusahaan */
+  #route-emergency #tableMuster td:nth-child(3)::before { content: "Perusahaan"; }
+
+  /* 4: Shift */
+  #route-emergency #tableMuster td:nth-child(4)::before { content: "Shift"; }
+
+  /* 5: Lokasi Terakhir */
+  #route-emergency #tableMuster td:nth-child(5)::before { content: "Lokasi Terakhir"; }
+  #route-emergency #tableMuster td:nth-child(5) {
+    color: var(--danger) !important;
+    font-weight: 700;
+  }
+}
+
+
+/* Make the live count appear on top for mobile */
+@media (max-width: 768px) {
+  #route-emergency .header-right {
+    display: flex !important;
+    order: -1 !important;
+    background: rgba(255,255,255,0.2);
+    padding: 15px;
+    border-radius: 12px;
+    margin-bottom: 10px;
+  }
+  #route-emergency .header-right #musterTotalCount {
+    font-size: 4rem !important;
+  }
+}
+
+
+/* EMERGENCY MUSTER: Override the global .header-modern display:none on mobile */
+@media (max-width: 768px) {
+  #route-emergency .header-modern {
+    display: flex !important;
+  }
+}
+

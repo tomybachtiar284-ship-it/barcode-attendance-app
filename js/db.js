@@ -485,6 +485,7 @@ function handleRealtimeInsert(newRow, tableName) {
     window.attendance.sort((a, b) => a.ts - b.ts);
     saveToStorage();
     triggerRefresh();
+    if (window.triggerMobileUpdate) window.triggerMobileUpdate(rec);
 }
 
 // --- UPDATE HANDLER ---
@@ -505,6 +506,7 @@ function handleRealtimeUpdate(newRow, tableName) {
         window.attendance.sort((a, b) => a.ts - b.ts);
         saveToStorage();
         triggerRefresh();
+        if (window.triggerMobileUpdate) window.triggerMobileUpdate(rec);
     } else {
         // If not found, treat as Insert? Or ignore?
         // Let's treat as Insert to be safe (maybe we missed the initial insert)
