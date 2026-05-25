@@ -3111,7 +3111,7 @@ window.addEventListener('DOMContentLoaded', () => {
   // Expose for debugging/testing
   window.getFilteredAttendanceRows = getFilteredAttendanceRows;
 
-  $('#tableAtt tbody')?.addEventListener('click', (e) => {
+  $('#tableAtt tbody')?.addEventListener('click', async (e) => {
     const btn = e.target.closest('button'); if (!btn) return;
     const tr = btn.closest('tr'); const ts = Number(tr?.dataset.ts || '0'); if (!ts) return;
 
