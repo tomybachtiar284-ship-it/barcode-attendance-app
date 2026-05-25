@@ -233,10 +233,13 @@ async function delAttendance(ts) {
     if (!sb) return;
     
     // 2. Try delete from Supabase
-    const { error: err1 } = await sb.from('attendance').delete().eq('ts', ts);
+    const { data, error: err1 } = await sb.from('attendance').delete().eq('ts', ts).select();
     if (err1) {
         console.error('Delete fail, queueing:', err1);
         addToQueue('DELETE_ATTENDANCE', { ts });
+    } else if (data && data.length === 0) {
+        alert("PERINGATAN: Gagal menghapus data di server Cloud (Supabase).\n\nIni terjadi karena sistem keamanan RLS (Row Level Security) di Supabase Anda belum mengizinkan aksi DELETE.\n\nSilakan buka Supabase Dashboard -> Authentication -> Policies -> Tambahkan policy DELETE untuk tabel 'attendance' dan 'breaks'.\n\nUntuk sementara, data ini akan ditarik kembali ke aplikasi Anda.");
+        if (window.manualSyncAttendance) window.manualSyncAttendance();
     }
     
     await sb.from('breaks').delete().eq('ts', ts);
