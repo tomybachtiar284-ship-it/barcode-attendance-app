@@ -14,7 +14,7 @@ const TRANSLATIONS = {
         nav_latest: "Informasi Terbaru",
         nav_education: "Edukasi",
         nav_logout: "Keluar",
-        footer_version: "v1.4 • Lokal",
+        footer_version: "v1.4.1 • Lokal",
 
         // General Messages
         confirm_logout: "Apakah Anda yakin ingin keluar?",
@@ -133,7 +133,7 @@ const TRANSLATIONS = {
         nav_latest: "Latest Info",
         nav_education: "Education",
         nav_logout: "Log Out",
-        footer_version: "v1.4 • Local-first",
+        footer_version: "v1.4.1 • Local-first",
 
         // General Messages
         confirm_logout: "Are you sure you want to log out?",
