@@ -247,6 +247,7 @@ async function delAttendance(ts) {
         
         await sb.from('breaks').delete().eq('ts', ts);
     } catch(err) {
+        alert("GAGAL KONEKSI / ERROR: " + err.message);
         throw err;
     }
 }
