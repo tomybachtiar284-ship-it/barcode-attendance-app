@@ -240,7 +240,7 @@ async function delInventory(id) {
 async function pushShifts() {
     try {
         if (!sb) return;
-        await sb.from('settings').upsert({ key: 'shifts', value: shifts }, { onConflict: 'key' });
+        await sb.from('settings').upsert({ key: 'shifts', value: window.shifts }, { onConflict: 'key' });
     } catch (err) {
         console.error('pushShifts error:', err);
     }
@@ -249,7 +249,7 @@ async function pushShifts() {
 async function pushSched(monthId) {
     try {
         if (!sb || !monthId) return;
-        await sb.from('shift_monthly').upsert({ month: monthId, data: sched[monthId] }, { onConflict: 'month' });
+        await sb.from('shift_monthly').upsert({ month: monthId, data: window.sched[monthId] }, { onConflict: 'month' });
     } catch (err) {
         console.error('pushSched error:', err);
     }
