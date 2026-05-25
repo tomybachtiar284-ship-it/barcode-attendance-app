@@ -3050,29 +3050,33 @@ window.addEventListener('DOMContentLoaded', () => {
     if (confirm(`Apakah Anda yakin ingin menghapus ${checkedBoxes.length} data kehadiran yang dipilih?`)) {
       const tsToDelete = checkedBoxes.map(cb => Number(cb.dataset.ts)).filter(ts => ts > 0);
 
-      // Remove from local memory
-      attendance = attendance.filter(a => !tsToDelete.includes(a.ts));
-      save(LS_ATT, attendance);
-      syncGlobals();
-
-      // Refresh UI immediately
-      filterAttendance();
-      renderDashboard();
-      renderScanTable();
-      renderScanStats();
-      updateBulkDeleteBtnState(); // hide button again
-
       toast(`${tsToDelete.length} baris sedang dihapus dari server...`);
+      updateBulkDeleteBtnState(); // hide button
 
+      let successCount = 0;
       // Delete from cloud one by one
       for (const ts of tsToDelete) {
         try {
           await delAttendance(ts);
+          
+          // Remove from local memory only if successful
+          attendance = attendance.filter(a => a.ts !== ts);
+          successCount++;
         } catch (err) {
           console.error(`Failed to delete attendance ${ts}:`, err);
         }
       }
-      toast('Proses hapus massal selesai.');
+      
+      if (successCount > 0) {
+        save(LS_ATT, attendance);
+        syncGlobals();
+        filterAttendance();
+        renderDashboard();
+        renderScanTable();
+        renderScanStats();
+      }
+      
+      toast(`Proses hapus selesai. Berhasil: ${successCount}, Gagal: ${tsToDelete.length - successCount}`);
     }
   });
   $('#btnFilterAtt')?.addEventListener('click', filterAttendance);

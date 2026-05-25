@@ -227,22 +227,28 @@ async function pushAttendance(r) {
 async function delAttendance(ts) {
     // 1. Remove any pending push from offline queue
     const initialLen = offlineQueue.length;
-    offlineQueue = offlineQueue.filter(item => !(item.action === 'PUSH_ATTENDANCE' && item.payload.data && item.payload.data.ts === ts));
+    offlineQueue = offlineQueue.filter(item => !(item.action === 'PUSH_ATTENDANCE' && item.payload && item.payload.data && item.payload.data.ts === ts));
     if (offlineQueue.length !== initialLen) saveQueue();
 
-    if (!sb) return;
+    if (!sb) throw new Error("Supabase belum siap");
     
     // 2. Try delete from Supabase
-    const { data, error: err1 } = await sb.from('attendance').delete().eq('ts', ts).select();
-    if (err1) {
-        console.error('Delete fail, queueing:', err1);
-        addToQueue('DELETE_ATTENDANCE', { ts });
-    } else if (data && data.length === 0) {
-        alert("PERINGATAN: Gagal menghapus data di server Cloud (Supabase).\n\nIni terjadi karena sistem keamanan RLS (Row Level Security) di Supabase Anda belum mengizinkan aksi DELETE.\n\nSilakan buka Supabase Dashboard -> Authentication -> Policies -> Tambahkan policy DELETE untuk tabel 'attendance' dan 'breaks'.\n\nUntuk sementara, data ini akan ditarik kembali ke aplikasi Anda.");
-        if (window.manualSyncAttendance) window.manualSyncAttendance();
+    try {
+        const { data, error: err1 } = await sb.from('attendance').delete().eq('ts', ts).select();
+        if (err1) {
+            console.error('Delete fail, queueing:', err1);
+            addToQueue('DELETE_ATTENDANCE', { ts });
+            throw new Error(err1.message);
+        } else if (data && data.length === 0) {
+            alert("PERINGATAN: Gagal menghapus data di server Cloud (Supabase).\n\nIni terjadi karena RLS (Row Level Security) atau masalah hak akses.");
+            if (window.manualSyncAttendance) window.manualSyncAttendance();
+            throw new Error("Gagal dihapus dari Cloud");
+        }
+        
+        await sb.from('breaks').delete().eq('ts', ts);
+    } catch(err) {
+        throw err;
     }
-    
-    await sb.from('breaks').delete().eq('ts', ts);
 }
 
 // === OTHER MODULES ===
