@@ -181,20 +181,7 @@ window.addEventListener('DOMContentLoaded', () => {
       if (error) console.error('Push att error:', error);
     }
   }
-  async function delAttendance(ts) {
-    if (!sb) return;
-    // Try delete from both to be safe
-    const { error: err1 } = await sb.from('attendance').delete().eq('ts', ts);
-    if (err1) {
-      console.error('Supabase Delete Error (attendance):', err1);
-      alert('Gagal menghapus data dari Supabase (Cek Policy DELETE RLS Anda!). Pesan: ' + err1.message);
-      throw err1;
-    }
-    const { error: err2 } = await sb.from('breaks').delete().eq('ts', ts);
-    if (err2) {
-      console.error('Supabase Delete Error (breaks):', err2);
-    }
-  }
+
 
   async function pushNews(n) {
     if (!sb) { alert('Gagal simpan News: Cloud belum terkoneksi'); return; }

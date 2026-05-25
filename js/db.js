@@ -77,6 +77,11 @@ async function processQueue() {
                 const { error } = await sb.from('inventory').upsert(item.payload.data, { onConflict: 'id' });
                 if (!error) success = true; else throw error;
             }
+            else if (item.action === 'DELETE_ATTENDANCE') {
+                await sb.from('attendance').delete().eq('ts', item.payload.ts);
+                await sb.from('breaks').delete().eq('ts', item.payload.ts);
+                success = true;
+            }
             // Add other actions if needed
 
             if (success) {
@@ -220,9 +225,20 @@ async function pushAttendance(r) {
 }
 
 async function delAttendance(ts) {
+    // 1. Remove any pending push from offline queue
+    const initialLen = offlineQueue.length;
+    offlineQueue = offlineQueue.filter(item => !(item.action === 'PUSH_ATTENDANCE' && item.payload.data && item.payload.data.ts === ts));
+    if (offlineQueue.length !== initialLen) saveQueue();
+
     if (!sb) return;
-    // Try delete from both to be safe
-    await sb.from('attendance').delete().eq('ts', ts);
+    
+    // 2. Try delete from Supabase
+    const { error: err1 } = await sb.from('attendance').delete().eq('ts', ts);
+    if (err1) {
+        console.error('Delete fail, queueing:', err1);
+        addToQueue('DELETE_ATTENDANCE', { ts });
+    }
+    
     await sb.from('breaks').delete().eq('ts', ts);
 }
 
