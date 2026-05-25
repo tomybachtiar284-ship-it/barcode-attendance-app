@@ -36,7 +36,7 @@ async function checkConn() {
         sb = createClient(url, key);
         window.sb = sb;
 
-        const { error } = await sb.from('attendance').select('count', { count: 'exact', head: true });
+        const { error } = await (window.sb || sb).from('attendance').select('count', { count: 'exact', head: true });
         if (error) throw error;
         console.log('✅ Supabase Connected.');
         return true;
@@ -51,7 +51,7 @@ function requireOnline(fnName) {
     if (!navigator.onLine) {
         throw new Error(`Tidak ada koneksi internet. Fungsi "${fnName}" membutuhkan internet.`);
     }
-    if (!sb) {
+    if (!(window.sb || sb)) {
         throw new Error(`Koneksi ke database belum siap. Coba refresh halaman.`);
     }
 }
@@ -60,7 +60,7 @@ function requireOnline(fnName) {
 async function pushEmployee(e) {
     try {
         requireOnline('pushEmployee');
-        const { error } = await sb.from('employees').upsert({
+        const { error } = await (window.sb || sb).from('employees').upsert({
             nid: e.nid, name: e.name, title: e.title, company: e.company,
             shift: e.shift, photo: e.photo, status: e.status || 'Aktif',
             updated_at: new Date().toISOString()
@@ -77,7 +77,7 @@ async function pushEmployee(e) {
 async function delEmployee(nid) {
     try {
         requireOnline('delEmployee');
-        const { error } = await sb.from('employees').delete().eq('nid', nid);
+        const { error } = await (window.sb || sb).from('employees').delete().eq('nid', nid);
         if (error) throw error;
     } catch (err) {
         console.error('delEmployee error:', err);
@@ -90,13 +90,13 @@ async function pushAttendance(r) {
     try {
         requireOnline('pushAttendance');
         if (r.status === 'break_out' || r.status === 'break_in') {
-            const { error } = await sb.from('breaks').insert({
+            const { error } = await (window.sb || sb).from('breaks').insert({
                 ts: r.ts, status: r.status, nid: r.nid, name: r.name,
                 company: r.company, created_at: new Date(r.ts).toISOString()
             });
             if (error) throw error;
         } else {
-            const { error } = await sb.from('attendance').insert({
+            const { error } = await (window.sb || sb).from('attendance').insert({
                 ts: r.ts, status: r.status, nid: r.nid, name: r.name,
                 title: r.title, company: r.company, shift: r.shift,
                 note: r.note, late: r.late, ok_shift: r.okShift,
@@ -115,17 +115,17 @@ async function delAttendance(ts) {
     try {
         requireOnline('delAttendance');
         // Hapus dari tabel attendance
-        const { data, error: err1 } = await sb.from('attendance').delete().eq('ts', ts).select();
+        const { data, error: err1 } = await (window.sb || sb).from('attendance').delete().eq('ts', ts).select();
         if (err1) throw err1;
 
         // Cek apakah data benar-benar terhapus
         if (data && data.length === 0) {
             // Mungkin ada di tabel breaks, coba hapus dari sana juga
-            const { error: err2 } = await sb.from('breaks').delete().eq('ts', ts);
+            const { error: err2 } = await (window.sb || sb).from('breaks').delete().eq('ts', ts);
             if (err2) throw err2;
         } else {
             // Hapus juga dari breaks jika ada (breaks terkait)
-            await sb.from('breaks').delete().eq('ts', ts);
+            await (window.sb || sb).from('breaks').delete().eq('ts', ts);
         }
 
         console.log('✅ Berhasil dihapus dari server. ts:', ts);
@@ -140,7 +140,7 @@ async function delAttendance(ts) {
 async function updateAttendance(oldTs, updatedRecord) {
     try {
         requireOnline('updateAttendance');
-        const { error } = await sb.from('attendance').update({
+        const { error } = await (window.sb || sb).from('attendance').update({
             ts: updatedRecord.ts,
             status: updatedRecord.status,
             note: updatedRecord.note,
@@ -161,7 +161,7 @@ async function updateAttendance(oldTs, updatedRecord) {
 async function pushNews(n) {
     try {
         requireOnline('pushNews');
-        const { error } = await sb.from('news').upsert({
+        const { error } = await (window.sb || sb).from('news').upsert({
             ts: n.ts, title: n.title, body: n.body, link: n.link
         }, { onConflict: 'ts' });
         if (error) throw error;
@@ -174,7 +174,7 @@ async function pushNews(n) {
 async function delNews(ts) {
     try {
         requireOnline('delNews');
-        const { error } = await sb.from('news').delete().eq('ts', ts);
+        const { error } = await (window.sb || sb).from('news').delete().eq('ts', ts);
         if (error) throw error;
     } catch (err) {
         console.error('delNews error:', err);
@@ -186,7 +186,7 @@ async function delNews(ts) {
 async function pushEdu(e) {
     try {
         requireOnline('pushEdu');
-        const { error } = await sb.from('education').upsert({
+        const { error } = await (window.sb || sb).from('education').upsert({
             id: e.id, ts: e.ts, title: e.title, body: e.body, img: e.img
         }, { onConflict: 'id' });
         if (error) throw error;
@@ -199,7 +199,7 @@ async function pushEdu(e) {
 async function delEdu(id) {
     try {
         requireOnline('delEdu');
-        const { error } = await sb.from('education').delete().eq('id', id);
+        const { error } = await (window.sb || sb).from('education').delete().eq('id', id);
         if (error) throw error;
     } catch (err) {
         console.error('delEdu error:', err);
@@ -216,7 +216,7 @@ async function pushInventory(inv) {
             item: inv.item, dest: inv.dest, officer: inv.officer, type: inv.type,
             time_in: inv.timeIn, time_out: inv.timeOut
         };
-        const { error } = await sb.from('inventory').upsert(payload, { onConflict: 'id' });
+        const { error } = await (window.sb || sb).from('inventory').upsert(payload, { onConflict: 'id' });
         if (error) throw error;
     } catch (err) {
         console.error('pushInventory error:', err);
@@ -228,7 +228,7 @@ async function pushInventory(inv) {
 async function delInventory(id) {
     try {
         requireOnline('delInventory');
-        const { error } = await sb.from('inventory').delete().eq('id', id);
+        const { error } = await (window.sb || sb).from('inventory').delete().eq('id', id);
         if (error) throw error;
     } catch (err) {
         console.error('delInventory error:', err);
@@ -239,8 +239,8 @@ async function delInventory(id) {
 // === SHIFTS & SCHEDULE ===
 async function pushShifts() {
     try {
-        if (!sb) return;
-        await sb.from('settings').upsert({ key: 'shifts', value: window.shifts }, { onConflict: 'key' });
+        if (!(window.sb || sb)) return;
+        await (window.sb || sb).from('settings').upsert({ key: 'shifts', value: window.shifts }, { onConflict: 'key' });
     } catch (err) {
         console.error('pushShifts error:', err);
     }
@@ -249,7 +249,7 @@ async function pushShifts() {
 async function pushSched(monthId) {
     try {
         if (!sb || !monthId) return;
-        await sb.from('shift_monthly').upsert({ month: monthId, data: window.sched[monthId] }, { onConflict: 'month' });
+        await (window.sb || sb).from('shift_monthly').upsert({ month: monthId, data: window.sched[monthId] }, { onConflict: 'month' });
     } catch (err) {
         console.error('pushSched error:', err);
     }
@@ -257,10 +257,10 @@ async function pushSched(monthId) {
 
 // === PULL ALL (Server sebagai sumber kebenaran) ===
 async function pullAll() {
-    if (!sb) return;
+    if (!(window.sb || sb)) return;
 
     // Employees
-    const { data: emps } = await sb.from('employees').select('*');
+    const { data: emps } = await (window.sb || sb).from('employees').select('*');
     if (emps) {
         window.employees = emps.map(x => ({
             nid: x.nid, name: x.name, title: x.title, company: x.company,
@@ -271,8 +271,8 @@ async function pullAll() {
 
     // Attendance (3 hari terakhir) - SERVER adalah sumber kebenaran
     const since = Date.now() - (3 * 24 * 3600 * 1000);
-    const { data: atts } = await sb.from('attendance').select('*').gte('ts', since);
-    const { data: brks } = await sb.from('breaks').select('*').gte('ts', since);
+    const { data: atts } = await (window.sb || sb).from('attendance').select('*').gte('ts', since);
+    const { data: brks } = await (window.sb || sb).from('breaks').select('*').gte('ts', since);
 
     const parseSbTs = (v) => {
         if (typeof v === 'number') return v;
@@ -312,7 +312,7 @@ async function pullAll() {
     localStorage.setItem('SA_ATTENDANCE', JSON.stringify(window.attendance));
 
     // News - server sebagai sumber kebenaran
-    const { data: nws } = await sb.from('news').select('*');
+    const { data: nws } = await (window.sb || sb).from('news').select('*');
     if (nws) {
         window.news = nws.map(x => ({ ts: x.ts, title: x.title, body: x.body, link: x.link }))
                         .sort((a, b) => b.ts - a.ts);
@@ -320,7 +320,7 @@ async function pullAll() {
     }
 
     // Education - server sebagai sumber kebenaran
-    const { data: edus } = await sb.from('education').select('*');
+    const { data: edus } = await (window.sb || sb).from('education').select('*');
     if (edus) {
         const eduList = edus.map(x => ({ id: x.id, ts: x.ts, title: x.title, body: x.body, img: x.img }));
         window.eduData = eduList;
@@ -328,7 +328,7 @@ async function pullAll() {
     }
 
     // Inventory - server sebagai sumber kebenaran
-    const { data: invs } = await sb.from('inventory').select('*');
+    const { data: invs } = await (window.sb || sb).from('inventory').select('*');
     if (invs) {
         window.inventoryData = invs.map(x => ({
             id: x.id, carrier: x.carrier, company: x.company, item: x.item,
@@ -339,7 +339,7 @@ async function pullAll() {
     }
 
     // Shifts
-    const { data: sh } = await sb.from('settings').select('*').eq('key', 'shifts').single();
+    const { data: sh } = await (window.sb || sb).from('settings').select('*').eq('key', 'shifts').single();
     if (sh && sh.value) {
         window.shifts = sh.value;
         if (window.shifts.D) { delete window.shifts.D; pushShifts(); }
@@ -348,7 +348,7 @@ async function pullAll() {
 
     // Schedule (bulan ini)
     const m = monthKey ? monthKey(new Date()) : (new Date().toISOString().substring(0, 7));
-    const { data: sc } = await sb.from('shift_monthly').select('*').eq('month', m).single();
+    const { data: sc } = await (window.sb || sb).from('shift_monthly').select('*').eq('month', m).single();
     if (sc && sc.data) {
         if (window.sched) window.sched[m] = sc.data;
         const schedData = window.sched || {};
