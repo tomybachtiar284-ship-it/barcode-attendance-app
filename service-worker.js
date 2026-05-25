@@ -1,4 +1,4 @@
-const CACHE_NAME = 'aman-s-v4-offline-safety';
+const CACHE_NAME = 'aman-s-v5-offline-safety';
 const ASSETS_TO_CACHE = [
     './',
     './index.html',
