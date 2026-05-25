@@ -676,7 +676,7 @@ window.addEventListener('DOMContentLoaded', () => {
       const shiftCode = normalized || dailyCode.toUpperCase();
       // Verify it's a valid shift code
       if (shifts[shiftCode]) return shiftCode;
-      return shiftCode; // Return as-is even if not found (fallback)
+      // If it's an invalid code (e.g. 'A' in Excel), fall through to the default group shift
     }
 
     // 3. Fallback: No schedule entry → default mapping by Group
