@@ -358,10 +358,10 @@ window.addEventListener('DOMContentLoaded', () => {
         save(LS_EMP, employees);
       }
 
-      // Attendance (TODAY ONLY for performance)
+      // Attendance (Fetch last 3 days to catch overnight shifts)
       const now = new Date();
       now.setHours(0, 0, 0, 0);
-      const since = now.getTime(); // Today 00:00
+      const since = now.getTime() - (3 * 24 * 3600 * 1000); // 3 Days ago
 
       // Fetch Main Attendance
       console.log('>> pullAll: Fetching Attendance...');
