@@ -1,127 +1,31 @@
 /* ============================================================================
-   DB.JS
-   Supabase Database Logic.
+   DB.JS  –  Online-Only Mode
+   Semua operasi langsung ke Supabase. Tidak ada cache lokal atau antrian offline.
+   Jika tidak ada koneksi internet, operasi akan gagal dan tampilkan pesan error.
    ========================================================================== */
 
 let sb = null;
 
-// === OFFLINE QUEUE SYSTEM ===
-const LS_QUEUE = 'SA_OFFLINE_QUEUE';
-let offlineQueue = JSON.parse(localStorage.getItem(LS_QUEUE)) || [];
-let isOnline = navigator.onLine;
-let isProcessingQueue = false;
+// Bersihkan antrian offline lama yang mungkin tersisa dari versi sebelumnya
+localStorage.removeItem('SA_OFFLINE_QUEUE');
 
+// Notifikasi koneksi
 window.addEventListener('online', () => {
-    console.log('🌐 Online detected. Process queue...');
-    isOnline = true;
-    processQueue();
-    // Dispatch event for UI
+    console.log('🌐 Koneksi internet tersambung.');
     window.dispatchEvent(new Event('network:online'));
+    // Refresh data dari server saat kembali online
+    if (window.pullAll) window.pullAll();
 });
 
 window.addEventListener('offline', () => {
-    console.log('🔌 Offline detected.');
-    isOnline = false;
+    console.warn('🔌 Koneksi internet terputus.');
     window.dispatchEvent(new Event('network:offline'));
 });
 
-function saveQueue() {
-    localStorage.setItem(LS_QUEUE, JSON.stringify(offlineQueue));
-}
-
-function addToQueue(action, payload) {
-    const item = {
-        id: Date.now() + Math.random().toString(36).substr(2, 5),
-        ts: Date.now(),
-        action,
-        payload,
-        retry: 0
-    };
-    offlineQueue.push(item);
-    saveQueue();
-    console.log(`📥 Added to Queue [${action}]:`, payload);
-    return true; // Simulate success
-}
-
-async function processQueue() {
-    if (!isOnline || offlineQueue.length === 0 || isProcessingQueue) return;
-
-    isProcessingQueue = true;
-    console.log(`🔄 Processing Queue (${offlineQueue.length} items)...`);
-
-    // Process one by one FIFO
-    // Note: We clone the array to iterate safely, but modifying the real array on success
-    // Actually, better to shift() one by one.
-
-    // Limit max attempts per run to avoid infinite loops if something is stuck
-    let processed = 0;
-
-    while (offlineQueue.length > 0 && isOnline) {
-        const item = offlineQueue[0]; // Peek
-
-        try {
-            console.log(`🚀 Sending [${item.action}]...`);
-            let success = false;
-
-            // Execute Action
-            if (item.action === 'PUSH_ATTENDANCE') {
-                if (item.payload.type === 'BREAK') {
-                    const { error } = await sb.from('breaks').insert(item.payload.data);
-                    if (!error) success = true; else throw error;
-                } else {
-                    const { error } = await sb.from('attendance').insert(item.payload.data);
-                    if (!error) success = true; else throw error;
-                }
-            }
-            else if (item.action === 'PUSH_INVENTORY') {
-                const { error } = await sb.from('inventory').upsert(item.payload.data, { onConflict: 'id' });
-                if (!error) success = true; else throw error;
-            }
-            else if (item.action === 'DELETE_ATTENDANCE') {
-                await sb.from('attendance').delete().eq('ts', item.payload.ts);
-                await sb.from('breaks').delete().eq('ts', item.payload.ts);
-                success = true;
-            }
-            // Add other actions if needed
-
-            if (success) {
-                console.log(`✅ Sent Success.`);
-                offlineQueue.shift(); // Remove from queue
-                saveQueue();
-                processed++;
-            }
-
-        } catch (err) {
-            console.error('❌ Sync Failed:', err);
-            item.retry++;
-            if (item.retry > 5) {
-                console.warn('🗑️ Item dropped after 5 retries:', item);
-                offlineQueue.shift(); // Drop if too many fails
-                saveQueue();
-            } else {
-                saveQueue(); // Save retry count
-                isProcessingQueue = false;
-                return; // Stop processing to wait for better connection
-            }
-        }
-    }
-
-    isProcessingQueue = false;
-    if (processed > 0) {
-        console.log(`🎉 Queue Batch Done. Processed: ${processed}`);
-        if (window.pullAll) window.pullAll(); // Refresh data to be sure
-    }
-}
-
-// Auto-process on load if online
-setTimeout(processQueue, 3000);
-
-// INIT
-// INIT
+// === INISIALISASI SUPABASE ===
 async function checkConn() {
     try {
         const { createClient } = window.supabase;
-        // Fix: Use generic or SA_ prefix
         const url = window.SA_SUPABASE_URL || window.SUPABASE_URL;
         const key = window.SA_SUPABASE_ANON || window.SUPABASE_KEY;
 
@@ -130,11 +34,11 @@ async function checkConn() {
             return false;
         }
         sb = createClient(url, key);
-        window.sb = sb; // Sync global
+        window.sb = sb;
 
-        const { data, error } = await sb.from('attendance').select('count', { count: 'exact', head: true });
+        const { error } = await sb.from('attendance').select('count', { count: 'exact', head: true });
         if (error) throw error;
-        console.log('Supabase Connected. logic DB.');
+        console.log('✅ Supabase Connected.');
         return true;
     } catch (err) {
         console.error('Supabase connection fail:', err);
@@ -142,477 +46,415 @@ async function checkConn() {
     }
 }
 
+// === HELPER: Cek koneksi dan sb ===
+function requireOnline(fnName) {
+    if (!navigator.onLine) {
+        throw new Error(`Tidak ada koneksi internet. Fungsi "${fnName}" membutuhkan internet.`);
+    }
+    if (!sb) {
+        throw new Error(`Koneksi ke database belum siap. Coba refresh halaman.`);
+    }
+}
+
 // === EMPLOYEES ===
 async function pushEmployee(e) {
-    if (!sb) { alert('Gagal simpan ke Cloud: Supabase belum terkoneksi.'); return false; }
-    const { error } = await sb.from('employees').upsert({
-        nid: e.nid, name: e.name, title: e.title, company: e.company,
-        shift: e.shift, photo: e.photo, status: e.status || 'Aktif', updated_at: new Date().toISOString()
-    }, { onConflict: 'nid' });
-    if (error) {
-        console.error('Push emp error:', error);
-        alert('Gagal Push Employee: ' + error.message);
+    try {
+        requireOnline('pushEmployee');
+        const { error } = await sb.from('employees').upsert({
+            nid: e.nid, name: e.name, title: e.title, company: e.company,
+            shift: e.shift, photo: e.photo, status: e.status || 'Aktif',
+            updated_at: new Date().toISOString()
+        }, { onConflict: 'nid' });
+        if (error) throw error;
+        return true;
+    } catch (err) {
+        console.error('pushEmployee error:', err);
+        alert('Gagal menyimpan data karyawan ke server:\n' + err.message);
         return false;
     }
-    return true;
 }
 
 async function delEmployee(nid) {
-    if (!sb) return;
-    await sb.from('employees').delete().eq('nid', nid);
+    try {
+        requireOnline('delEmployee');
+        const { error } = await sb.from('employees').delete().eq('nid', nid);
+        if (error) throw error;
+    } catch (err) {
+        console.error('delEmployee error:', err);
+        alert('Gagal menghapus karyawan dari server:\n' + err.message);
+    }
 }
 
-// === ATTENDANCE (Dual Table Support) ===
+// === ATTENDANCE ===
 async function pushAttendance(r) {
-    if (!sb || !isOnline) {
-        // OFFLINE HANDLING
-        const isBreak = (r.status === 'break_out' || r.status === 'break_in');
-        let dataPayload = {};
-
-        if (isBreak) {
-            dataPayload = {
+    try {
+        requireOnline('pushAttendance');
+        if (r.status === 'break_out' || r.status === 'break_in') {
+            const { error } = await sb.from('breaks').insert({
                 ts: r.ts, status: r.status, nid: r.nid, name: r.name,
                 company: r.company, created_at: new Date(r.ts).toISOString()
-            };
+            });
+            if (error) throw error;
         } else {
-            dataPayload = {
+            const { error } = await sb.from('attendance').insert({
                 ts: r.ts, status: r.status, nid: r.nid, name: r.name,
                 title: r.title, company: r.company, shift: r.shift,
                 note: r.note, late: r.late, ok_shift: r.okShift,
                 created_at: new Date(r.ts).toISOString()
-            };
-        }
-
-        addToQueue('PUSH_ATTENDANCE', { type: isBreak ? 'BREAK' : 'ATT', data: dataPayload });
-        return;
-    }
-
-    // ONLINE HANDLING
-    if (r.status === 'break_out' || r.status === 'break_in') {
-        const { error } = await sb.from('breaks').insert({
-            ts: r.ts, status: r.status, nid: r.nid, name: r.name,
-            company: r.company, created_at: new Date(r.ts).toISOString()
-        });
-        if (error) {
-            console.error('Push break error (will queue):', error);
-            // Fallback to Queue if server error (e.g. timeout)
-            addToQueue('PUSH_ATTENDANCE', {
-                type: 'BREAK', data: {
-                    ts: r.ts, status: r.status, nid: r.nid, name: r.name,
-                    company: r.company, created_at: new Date(r.ts).toISOString()
-                }
             });
+            if (error) throw error;
         }
-    } else {
-        const { error } = await sb.from('attendance').insert({
-            ts: r.ts, status: r.status, nid: r.nid, name: r.name,
-            title: r.title, company: r.company, shift: r.shift,
-            note: r.note, late: r.late, ok_shift: r.okShift,
-            created_at: new Date(r.ts).toISOString()
-        });
-        if (error) {
-            console.error('Push att error (will queue):', error);
-            addToQueue('PUSH_ATTENDANCE', {
-                type: 'ATT', data: {
-                    ts: r.ts, status: r.status, nid: r.nid, name: r.name,
-                    title: r.title, company: r.company, shift: r.shift,
-                    note: r.note, late: r.late, ok_shift: r.okShift,
-                    created_at: new Date(r.ts).toISOString()
-                }
-            });
-        }
+    } catch (err) {
+        console.error('pushAttendance error:', err);
+        alert('Gagal menyimpan data absensi ke server:\n' + err.message);
+        throw err; // Lempar kembali agar pemanggil tahu
     }
 }
 
 async function delAttendance(ts) {
     try {
-        // 1. Remove any pending push from offline queue
-        const initialLen = offlineQueue.length;
-        offlineQueue = offlineQueue.filter(item => !(item.action === 'PUSH_ATTENDANCE' && item.payload && item.payload.data && item.payload.data.ts === ts));
-        if (offlineQueue.length !== initialLen) saveQueue();
-
-        if (!sb) throw new Error("Supabase client belum siap. Cek koneksi internet atau matikan Adblock/Antivirus.");
-        
-        // 2. Try delete from Supabase
+        requireOnline('delAttendance');
+        // Hapus dari tabel attendance
         const { data, error: err1 } = await sb.from('attendance').delete().eq('ts', ts).select();
-        if (err1) {
-            console.error('Delete fail, queueing:', err1);
-            addToQueue('DELETE_ATTENDANCE', { ts });
-            throw new Error(err1.message);
-        } else if (data && data.length === 0) {
-            alert("PERINGATAN: Gagal menghapus data di server Cloud (Supabase).\n\nIni terjadi karena RLS (Row Level Security) atau masalah hak akses.");
-            if (window.manualSyncAttendance) window.manualSyncAttendance();
-            throw new Error("Gagal dihapus dari Cloud");
+        if (err1) throw err1;
+
+        // Cek apakah data benar-benar terhapus
+        if (data && data.length === 0) {
+            // Mungkin ada di tabel breaks, coba hapus dari sana juga
+            const { error: err2 } = await sb.from('breaks').delete().eq('ts', ts);
+            if (err2) throw err2;
+        } else {
+            // Hapus juga dari breaks jika ada (breaks terkait)
+            await sb.from('breaks').delete().eq('ts', ts);
         }
-        
-        await sb.from('breaks').delete().eq('ts', ts);
-    } catch(err) {
-        alert("GAGAL MENGHAPUS / ERROR: " + err.message);
+
+        console.log('✅ Berhasil dihapus dari server. ts:', ts);
+    } catch (err) {
+        console.error('delAttendance error:', err);
+        alert('Gagal menghapus data dari server:\n' + err.message);
+        throw err; // Lempar kembali agar UI tahu gagal
+    }
+}
+
+// Update/edit data absensi
+async function updateAttendance(oldTs, updatedRecord) {
+    try {
+        requireOnline('updateAttendance');
+        const { error } = await sb.from('attendance').update({
+            ts: updatedRecord.ts,
+            status: updatedRecord.status,
+            note: updatedRecord.note,
+            late: updatedRecord.late,
+            ok_shift: updatedRecord.okShift,
+            shift: updatedRecord.shift
+        }).eq('ts', oldTs);
+        if (error) throw error;
+        console.log('✅ Berhasil update data di server. ts:', oldTs);
+    } catch (err) {
+        console.error('updateAttendance error:', err);
+        alert('Gagal mengubah data di server:\n' + err.message);
         throw err;
     }
 }
 
-// === OTHER MODULES ===
+// === NEWS ===
 async function pushNews(n) {
-    if (!sb) { alert('Gagal simpan News: Cloud belum terkoneksi'); return; }
-    const { error } = await sb.from('news').upsert({
-        ts: n.ts, title: n.title, body: n.body, link: n.link
-    }, { onConflict: 'ts' });
-    if (error) {
-        console.error('Push news error:', error);
-        alert('Gagal Push News: ' + error.message);
+    try {
+        requireOnline('pushNews');
+        const { error } = await sb.from('news').upsert({
+            ts: n.ts, title: n.title, body: n.body, link: n.link
+        }, { onConflict: 'ts' });
+        if (error) throw error;
+    } catch (err) {
+        console.error('pushNews error:', err);
+        alert('Gagal menyimpan info ke server:\n' + err.message);
     }
 }
 
 async function delNews(ts) {
-    if (!sb) return;
-    const { error } = await sb.from('news').delete().eq('ts', ts);
-    if (error) alert('Gagal Hapus News di Cloud: ' + error.message);
+    try {
+        requireOnline('delNews');
+        const { error } = await sb.from('news').delete().eq('ts', ts);
+        if (error) throw error;
+    } catch (err) {
+        console.error('delNews error:', err);
+        alert('Gagal menghapus info dari server:\n' + err.message);
+    }
 }
 
+// === EDUCATION ===
 async function pushEdu(e) {
-    if (!sb) return;
-    const { error } = await sb.from('education').upsert({
-        id: e.id, ts: e.ts, title: e.title, body: e.body, img: e.img
-    }, { onConflict: 'id' });
-    if (error) {
-        console.error('Push edu error:', error);
-        throw error;
+    try {
+        requireOnline('pushEdu');
+        const { error } = await sb.from('education').upsert({
+            id: e.id, ts: e.ts, title: e.title, body: e.body, img: e.img
+        }, { onConflict: 'id' });
+        if (error) throw error;
+    } catch (err) {
+        console.error('pushEdu error:', err);
+        throw err;
     }
 }
 
 async function delEdu(id) {
-    if (!sb) return;
-    await sb.from('education').delete().eq('id', id);
+    try {
+        requireOnline('delEdu');
+        const { error } = await sb.from('education').delete().eq('id', id);
+        if (error) throw error;
+    } catch (err) {
+        console.error('delEdu error:', err);
+        alert('Gagal menghapus education dari server:\n' + err.message);
+    }
 }
 
+// === INVENTORY ===
 async function pushInventory(inv) {
-    const payload = {
-        id: inv.id, carrier: inv.carrier, company: inv.company,
-        item: inv.item, dest: inv.dest, officer: inv.officer, type: inv.type,
-        time_in: inv.timeIn, time_out: inv.timeOut
-    };
-
-    if (!sb || !isOnline) {
-        console.warn('Offline: Queueing Inventory Push');
-        addToQueue('PUSH_INVENTORY', { data: payload });
-        return;
-    }
-
-    const { error } = await sb.from('inventory').upsert(payload, { onConflict: 'id' });
-    if (error) {
-        console.error('Push inv error (will queue):', error);
-        addToQueue('PUSH_INVENTORY', { data: payload });
+    try {
+        requireOnline('pushInventory');
+        const payload = {
+            id: inv.id, carrier: inv.carrier, company: inv.company,
+            item: inv.item, dest: inv.dest, officer: inv.officer, type: inv.type,
+            time_in: inv.timeIn, time_out: inv.timeOut
+        };
+        const { error } = await sb.from('inventory').upsert(payload, { onConflict: 'id' });
+        if (error) throw error;
+    } catch (err) {
+        console.error('pushInventory error:', err);
+        alert('Gagal menyimpan inventori ke server:\n' + err.message);
+        throw err;
     }
 }
 
 async function delInventory(id) {
-    if (!sb) return;
-    await sb.from('inventory').delete().eq('id', id);
+    try {
+        requireOnline('delInventory');
+        const { error } = await sb.from('inventory').delete().eq('id', id);
+        if (error) throw error;
+    } catch (err) {
+        console.error('delInventory error:', err);
+        alert('Gagal menghapus inventori dari server:\n' + err.message);
+    }
 }
 
+// === SHIFTS & SCHEDULE ===
 async function pushShifts() {
-    if (!sb) return;
-    await sb.from('settings').upsert({ key: 'shifts', value: shifts }, { onConflict: 'key' });
+    try {
+        if (!sb) return;
+        await sb.from('settings').upsert({ key: 'shifts', value: shifts }, { onConflict: 'key' });
+    } catch (err) {
+        console.error('pushShifts error:', err);
+    }
 }
 
 async function pushSched(monthId) {
-    if (!sb || !monthId) return;
-    await sb.from('shift_monthly').upsert({ month: monthId, data: sched[monthId] }, { onConflict: 'month' });
+    try {
+        if (!sb || !monthId) return;
+        await sb.from('shift_monthly').upsert({ month: monthId, data: sched[monthId] }, { onConflict: 'month' });
+    } catch (err) {
+        console.error('pushSched error:', err);
+    }
 }
 
-// === SYNC ALL ===
+// === PULL ALL (Server sebagai sumber kebenaran) ===
 async function pullAll() {
     if (!sb) return;
+
     // Employees
     const { data: emps } = await sb.from('employees').select('*');
     if (emps) {
         window.employees = emps.map(x => ({
             nid: x.nid, name: x.name, title: x.title, company: x.company,
-            shift: x.shift, photo: x.photo, status: x.status || 'Aktif'
+            shift: x.shift, photo: x.photo || '', status: x.status || 'Aktif'
         }));
-        save(LS_EMP, window.employees);
+        localStorage.setItem('SA_EMPLOYEES', JSON.stringify(window.employees));
     }
 
-    // Attendance (last 7 days)
-    const since = Date.now() - 7 * 24 * 3600 * 1000;
-
-    // Fetch Main Attendance
+    // Attendance (3 hari terakhir) - SERVER adalah sumber kebenaran
+    const since = Date.now() - (3 * 24 * 3600 * 1000);
     const { data: atts } = await sb.from('attendance').select('*').gte('ts', since);
-    // Fetch Breaks
     const { data: brks } = await sb.from('breaks').select('*').gte('ts', since);
 
-    if (atts || brks) {
-        const old = (window.attendance || []).filter(a => a.ts < since);
-
-        let newAtts = [];
-        if (atts) {
-            newAtts = atts.map(x => ({
-                ts: x.ts, status: x.status, nid: x.nid, name: x.name,
-                title: x.title, company: x.company, shift: x.shift,
-                note: x.note, late: x.late, okShift: x.ok_shift
-            }));
+    const parseSbTs = (v) => {
+        if (typeof v === 'number') return v;
+        if (typeof v === 'string') {
+            if (v.includes('T') && !v.endsWith('Z') && !v.includes('+')) return new Date(v + 'Z').getTime();
+            return new Date(v).getTime();
         }
+        return Date.now();
+    };
 
-        let newBreaks = [];
-        if (brks) {
-            newBreaks = brks.map(x => ({
-                ts: x.ts, status: x.status, nid: x.nid, name: x.name,
-                title: '', company: x.company, shift: '',
-                note: (x.status === 'break_out' ? 'Izin Keluar / Istirahat' : 'Kembali Masuk'),
-                late: false, okShift: true
-            }));
-        }
+    // Data lebih lama dari 3 hari diambil dari lokal (tidak dalam jangkauan server)
+    const oldLocal = (window.attendance || []).filter(a => a.ts < since);
 
-        window.attendance = [...old, ...newAtts, ...newBreaks].sort((a, b) => a.ts - b.ts);
-        save(LS_ATT, window.attendance);
+    let newAtts = [];
+    if (atts) {
+        newAtts = atts.map(x => ({
+            ts: parseSbTs(x.ts), status: x.status, nid: x.nid, name: x.name,
+            title: x.title, company: x.company, shift: x.shift,
+            note: x.note, late: x.late, okShift: x.ok_shift
+        }));
     }
 
-    // News (Bi-directional Sync)
+    let newBreaks = [];
+    if (brks) {
+        newBreaks = brks.map(x => ({
+            ts: parseSbTs(x.ts), status: x.status, nid: x.nid, name: x.name,
+            title: '', company: x.company, shift: '',
+            note: (x.status === 'break_out' ? 'Izin Keluar / Istirahat' : 'Kembali Masuk'),
+            late: false, okShift: true
+        }));
+    }
+
+    // Server menang untuk data 3 hari terakhir - tidak ada merge dengan local
+    const serverTsSet = new Set([...newAtts, ...newBreaks].map(r => r.ts));
+    const filteredOld = oldLocal.filter(r => !serverTsSet.has(r.ts));
+    window.attendance = [...filteredOld, ...newAtts, ...newBreaks].sort((a, b) => a.ts - b.ts);
+    localStorage.setItem('SA_ATTENDANCE', JSON.stringify(window.attendance));
+
+    // News - server sebagai sumber kebenaran
     const { data: nws } = await sb.from('news').select('*');
     if (nws) {
-        const serverMap = new Map(nws.map(x => [x.ts, x]));
-        const localMap = new Map((window.news || []).map(x => [x.ts, x]));
-
-        // 1. Apply Server Updates to Local
-        nws.forEach(x => {
-            localMap.set(x.ts, { ts: x.ts, title: x.title, body: x.body, link: x.link });
-        });
-
-        // 2. Identify Pending Local Items -> Push to Server
-        for (const [ts, val] of localMap.entries()) {
-            if (!serverMap.has(Number(ts))) {
-                await pushNews(val);
-            }
-        }
-
-        // 3. Finalize
-        window.news = Array.from(localMap.values()).sort((a, b) => b.ts - a.ts);
-        save(LS_NEWS, window.news);
+        window.news = nws.map(x => ({ ts: x.ts, title: x.title, body: x.body, link: x.link }))
+                        .sort((a, b) => b.ts - a.ts);
+        localStorage.setItem('SA_NEWS', JSON.stringify(window.news));
     }
 
-    // Education
+    // Education - server sebagai sumber kebenaran
     const { data: edus } = await sb.from('education').select('*');
     if (edus) {
         const eduList = edus.map(x => ({ id: x.id, ts: x.ts, title: x.title, body: x.body, img: x.img }));
-        // Assuming saveEdu exists in app.js or we need to extract it? 
-        // Wait, saveEdu is UI logic or State logic? It's likely state. 
-        // Ideally state should handle saving. But for now let's just use window.eduData
         window.eduData = eduList;
-        save(LS_EDU, eduList);
+        localStorage.setItem('SA_EDUCATION', JSON.stringify(eduList));
     }
 
-    // Inventory (Bi-directional Sync)
+    // Inventory - server sebagai sumber kebenaran
     const { data: invs } = await sb.from('inventory').select('*');
     if (invs) {
-        const serverMap = new Map(invs.map(x => [x.id, x]));
-        const localMap = new Map((window.inventoryData || []).map(x => [x.id, x]));
-
-        // 1. Apply Server Updates to Local
-        invs.forEach(x => {
-            localMap.set(x.id, {
-                id: x.id, carrier: x.carrier, company: x.company, item: x.item,
-                dest: x.dest, officer: x.officer, type: x.type,
-                timeIn: x.time_in, timeOut: x.time_out
-            });
-        });
-
-        // 2. Identify Pending Local Items -> Push to Server
-        for (const [id, val] of localMap.entries()) {
-            if (!serverMap.has(id)) {
-                await pushInventory(val);
-            }
-        }
-
-        // 3. Finalize
-        window.inventoryData = Array.from(localMap.values()).sort((a, b) => new Date(b.timeIn || 0) - new Date(a.timeIn || 0));
-        save(LS_INV, window.inventoryData);
+        window.inventoryData = invs.map(x => ({
+            id: x.id, carrier: x.carrier, company: x.company, item: x.item,
+            dest: x.dest, officer: x.officer, type: x.type,
+            timeIn: x.time_in, timeOut: x.time_out
+        })).sort((a, b) => new Date(b.timeIn || 0) - new Date(a.timeIn || 0));
+        localStorage.setItem('SA_INVENTORY', JSON.stringify(window.inventoryData));
     }
 
     // Shifts
     const { data: sh } = await sb.from('settings').select('*').eq('key', 'shifts').single();
     if (sh && sh.value) {
         window.shifts = sh.value;
-        if (window.shifts.D) { delete window.shifts.D; pushShifts(); } // Auto-clean server
-        save(LS_SHIFTS, window.shifts);
+        if (window.shifts.D) { delete window.shifts.D; pushShifts(); }
+        localStorage.setItem('SA_SHIFTS', JSON.stringify(window.shifts));
     }
 
-    // Schedule (current month)
-    const m = monthKey(new Date());
+    // Schedule (bulan ini)
+    const m = monthKey ? monthKey(new Date()) : (new Date().toISOString().substring(0, 7));
     const { data: sc } = await sb.from('shift_monthly').select('*').eq('month', m).single();
     if (sc && sc.data) {
-        window.sched[m] = sc.data;
-        save(LS_SCHED, window.sched);
+        if (window.sched) window.sched[m] = sc.data;
+        const schedData = window.sched || {};
+        localStorage.setItem('SA_SHIFT_MONTHLY', JSON.stringify(schedData));
     }
 
-    // DISPATCH EVENT so app.js can re-render
+    // Dispatch event agar UI di-refresh
     window.dispatchEvent(new Event('data:synced'));
 }
 
-// Global Export
 // === REALTIME SUBSCRIPTION ===
 let rtSubscription = null;
 
 function subscribeToRealtime() {
     const client = sb || window.sb;
-    if (!client) return;
+    if (!client || rtSubscription) return;
 
-    // Prevent double subscription
-    if (rtSubscription) return;
+    console.log('📡 Memulai Realtime Subscription...');
 
-    console.log('📡 Starting Realtime Subscription (FULL SYNC)...');
-
-    // Subscribe to ALL events for attendance and breaks
     rtSubscription = client.channel('public-db-changes')
-        .on(
-            'postgres_changes',
-            { event: '*', schema: 'public', table: 'attendance' },
-            (payload) => handleRealtimeEvent(payload, 'attendance')
-        )
-        .on(
-            'postgres_changes',
-            { event: '*', schema: 'public', table: 'breaks' },
-            (payload) => handleRealtimeEvent(payload, 'breaks')
-        )
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'attendance' },
+            (payload) => handleRealtimeEvent(payload, 'attendance'))
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'breaks' },
+            (payload) => handleRealtimeEvent(payload, 'breaks'))
         .subscribe((status) => {
             console.log('Realtime Status:', status);
         });
 }
 
 function handleRealtimeEvent(payload, tableName) {
-    console.log(`⚡ Realtime Event [${payload.eventType}] on ${tableName}:`, payload);
-
-    if (payload.eventType === 'INSERT') {
-        handleRealtimeInsert(payload.new, tableName);
-    } else if (payload.eventType === 'UPDATE') {
-        handleRealtimeUpdate(payload.new, tableName);
-    } else if (payload.eventType === 'DELETE') {
-        handleRealtimeDelete(payload.old, tableName);
-    }
+    console.log(`⚡ Realtime [${payload.eventType}] on ${tableName}:`, payload);
+    if (payload.eventType === 'INSERT') handleRealtimeInsert(payload.new, tableName);
+    else if (payload.eventType === 'UPDATE') handleRealtimeUpdate(payload.new, tableName);
+    else if (payload.eventType === 'DELETE') handleRealtimeDelete(payload.old, tableName);
 }
 
-// --- INSERT HANDLER ---
-function handleRealtimeInsert(newRow, tableName) {
-    if (!newRow) return;
-
-    const rec = normalizeRecord(newRow, tableName);
-    if (!rec) return;
-
-    // Check Duplicate +- 2s tolerance
-    const exists = window.attendance.some(a =>
-        a.nid === rec.nid &&
-        Math.abs(a.ts - rec.ts) < 2000
-    );
-
-    if (exists) return;
-
-    console.log('⚡ RT Insert Applied:', rec);
-    window.attendance.push(rec);
-    window.attendance.sort((a, b) => a.ts - b.ts);
-    saveToStorage();
-    triggerRefresh();
-    if (window.triggerMobileUpdate) window.triggerMobileUpdate(rec);
-}
-
-// --- UPDATE HANDLER ---
-function handleRealtimeUpdate(newRow, tableName) {
-    if (!newRow) return;
-
-    // Note: Normalize first to ensure consistent format
-    const rec = normalizeRecord(newRow, tableName);
-    if (!rec) return;
-
-    // Find matching record by TS (assuming TS is primary key or unique enough)
-    // If TS was updated, this might fail, but TS usually doesn't change in this app.
-    const index = window.attendance.findIndex(a => a.ts === rec.ts);
-
-    if (index !== -1) {
-        console.log('⚡ RT Update Applied:', rec);
-        window.attendance[index] = rec; // Replace
-        window.attendance.sort((a, b) => a.ts - b.ts);
-        saveToStorage();
-        triggerRefresh();
-        if (window.triggerMobileUpdate) window.triggerMobileUpdate(rec);
-    } else {
-        // If not found, treat as Insert? Or ignore?
-        // Let's treat as Insert to be safe (maybe we missed the initial insert)
-        console.warn('⚡ RT Update Record Not Found, treating as Insert:', rec);
-        handleRealtimeInsert(newRow, tableName);
-    }
-}
-
-// --- DELETE HANDLER ---
-function handleRealtimeDelete(oldRow, tableName) {
-    if (!oldRow) return;
-
-    // Supabase DELETE payload usually contains the Primary Key. 
-    // Ideally 'ts' is the identifier.
-    // We need to handle potential time format differences if 'ts' comes as string.
-
-    const targetTs = new Date(oldRow.ts).getTime();
-    if (!targetTs) return;
-
-    const index = window.attendance.findIndex(a => Math.abs(a.ts - targetTs) < 100); // Exact match tolerance
-
-    if (index !== -1) {
-        console.log('⚡ RT Delete Applied:', oldRow);
-        window.attendance.splice(index, 1);
-        saveToStorage();
-        triggerRefresh();
-    } else {
-        console.warn('⚡ RT Delete Record Not Found:', oldRow);
-    }
-}
-
-// --- HELPERS ---
 function normalizeRecord(row, tableName) {
-    const parseTs = (t) => new Date(t).getTime();
-
+    const parseTs = (t) => {
+        if (typeof t === 'number') return t;
+        return new Date(t).getTime();
+    };
     if (tableName === 'attendance') {
         return {
-            ts: parseTs(row.ts),
-            status: row.status,
-            nid: row.nid,
-            name: row.name,
-            title: row.title,
-            company: row.company,
-            shift: row.shift,
-            note: row.note,
-            late: row.late,
-            okShift: row.ok_shift
+            ts: parseTs(row.ts), status: row.status, nid: row.nid, name: row.name,
+            title: row.title, company: row.company, shift: row.shift,
+            note: row.note, late: row.late, okShift: row.ok_shift
         };
     } else if (tableName === 'breaks') {
         return {
-            ts: parseTs(row.ts),
-            status: row.status,
-            nid: row.nid,
-            name: row.name,
-            title: '',
-            company: row.company,
-            shift: '',
+            ts: parseTs(row.ts), status: row.status, nid: row.nid, name: row.name,
+            title: '', company: row.company, shift: '',
             note: (row.status === 'break_out' ? 'Izin Keluar / Istirahat' : 'Kembali Masuk'),
-            late: false,
-            okShift: true
+            late: false, okShift: true
         };
     }
     return null;
 }
 
-function saveToStorage() {
+function handleRealtimeInsert(newRow, tableName) {
+    if (!newRow || !window.attendance) return;
+    const rec = normalizeRecord(newRow, tableName);
+    if (!rec) return;
+    const exists = window.attendance.some(a => a.nid === rec.nid && Math.abs(a.ts - rec.ts) < 2000);
+    if (exists) return;
+    window.attendance.push(rec);
+    window.attendance.sort((a, b) => a.ts - b.ts);
     localStorage.setItem('SA_ATTENDANCE', JSON.stringify(window.attendance));
-}
-
-function triggerRefresh() {
     window.dispatchEvent(new Event('data:synced'));
+    if (window.triggerMobileUpdate) window.triggerMobileUpdate(rec);
 }
 
-// Global Export
+function handleRealtimeUpdate(newRow, tableName) {
+    if (!newRow || !window.attendance) return;
+    const rec = normalizeRecord(newRow, tableName);
+    if (!rec) return;
+    const index = window.attendance.findIndex(a => a.ts === rec.ts);
+    if (index !== -1) {
+        window.attendance[index] = rec;
+        window.attendance.sort((a, b) => a.ts - b.ts);
+        localStorage.setItem('SA_ATTENDANCE', JSON.stringify(window.attendance));
+        window.dispatchEvent(new Event('data:synced'));
+    } else {
+        handleRealtimeInsert(newRow, tableName);
+    }
+}
+
+function handleRealtimeDelete(oldRow, tableName) {
+    if (!oldRow || !window.attendance) return;
+    const targetTs = typeof oldRow.ts === 'number' ? oldRow.ts : new Date(oldRow.ts).getTime();
+    if (!targetTs) return;
+    const index = window.attendance.findIndex(a => Math.abs(a.ts - targetTs) < 100);
+    if (index !== -1) {
+        window.attendance.splice(index, 1);
+        localStorage.setItem('SA_ATTENDANCE', JSON.stringify(window.attendance));
+        window.dispatchEvent(new Event('data:synced'));
+    }
+}
+
+// === GLOBAL EXPORT ===
 window.sb = sb;
 window.checkConn = checkConn;
 window.pushEmployee = pushEmployee;
 window.delEmployee = delEmployee;
 window.pushAttendance = pushAttendance;
 window.delAttendance = delAttendance;
+window.updateAttendance = updateAttendance;
 window.pushNews = pushNews;
 window.delNews = delNews;
 window.pushEdu = pushEdu;

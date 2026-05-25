@@ -3113,20 +3113,25 @@ window.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
-    // Handle Delete
+    // Handle Delete (Online-Only: server dulu, baru local)
     if (btn.dataset.act === 'del-att') {
-      if (confirm('Hapus baris kehadiran ini?')) {
-        const idx = attendance.findIndex(a => a.ts === ts);
-        if (idx >= 0) {
-          attendance.splice(idx, 1);
+      if (confirm('Hapus baris kehadiran ini? Data akan dihapus permanen dari server.')) {
+        toast('Menghapus dari server...');
+        try {
+          await delAttendance(ts);
+          // Hanya hapus dari lokal jika server berhasil
+          const idx = attendance.findIndex(a => a.ts === ts);
+          if (idx >= 0) attendance.splice(idx, 1);
           save(LS_ATT, attendance);
           syncGlobals();
           filterAttendance();
           renderDashboard();
           renderScanTable();
           renderScanStats();
-          toast('Baris dihapus.');
-          delAttendance(ts);
+          toast('✅ Data berhasil dihapus dari server.');
+        } catch (err) {
+          // delAttendance sudah menampilkan alert, tidak perlu alert lagi
+          console.error('Delete gagal:', err);
         }
       }
     }
@@ -3202,70 +3207,54 @@ window.addEventListener('DOMContentLoaded', () => {
     const timeStr = $('#editAttTime').value;
     const newStatus = $('#editAttStatus').value;
     const newNote = $('#editAttNote').value;
-    const newShift = $('#editAttShift').value; // Read New Shift
+    const newShift = $('#editAttShift').value;
 
     if (!dateStr || !timeStr) return toast('Tanggal dan Jam wajib diisi.');
 
-    // Construct new TS
     const newTs = new Date(`${dateStr}T${timeStr}:00`).getTime();
-
     const idx = attendance.findIndex(a => a.ts === oldTs);
     if (idx < 0) return toast('Data asli tidak ditemukan (mungkin sudah dihapus).');
 
-    // Clone record
     const rec = { ...attendance[idx] };
-
-    // Updated save logic to grab values from Selects
-    // Name Select value is NID, so we get text from selected option or find emp
-    const nid = $('#editAttNid').value; // Valid NID from change event or initial
+    const nid = $('#editAttNid').value;
     const emp = employees.find(e => e.nid === nid);
-    const name = emp ? emp.name : $('#editAttName option:checked').text;
+    const name = emp ? emp.name : rec.name;
 
-    // Update fields
     rec.ts = newTs;
     rec.status = newStatus;
     rec.note = newNote;
     rec.shift = newShift;
-    rec.nid = nid; // Allow changing person
+    rec.nid = nid;
     rec.name = name;
     rec.title = $('#editAttTitle').value;
     rec.company = $('#editAttCompany').value;
 
-    // Recalculate Late Logic if changing time OR shift
-    // For simplicity, we trust the manual edit, but ideally we re-run effectiveShiftFor logic.
-    // Let's just keep simple update for now.
-
-    // Update Local Array
-    // If TS changed, we must remove old and add new to keep sorting correct
-    attendance.splice(idx, 1);
-    attendance.push(rec);
-    attendance.sort((a, b) => a.ts - b.ts);
-
-    save(LS_ATT, attendance);
-    syncGlobals();
-
-    // Update UI
-    filterAttendance();
-    renderDashboard();
-    document.getElementById('modalEditAtt').close();
-    toast('Perubahan disimpan lokal. Mengirim ke server...');
-
-    // Sync to Supabase
+    // Online-Only: Kirim ke server DULU, baru update lokal
+    toast('Menyimpan perubahan ke server...');
     try {
       if (oldTs !== newTs) {
-        // Delete old, Insert new
+        // Hapus lama, insert baru
         await delAttendance(oldTs);
+        await pushAttendance(rec);
+      } else {
+        // Hanya update (upsert)
+        await pushAttendance(rec);
       }
 
-      // Upsert new/updated record
-      // Reuse pushAttendance logic but formatted properly
-      // Note: pushAttendance handles 'attendance' vs 'breaks' tables based on status
-      await pushAttendance(rec);
-
-      toast('✅ Sinkronisasi Edit Berhasil.');
+      // Jika server berhasil, baru update lokal
+      attendance.splice(idx, 1);
+      attendance.push(rec);
+      attendance.sort((a, b) => a.ts - b.ts);
+      save(LS_ATT, attendance);
+      syncGlobals();
+      filterAttendance();
+      renderDashboard();
+      document.getElementById('modalEditAtt').close();
+      toast('✅ Perubahan berhasil disimpan.');
     } catch (err) {
-      console.error(err);
-      toast('Gagal sync edit ke server.');
+      console.error('Edit gagal:', err);
+      // Alert sudah ditampilkan oleh delAttendance/pushAttendance
+      // Jangan tutup modal agar user bisa coba lagi
     }
   });
   $('#btnExportAtt')?.addEventListener('click', () => {
