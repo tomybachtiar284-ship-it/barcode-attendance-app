@@ -673,6 +673,8 @@ window.addEventListener('DOMContentLoaded', () => {
 
     return 'OFF';
   }
+  window.effectiveShiftFor = effectiveShiftFor;
+
 
   // Helper utils
   function scheduleDateFor(code, dt) {
