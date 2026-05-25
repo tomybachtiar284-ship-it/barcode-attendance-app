@@ -225,15 +225,15 @@ async function pushAttendance(r) {
 }
 
 async function delAttendance(ts) {
-    // 1. Remove any pending push from offline queue
-    const initialLen = offlineQueue.length;
-    offlineQueue = offlineQueue.filter(item => !(item.action === 'PUSH_ATTENDANCE' && item.payload && item.payload.data && item.payload.data.ts === ts));
-    if (offlineQueue.length !== initialLen) saveQueue();
-
-    if (!sb) throw new Error("Supabase belum siap");
-    
-    // 2. Try delete from Supabase
     try {
+        // 1. Remove any pending push from offline queue
+        const initialLen = offlineQueue.length;
+        offlineQueue = offlineQueue.filter(item => !(item.action === 'PUSH_ATTENDANCE' && item.payload && item.payload.data && item.payload.data.ts === ts));
+        if (offlineQueue.length !== initialLen) saveQueue();
+
+        if (!sb) throw new Error("Supabase client belum siap. Cek koneksi internet atau matikan Adblock/Antivirus.");
+        
+        // 2. Try delete from Supabase
         const { data, error: err1 } = await sb.from('attendance').delete().eq('ts', ts).select();
         if (err1) {
             console.error('Delete fail, queueing:', err1);
@@ -247,7 +247,7 @@ async function delAttendance(ts) {
         
         await sb.from('breaks').delete().eq('ts', ts);
     } catch(err) {
-        alert("GAGAL KONEKSI / ERROR: " + err.message);
+        alert("GAGAL MENGHAPUS / ERROR: " + err.message);
         throw err;
     }
 }
