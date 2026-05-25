@@ -120,6 +120,14 @@ window.addEventListener('DOMContentLoaded', () => {
       // Listener Agnostic untuk Refresh UI
       window.addEventListener('data:synced', () => {
         console.log('🔄 UI Refresh triggered by Sync/Realtime');
+        
+        // Reload local variables from window scope (updated by db.js)
+        if (window.employees) employees = window.employees;
+        if (window.attendance) attendance = window.attendance;
+        if (window.shifts) shifts = window.shifts;
+        if (window.news) news = window.news;
+        if (window.sched) sched = window.sched;
+
         if (typeof renderDashboard === 'function') renderDashboard();
         if (typeof renderEmployees === 'function' && !document.getElementById('route-employees').classList.contains('hidden')) renderEmployees();
         if (typeof renderAttendance === 'function' && !document.getElementById('route-attendance').classList.contains('hidden')) renderAttendance();
