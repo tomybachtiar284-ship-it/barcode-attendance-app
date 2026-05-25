@@ -138,7 +138,7 @@ window.addEventListener('DOMContentLoaded', () => {
   // Attempt init immediately
   if (initSupabase()) {
     console.log('🚀 Auto-Starting Data Sync...');
-    pullAll(); // Restore data from Cloud on launch
+    // pullAll is called at the bottom of this file after it is fully defined.
   }
 
   // ...

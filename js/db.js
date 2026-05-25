@@ -142,7 +142,7 @@ async function pushEmployee(e) {
     if (!sb) { alert('Gagal simpan ke Cloud: Supabase belum terkoneksi.'); return false; }
     const { error } = await sb.from('employees').upsert({
         nid: e.nid, name: e.name, title: e.title, company: e.company,
-        shift: e.shift, photo: e.photo, updated_at: new Date().toISOString()
+        shift: e.shift, photo: e.photo, status: e.status || 'Aktif', updated_at: new Date().toISOString()
     }, { onConflict: 'nid' });
     if (error) {
         console.error('Push emp error:', error);
@@ -303,7 +303,7 @@ async function pullAll() {
     if (emps) {
         window.employees = emps.map(x => ({
             nid: x.nid, name: x.name, title: x.title, company: x.company,
-            shift: x.shift, photo: x.photo
+            shift: x.shift, photo: x.photo, status: x.status || 'Aktif'
         }));
         save(LS_EMP, window.employees);
     }
