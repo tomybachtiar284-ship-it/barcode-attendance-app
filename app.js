@@ -3237,6 +3237,11 @@ window.addEventListener('DOMContentLoaded', () => {
     rec.title = $('#editAttTitle').value;
     rec.company = $('#editAttCompany').value;
 
+    const btn = $('#btnSaveEditAtt');
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '⏳ Menyimpan...';
+    btn.disabled = true;
+
     // Online-Only: Kirim ke server DULU, baru update lokal
     toast('Menyimpan perubahan ke server...');
     try {
@@ -3263,6 +3268,10 @@ window.addEventListener('DOMContentLoaded', () => {
       console.error('Edit gagal:', err);
       // Alert sudah ditampilkan oleh delAttendance/pushAttendance
       // Jangan tutup modal agar user bisa coba lagi
+    } finally {
+      // Kembalikan tombol ke keadaan semula
+      btn.innerHTML = originalText;
+      btn.disabled = false;
     }
   });
   $('#btnExportAtt')?.addEventListener('click', () => {
