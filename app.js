@@ -373,8 +373,13 @@ window.addEventListener('DOMContentLoaded', () => {
         return Date.now();
       };
 
+      // --- ATTENDANCE MERGE STRATEGY ---
+      // Server is SOURCE OF TRUTH for the last 3 days.
+      // Local data older than `since` is kept as-is (beyond fetch window).
+      // This means deletions and edits from server will be correctly reflected.
       if (atts || brks) {
-        // Keep old LOCAL data that is NOT yet synced?
+        // Only keep local records that are OLDER than the server fetch window
+        // (these would never be returned by server because of .gte('ts', since))
         const old = attendance.filter(a => a.ts < since);
 
         let newAtts = [];
@@ -398,7 +403,12 @@ window.addEventListener('DOMContentLoaded', () => {
           }));
         }
 
-        attendance = [...old, ...newAtts, ...newBreaks].sort((a, b) => a.ts - b.ts);
+        // Server = source of truth for recent window. Old local data is preserved.
+        // De-duplicate by ts (server wins).
+        const serverTsSet = new Set([...newAtts, ...newBreaks].map(r => r.ts));
+        const filteredOld = old.filter(r => !serverTsSet.has(r.ts));
+
+        attendance = [...filteredOld, ...newAtts, ...newBreaks].sort((a, b) => a.ts - b.ts);
         save(LS_ATT, attendance);
       }
 
