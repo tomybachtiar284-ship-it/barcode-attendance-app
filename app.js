@@ -3250,8 +3250,8 @@ window.addEventListener('DOMContentLoaded', () => {
         await delAttendance(oldTs);
         await pushAttendance(rec);
       } else {
-        // Hanya update (upsert)
-        await pushAttendance(rec);
+        // Hanya update
+        await updateAttendance(oldTs, rec);
       }
 
       // Jika server berhasil, baru update lokal
