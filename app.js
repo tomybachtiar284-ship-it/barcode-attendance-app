@@ -964,8 +964,8 @@ window.addEventListener('DOMContentLoaded', () => {
 
     if (type === 'active_site') {
       title = 'Personil Aktif Di Lokasi (Live)';
-      // 1. Get Today's Data
-      const todayData = attendance.filter(a => a.ts >= sod);
+      // 1. Get Rolling 24h Data to match dashboard panel
+      const todayData = attendance.filter(a => a.ts >= since24);
       // 2. Map Status by NID
       const statusMap = new Map(); // nid -> { lastStatus, record }
       // Process chronologically to find LAST status
@@ -1081,8 +1081,8 @@ window.addEventListener('DOMContentLoaded', () => {
 
   // ===== Company Presence today (map) =====
   function presentMapToday() {
-    const sod = new Date(todayISO() + 'T00:00:00').getTime();
-    const todays = attendance.filter(a => a.ts >= sod).sort((a, b) => a.ts - b.ts);
+    const rollingStart = Date.now() - (24 * 60 * 60 * 1000);
+    const todays = attendance.filter(a => a.ts >= rollingStart).sort((a, b) => a.ts - b.ts);
 
     const lastByNid = new Map();
     // Keep only the latest record for status checking
