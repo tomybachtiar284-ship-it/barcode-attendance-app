@@ -576,7 +576,9 @@ window.addEventListener('DOMContentLoaded', () => {
 
   // Bind existing sidebar links
   $$('.navlink').forEach(btn => btn.addEventListener('click', () => {
-    window.appRoute(btn.dataset.route);
+    if (btn.dataset.route) {
+      window.appRoute(btn.dataset.route);
+    }
   }));
 
   // NEW: Restore Last Route (Page Persistence)
@@ -3906,7 +3908,7 @@ window.addEventListener('DOMContentLoaded', () => {
   };
 
   // ===== Mobile Sidebar Logic (New Block) =====
-  document.addEventListener('DOMContentLoaded', () => {
+  (function initMobileSidebarAndLogout() {
     const btn = document.getElementById('btnMobileNav');
     const overlay = document.getElementById('sidebarOverlay');
     const sidebar = document.querySelector('.sidebar');
@@ -3936,13 +3938,13 @@ window.addEventListener('DOMContentLoaded', () => {
     // Close sidebar when a nav link is clicked (mobile UX)
     navLinks.forEach(link => {
       link.addEventListener('click', () => {
+        if (link.dataset.route && window.appRoute) window.appRoute(link.dataset.route);
         if (window.innerWidth <= 1024) {
           closeSidebar();
         }
       });
     });
 
-    // ===== Logout Logic =====
     // ===== Logout Logic =====
     const btnLogout = document.getElementById('btnLogout');
     if (btnLogout) {
@@ -3964,7 +3966,7 @@ window.addEventListener('DOMContentLoaded', () => {
         }
       });
     }
-  });
+  })();
 
   // ===== Laporan Bulanan (Performance Report) =====
   // FIX: Was using 'DOMContentLoaded' but app.js loads AFTER that event fires.
