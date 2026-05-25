@@ -3260,10 +3260,18 @@ window.addEventListener('DOMContentLoaded', () => {
       attendance.sort((a, b) => a.ts - b.ts);
       save(LS_ATT, attendance);
       syncGlobals();
+
+      // Tutup modal segera setelah sukses simpan
+      const modal = document.getElementById('modalEditAtt');
+      if (modal && typeof modal.close === 'function') {
+        modal.close();
+      }
+      
+      toast('✅ Perubahan berhasil disimpan.');
+
+      // Update UI (jika error di sini, modal sudah tertutup)
       filterAttendance();
       renderDashboard();
-      document.getElementById('modalEditAtt').close();
-      toast('✅ Perubahan berhasil disimpan.');
     } catch (err) {
       console.error('Edit gagal:', err);
       // Alert sudah ditampilkan oleh delAttendance/pushAttendance
