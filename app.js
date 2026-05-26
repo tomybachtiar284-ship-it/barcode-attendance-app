@@ -1022,16 +1022,20 @@ window.addEventListener('DOMContentLoaded', () => {
         }
         const d = new Date(r.ts);
         const timeStr = d.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+        
+        const isYesterday = r.ts < sod;
+        const alertLabel = isYesterday ? ` <span style="font-size: 0.7rem; background: #ef4444; color: white; padding: 2px 6px; border-radius: 4px; margin-left: 6px; font-weight: bold; vertical-align: middle;">⚠️ MASUK KEMARIN</span>` : '';
+        const nameColor = isYesterday ? 'color: #64748b;' : 'color: #1e293b;'; // slightly faded for yesterday
 
         return `
             <div style="padding: 10px; border-bottom: 1px solid #f1f5f9; display: flex; align-items: center; justify-content: space-between;">
               <div>
-                <div style="font-weight: 600; color: #1e293b;">${i + 1}. ${esc(name)}</div>
-                <div style="font-size: 0.85rem; color: #64748b;">${esc(r.company || '—')} • ${esc(r.title || '—')}</div>
+                <div style="font-weight: 600; ${nameColor}">${i + 1}. ${esc(name)}${alertLabel}</div>
+                <div style="font-size: 0.85rem; color: ${isYesterday ? '#ef4444' : '#64748b'}; font-weight: ${isYesterday ? '500' : 'normal'};">${esc(r.company || '—')} • ${esc(r.title || '—')}</div>
               </div>
               <div style="text-align: right;">
                  <span class="badge ${r.late ? 'danger' : (r.status === 'datang' ? 'success' : 'light')}" style="font-size: 0.75rem;">${r.status === 'datang' ? 'MASUK' : r.status.toUpperCase()}</span>
-                 <div style="font-size: 0.8rem; font-weight: 500; margin-top: 4px; color: #334155;">${timeStr}</div>
+                 <div style="font-size: 0.8rem; font-weight: 500; margin-top: 4px; color: ${isYesterday ? '#ef4444' : '#334155'};">${timeStr}</div>
               </div>
             </div>
            `;

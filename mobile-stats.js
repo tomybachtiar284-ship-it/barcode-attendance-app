@@ -168,16 +168,21 @@
     // ============================================
 
     function showActiveDetail() {
+        var sod = new Date(); sod.setHours(0, 0, 0, 0);
+        var sodMs = sod.getTime();
+
         var items = _lastActiveNids.map(function (nid) {
             var emp = findEmp(nid);
             var rec = _lastAttMap[nid];
+            var isYesterday = rec && rec.ts < sodMs;
+            
             return {
                 name: emp ? emp.name : (rec ? rec.name : nid),
                 job: emp ? (emp.job || '-') : '-',
                 company: emp ? (emp.company || '-') : '-',
                 time: rec ? formatTime(rec.ts) : '-',
-                tag: 'Aktif',
-                tagClass: 'blue'
+                tag: isYesterday ? '⚠️ Masuk Kemarin' : 'Aktif',
+                tagClass: isYesterday ? 'red' : 'blue'
             };
         });
         items.sort(function (a, b) { return a.name.localeCompare(b.name); });
