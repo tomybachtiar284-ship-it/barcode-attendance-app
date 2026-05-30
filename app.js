@@ -3420,7 +3420,22 @@ window.addEventListener('DOMContentLoaded', () => {
     ensureMonth(el.value);
     renderSchedTable();
   }
-  $('#schedMonth')?.addEventListener('change', () => renderSchedTable());
+  $('#schedMonth')?.addEventListener('change', async () => {
+    const id = $('#schedMonth').value;
+    if (sb && id) {
+      try {
+        const { data: sc } = await sb.from('shift_monthly').select('*').eq('month', id).single();
+        if (sc && sc.data) {
+          sched[id] = sc.data;
+          save(LS_SCHED, sched);
+          syncGlobals();
+        }
+      } catch (err) {
+        console.warn('Schedule for this month not found in DB or error:', err);
+      }
+    }
+    renderSchedTable();
+  });
   $('#btnSchedSave')?.addEventListener('click', async () => {
     const btn = $('#btnSchedSave');
     save(LS_SCHED, sched);
