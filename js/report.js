@@ -133,14 +133,15 @@
         // 1. Calculate Summary Stats (using FILTERED data)
         const recentAtt = filteredAtt;
 
+        const activeEmps = employees.filter(e => e.status !== 'Non-Aktif');
+        let filteredEmps = activeEmps;
+        if (fComp && fComp.value) filteredEmps = filteredEmps.filter(e => (e.company || 'Unknown') === fComp.value);
+        if (fShift && fShift.value) filteredEmps = filteredEmps.filter(e => (e.shift || '') === fShift.value);
+
         // Total Employees (Contextual)
         const elTotal = document.getElementById('repTotalEmp');
         if (elTotal) {
-            // If filtered by company/shift, count matching employees
-            let countArgs = employees;
-            if (fComp && fComp.value) countArgs = countArgs.filter(e => (e.company || 'Unknown') === fComp.value);
-            if (fShift && fShift.value) countArgs = countArgs.filter(e => (e.shift || '') === fShift.value);
-            elTotal.textContent = countArgs.length;
+            elTotal.textContent = filteredEmps.length;
         }
 
         // Avg Late (based on filtered range)
@@ -154,9 +155,7 @@
 
         // Avg Presence %
         const totalDays = Math.max(1, Math.round((dEnd - dStart) / (24 * 3600 * 1000)));
-        let empCountBase = employees.length;
-        if (fComp && fComp.value) empCountBase = employees.filter(e => (e.company || 'Unknown') === fComp.value).length;
-        if (fShift && fShift.value) empCountBase = employees.filter(e => (e.shift || '') === fShift.value).length;
+        let empCountBase = filteredEmps.length;
 
         const possiblePresence = (empCountBase * totalDays) || 1;
         const avgPres = ((presentCount / possiblePresence) * 100).toFixed(1);
