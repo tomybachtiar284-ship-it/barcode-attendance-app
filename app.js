@@ -3398,9 +3398,19 @@ window.addEventListener('DOMContentLoaded', () => {
         cells += `<td><select class="sched" data-group="${groupName}" data-day="${d}" title="Jadwal Grup ${groupName} tgl ${d}">${optsHtml}</select></td>`;
       }
       tr.innerHTML = cells; tb.appendChild(tr);
-      tr.querySelectorAll('select.sched').forEach(sel => {
-        const day = sel.dataset.day; const curValue = sched[id]?.[groupName]?.[day] || ''; sel.value = curValue;
-      });
+    });
+    // Set values
+    host.querySelectorAll('select.sched').forEach(s => {
+      const group = s.dataset.group, day = s.dataset.day;
+      if (sched[id] && sched[id][group] && sched[id][group][day]) {
+        let val = sched[id][group][day];
+        // Migrate old group codes to shift codes
+        if (val === 'A') val = 'P';
+        if (val === 'B') val = 'S';
+        if (val === 'C') val = 'M';
+        if (val === 'D') val = 'OFF';
+        s.value = val;
+      }
     });
     tb.querySelectorAll('select.sched').forEach(sel => {
       sel.addEventListener('change', e => {
