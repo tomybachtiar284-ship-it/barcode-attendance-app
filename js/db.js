@@ -33,7 +33,7 @@ async function checkConn() {
             console.warn('Supabase creds missing in config.local.js');
             return false;
         }
-        sb = createClient(url, key);
+        sb = createClient(url, key, { auth: { storage: window.sessionStorage } });
         window.sb = sb;
 
         const { error } = await (window.sb || sb).from('attendance').select('count', { count: 'exact', head: true });

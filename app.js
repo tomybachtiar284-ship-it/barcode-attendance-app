@@ -107,7 +107,7 @@ window.addEventListener('DOMContentLoaded', () => {
     }
 
     try {
-      sb = window.supabase.createClient(window.SA_SUPABASE_URL, window.SA_SUPABASE_ANON);
+      sb = window.supabase.createClient(window.SA_SUPABASE_URL, window.SA_SUPABASE_ANON, { auth: { storage: window.sessionStorage } });
       window.sb = sb; // Expose global
       // Simple functional check
       sb.from('news').select('count', { count: 'exact', head: true }).then(({ error }) => {
@@ -3994,9 +3994,16 @@ window.addEventListener('DOMContentLoaded', () => {
     // ===== Logout Logic =====
     const btnLogout = document.getElementById('btnLogout');
     if (btnLogout) {
-      btnLogout.addEventListener('click', () => {
+      btnLogout.addEventListener('click', async () => {
         if (confirm(t('confirm_logout'))) {
-          localStorage.removeItem('SA_SESSION');
+          try {
+            if (window.sb) {
+              await window.sb.auth.signOut();
+            }
+          } catch (e) {
+            console.error('Logout error:', e);
+          }
+          localStorage.removeItem('SA_SESSION'); // just in case
           window.location.replace('login.html');
         }
       });

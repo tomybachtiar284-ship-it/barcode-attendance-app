@@ -39,7 +39,24 @@
   <script src="js/translation.js"></script>
   <script src="config.local.js"></script>
   <script>
-    // if (!localStorage.getItem('SA_SESSION')) { window.location.replace('login.html'); }
+    // Bersihkan sesi lama yang tidak aman
+    localStorage.removeItem('SA_SESSION');
+
+    // Cek Sesi Supabase
+    document.addEventListener("DOMContentLoaded", async () => {
+      const url = window.SA_SUPABASE_URL || window.SUPABASE_URL;
+      const key = window.SA_SUPABASE_ANON || window.SUPABASE_KEY;
+      if (url && key && window.supabase) {
+        const sbClient = window.supabase.createClient(url, key, { auth: { storage: window.sessionStorage } });
+        const { data: { session }, error } = await sbClient.auth.getSession();
+        if (error || !session) {
+          alert('Sesi tidak ditemukan atau kedaluwarsa. Mengalihkan ke halaman login...');
+          window.location.replace('login.html');
+        }
+      } else {
+        window.location.replace('login.html');
+      }
+    });
   </script>
 
   <!-- Helper style kecil (tidak bentrok) -->
