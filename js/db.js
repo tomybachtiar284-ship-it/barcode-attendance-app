@@ -248,7 +248,7 @@ async function pushShifts() {
 
 async function pushSched(monthId) {
     try {
-        if (!sb || !monthId) return;
+        if (!(window.sb || sb) || !monthId) return;
         const { error } = await (window.sb || sb).from('shift_monthly').upsert({ month: monthId, data: window.sched[monthId] }, { onConflict: 'month' });
         if (error) throw error;
     } catch (err) {
