@@ -3,7 +3,7 @@
 
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0" />
   <title>Dasbor Kehadiran Karyawan • SmartAttend</title>
 
   <!-- PWA Manifest & Meta -->
@@ -24,6 +24,93 @@
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet">
   
   <link rel="stylesheet" href="styles.css?v=muster_print_v2" />
+  
+  <!-- Swiper JS & CSS -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.css" />
+  <script src="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.js"></script>
+  <style>
+    /* Fullscreen Slider Adjustments */
+    .mob-dash-swiper {
+      height: calc(100vh - 100px); /* 1 layar penuh dikurangi tinggi header HP */
+    }
+    .desk-dash-swiper {
+      height: calc(100vh - 140px); /* 1 layar penuh dikurangi tinggi header Desktop */
+    }
+    .swiper-slide {
+      height: 100%;
+      overflow-y: auto; /* Memungkinkan scroll internal jika isi lebih panjang dari layar */
+      overflow-x: hidden;
+      padding-bottom: 20px;
+    }
+    /* Perluasan Dash Trio untuk mengisi ruang kosong */
+    /* Perluasan Dash Trio untuk mengisi ruang kosong */
+    .desk-dash-swiper .swiper-slide {
+      display: flex !important;
+      flex-direction: column !important;
+      height: 100% !important;
+      box-sizing: border-box !important;
+    }
+    .desk-dash-swiper .dash-trio {
+      height: 100% !important; /* Mengisi seluruh tinggi layar */
+      flex: 1 !important;
+      display: grid !important;
+      /* Kolom 1 (Kalender): 1 bagian, Kolom 2 (Info): 1 bagian, Kolom 3 (Edu+Aktivitas): 2 bagian (lebih lebar) */
+      grid-template-columns: 1fr 1fr 2.5fr !important;
+      gap: 16px !important;
+      min-height: 0 !important;
+      align-items: stretch !important;
+    }
+    .desk-dash-swiper .dash-trio .card {
+      display: flex !important;
+      flex-direction: column !important;
+      height: 100% !important;
+      margin: 0 !important;
+      min-height: 0 !important;
+    }
+    .desk-dash-swiper .dash-trio .recent-flex {
+      flex: 1;
+      display: flex;
+      flex-direction: row; /* Kembali ke side-by-side */
+      gap: 16px;
+      min-height: 0;
+    }
+    .desk-dash-swiper .dash-trio .recent-edu,
+    .desk-dash-swiper .dash-trio .recent-table {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+    }
+    /* Buat list di dalamnya bisa di-scroll internal */
+    .desk-dash-swiper .dash-trio .news-grid,
+    .desk-dash-swiper .dash-trio .edu-list,
+    .desk-dash-swiper .dash-trio .table-wrap,
+    .desk-dash-swiper .dash-trio #monthCalendar {
+      flex: 1;
+      overflow-y: auto;
+      min-height: 0;
+    }
+    .desk-dash-swiper .dash-trio .table-wrap {
+      margin-top: 8px;
+    }
+
+    /* Scrollbar minimalis untuk slide & inner list */
+    .swiper-slide::-webkit-scrollbar,
+    .news-grid::-webkit-scrollbar,
+    .edu-list::-webkit-scrollbar,
+    .table-wrap::-webkit-scrollbar {
+      width: 4px;
+      height: 4px;
+    }
+    .swiper-slide::-webkit-scrollbar-thumb,
+    .news-grid::-webkit-scrollbar-thumb,
+    .edu-list::-webkit-scrollbar-thumb,
+    .table-wrap::-webkit-scrollbar-thumb {
+      background: rgba(100, 116, 139, 0.3);
+      border-radius: 4px;
+    }
+  </style>
+
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script> <!-- Required for New Mobile Dashboard -->
 
   <!-- Libraries -->
@@ -174,6 +261,12 @@
           </div>
         </div>
 
+        <!-- SWIPER CONTAINER -->
+        <div class="swiper mob-dash-swiper" style="width: 100%; padding-bottom: 25px; --swiper-pagination-color: var(--primary-600); --swiper-pagination-bullet-inactive-color: #94a3b8; --swiper-pagination-bullet-inactive-opacity: 0.5;">
+          <div class="swiper-wrapper">
+            
+            <!-- SLIDE 1: Overview -->
+            <div class="swiper-slide" style="display:flex; flex-direction:column; gap:4px; align-content: flex-start;">
         <!-- 2. Hero Card (Active On-Site) -->
         <div class="mob-hero-container">
           <div class="mob-hero-card" onclick="window._showActiveDetail && window._showActiveDetail()"
@@ -214,6 +307,10 @@
           </button>
         </div>
 
+            </div><!-- /SLIDE 1 -->
+
+            <!-- SLIDE 2: Statistics -->
+            <div class="swiper-slide" style="display:flex; flex-direction:column; gap:4px; align-content: flex-start;">
         <!-- 4. Daily Stats (Chart) -->
         <div class="mob-daily-card">
           <div class="mob-stats-left">
@@ -263,13 +360,47 @@
           </div>
         </div>
 
+            </div><!-- /SLIDE 2 -->
+
+            <!-- SLIDE 3: Presence Stats -->
+            <div class="swiper-slide" style="display:flex; flex-direction:column; gap:4px; align-content: flex-start;">
         <!-- 5. Live Presence Stats -->
         <div class="mob-gauge-card" style="margin: 8px 12px 12px; padding: 10px;">
           <div style="font-weight:700; margin-bottom:6px; font-size:0.85rem; color:#1e293b;">Statistik Kehadiran
             Langsung</div>
           <div id="companyPresenceGridMobile" class="company-grid-mobile"></div>
         </div>
+            </div><!-- /SLIDE 3 -->
+            
+          </div><!-- /swiper-wrapper -->
+          <!-- Pagination -->
+          <div class="swiper-pagination"></div>
+        </div><!-- /swiper -->
       </div>
+
+      <!-- Inisialisasi Swiper Dashboard Mobile -->
+      <script>
+        document.addEventListener('DOMContentLoaded', function() {
+          if (typeof Swiper !== 'undefined') {
+            new Swiper('.mob-dash-swiper', {
+              slidesPerView: 1,
+              spaceBetween: 16,
+              pagination: {
+                el: '.swiper-pagination',
+                clickable: true,
+                dynamicBullets: true,
+              },
+              autoplay: {
+                delay: 5000,
+                disableOnInteraction: false,
+                pauseOnMouseEnter: true
+              },
+              loop: true,
+              autoHeight: false, // Dimatikan agar tinggi tetap 1 layar penuh (100vh)
+            });
+          }
+        });
+      </script>
 
       <!-- DESKTOP DASHBOARD (Hidden on Mobile) -->
       <div class="desktop-dash desktop-only">
@@ -348,6 +479,12 @@
           })();
         </script>
 
+        <!-- DESKTOP SWIPER -->
+        <div class="swiper desk-dash-swiper" style="width: 100%; padding-bottom: 50px; --swiper-pagination-color: var(--primary-600); --swiper-pagination-bullet-inactive-color: #94a3b8; --swiper-pagination-bullet-inactive-opacity: 0.5;">
+          <div class="swiper-wrapper">
+
+            <!-- SLIDE 1: Stats & Active Shifts -->
+            <div class="swiper-slide" style="display:flex; flex-direction:column; align-content: flex-start;">
         <!-- Kartu statistik -->
         <!-- Kartu statistik (V2 Solid Color) -->
         <div class="grid-4">
@@ -421,27 +558,17 @@
 
           <!-- Overtime Panel (Dashboard) -->
           <div id="overtimePanelDash_Fixed" class="card" onclick="showOvertimeList()" title="Klik untuk melihat detail"
-            style="display:none; width: auto; min-width: 200px; border-left:4px solid var(--danger-500); background: #fff0f0; cursor:pointer; align-items:center; justify-content:space-between; gap:16px;">
+            style="display:none; width: auto; min-width: 200px; border-left:4px solid var(--danger); background: var(--surface-solid); cursor:pointer; align-items:center; justify-content:space-between; gap:16px;">
             <div>
-              <h3 style="margin:0; font-size:1.1rem; color:var(--danger-700)">Overtime</h3>
+              <h3 style="margin:0; font-size:1.1rem; color:var(--danger)">Overtime</h3>
               <div class="muted" style="font-size:0.85rem">Melewati jam pulang</div>
             </div>
-            <div id="overtimeCountDash_Fixed" style="font-size:2rem; font-weight:800; color:var(--danger-600)">0</div>
+            <div id="overtimeCountDash_Fixed" style="font-size:2rem; font-weight:800; color:var(--danger)">0</div>
           </div>
 
         </div>
 
-        <!-- Company Presence -->
-        <div class="card" id="companyPresenceCard">
-          <div class="card-title" data-i18n="company_attendance_title">Company Attendance (today)</div>
-          <div class="live-row" style="margin:2px 0 10px">
-            <b data-i18n="company_live_stats">STATISTIK KEHADIRAN LANGSUNG</b>
-            <span class="muted" id="companyLiveTime">--:--:--</span>
-          </div>
-          <div id="companyPresenceGrid" class="company-grid"></div>
-        </div>
-
-        <!-- ===== DASH TRIO ===== -->
+        <!-- ===== DASH TRIO (Digabung ke Slide 1) ===== -->
         <div class="dash-trio">
           <div class="card" id="monthCalendarCard" data-hover-card>
             <div class="card-title" data-i18n="card_monthly_calendar">Kalender Bulan Ini</div>
@@ -470,7 +597,7 @@
                     <small id="recentCount" class="muted">(3 terakhir hari ini)</small>
                   </div>
                   <button onclick="exportExcel()" class="btn-export"
-                    style="background:#28a745; color:white; border:none; padding:4px 8px; border-radius:4px; cursor:pointer; font-size:0.8rem;">
+                    style="background:var(--success); color:white; border:none; padding:6px 12px; border-radius:12px; cursor:pointer; font-size:0.85rem; font-weight: 600; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2); transition: transform 0.2s;">
                     📊 Export Excel
                   </button>
                 </div>
@@ -494,7 +621,60 @@
           <!-- /GABUNG -->
         </div>
 
+            </div><!-- /SLIDE 1 -->
+
+            <!-- SLIDE 2: Company Presence -->
+            <div class="swiper-slide" style="display:flex; flex-direction:column; align-content: flex-start;">
+        <!-- Company Presence -->
+        <div class="card" id="companyPresenceCard">
+          <div class="card-title" data-i18n="company_attendance_title">Company Attendance (today)</div>
+          <div class="live-row" style="margin:2px 0 10px">
+            <b data-i18n="company_live_stats">STATISTIK KEHADIRAN LANGSUNG</b>
+            <span class="muted" id="companyLiveTime">--:--:--</span>
+          </div>
+          <div id="companyPresenceGrid" class="company-grid"></div>
+        </div>
+
+            </div><!-- /SLIDE 2 -->
+            
+          </div><!-- /swiper-wrapper -->
+          
+          <!-- Pagination & Navigation Desktop -->
+          <div class="swiper-pagination"></div>
+          <div class="swiper-button-prev" style="color: var(--primary-600); left: 0px;"></div>
+          <div class="swiper-button-next" style="color: var(--primary-600); right: 0px;"></div>
+        </div><!-- /swiper -->
+
+        <!-- Inisialisasi Swiper Dashboard Desktop -->
+        <script>
+          document.addEventListener('DOMContentLoaded', function() {
+            if (typeof Swiper !== 'undefined') {
+              new Swiper('.desk-dash-swiper', {
+                slidesPerView: 1,
+                spaceBetween: 24,
+                pagination: {
+                  el: '.desk-dash-swiper .swiper-pagination',
+                  clickable: true,
+                  dynamicBullets: true,
+                },
+                navigation: {
+                  nextEl: '.desk-dash-swiper .swiper-button-next',
+                  prevEl: '.desk-dash-swiper .swiper-button-prev',
+                },
+                autoplay: {
+                  delay: 6000,
+                  disableOnInteraction: false,
+                  pauseOnMouseEnter: true
+                },
+                loop: true,
+                autoHeight: false,
+              });
+            }
+          });
+        </script>
+
         <!-- (Kartu Education terpisah DIHAPUS) -->
+      </div><!-- close desktop-dash -->
     </section>
 
     <!-- GENERAL REPORT -->

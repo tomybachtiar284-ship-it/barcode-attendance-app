@@ -1239,6 +1239,36 @@ window.addEventListener('DOMContentLoaded', () => {
     }
   };
 
+  // --- NEW: Redirect Company to Attendance Report ---
+  window.viewCompanyAttendance = function (companyName) {
+    // 1. Arahkan ke tab Laporan 24 Jam DULU (agar dropdown dirender)
+    const navLink = document.querySelector('.navlink[data-route="attendance"]');
+    if (navLink) {
+      navLink.click(); // Trigger simulasi klik navlink
+    }
+
+    // 2. KEMUDIAN Set filter perusahaan di dropdown
+    const cSel = $('#attCompanyFilter');
+    if (cSel) {
+      cSel.value = companyName;
+    }
+    
+    // 3. Pastikan data tabel difilter ulang dengan nilai yang baru
+    if (typeof filterAttendance === 'function') {
+      filterAttendance();
+    }
+    
+    // Opsional: Tutup modal/menu di mobile jika terbuka
+    if (window.innerWidth <= 768) {
+       const sb = document.querySelector('.sidebar');
+       const ov = document.querySelector('.sidebar-overlay');
+       if (sb && sb.classList.contains('active-mobile')) {
+         sb.classList.remove('active-mobile');
+         if(ov) ov.classList.remove('active');
+       }
+    }
+  };
+
 
   function renderCompanyPresence() {
     const { counts, totals, namesByComp } = presentMapToday();
@@ -1257,7 +1287,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
       return `
       <div class="company-card ${isLive}" data-company="${esc(c)}"
-           onclick="openCompanyDetail('${esc(c)}');">
+           onclick="viewCompanyAttendance('${esc(c)}');">
         <div>
           <div class="name">${esc(c)}</div>
           <div class="sub">${total} Employee(s)</div>
@@ -2991,6 +3021,34 @@ window.addEventListener('DOMContentLoaded', () => {
     const tb = $('#tableAtt tbody'); if (!tb) return;
     const rows = getFilteredAttendanceRows();
 
+    // --- HITUNG KARYAWAN AKTIF (HARI INI) & WARNA PANEL ---
+    const activeSet = new Set();
+    let hlColor = '#10b981'; // Default hijau
+    
+    if (typeof attendance !== 'undefined') {
+      const sod = new Date(todayISO() + 'T00:00:00').getTime();
+      const lastStatus = new Map();
+      attendance.filter(a => a.ts >= sod)
+        .sort((a, b) => a.ts - b.ts)
+        .forEach(a => lastStatus.set(a.nid, a.status));
+      lastStatus.forEach((stat, nid) => { 
+        if (stat === 'datang' || stat === 'break_in') activeSet.add(nid); 
+      });
+
+      // Cari warna berdasarkan ranking perusahaan di Dashboard hari ini
+      const co = $('#attCompanyFilter')?.value || '';
+      if (co && typeof presentMapToday === 'function') {
+        const { counts, totals } = presentMapToday();
+        const companies = Object.keys(totals).sort((a, b) => (counts[b] || 0) - (counts[a] || 0));
+        const idx = companies.indexOf(co);
+        if (idx !== -1) {
+          const COLORS = ['#ef4444', '#f59e0b', '#10b981', '#8b5cf6'];
+          hlColor = COLORS[idx % 4];
+        }
+      }
+    }
+    // ----------------------------------------
+
     tb.innerHTML = '';
     rows.forEach(r => {
       const tr = document.createElement('tr');
@@ -3009,12 +3067,19 @@ window.addEventListener('DOMContentLoaded', () => {
         <button class="btn small danger" data-act="del-att" title="Hapus" style="padding:2px 8px; font-size:12px;">Hapus</button>`;
 
       const checkboxTd = r.isGhost ? `<td style="width:1%; text-align: center; padding: 4px;"></td>` : `<td style="width:1%; text-align: center; padding: 4px;"><input type="checkbox" class="cb-att-row" data-ts="${r.ts}"></td>`;
+      
+      // -- HIGHLIGHT LOGIC --
+      const isActive = activeSet.has(r.nid);
+      const nameDisplay = isActive 
+        ? `<span style="color: ${hlColor}; font-weight: 800;">${esc(r.name)} <span style="font-size:0.65rem; background:${hlColor}; color:white; padding:2px 6px; border-radius:4px; margin-left:4px; vertical-align:middle;">AKTIF</span></span>` 
+        : esc(r.name);
+
       tr.innerHTML = `
         ${checkboxTd}
         <td>${fmtTs(r.ts)}</td>
         <td>${statusLabel}</td>
         <td>${r.nid}</td>
-        <td>${r.name}</td>
+        <td>${nameDisplay}</td>
         <td>${r.title}</td>
         <td>${r.company}</td>
         <td>${CODE_TO_LABEL[r.shift] || r.shift || ''}</td>
@@ -6114,7 +6179,7 @@ window.addEventListener('DOMContentLoaded', () => {
       // We'll use simple classes: mob-comp-card + color modifier
 
       html += `
-        <div class="mob-comp-card" onclick="showCompanyDetail('${comp}')">
+        <div class="mob-comp-card" onclick="viewCompanyAttendance('${comp}')">
             <div class="mob-comp-name">${comp}</div>
             <div class="mob-comp-countBadge ${color}">${count}</div>
         </div>
