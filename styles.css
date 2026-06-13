@@ -1572,6 +1572,2933 @@ dialog::backdrop {
 }
 
 /* ============================================================================
+   AREA 9: NEWS CARDS (MODERN ALERT STYLE)
+   ========================================================================== */
+.news-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+}
+
+.news-card {
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid #e2e8f0;
+  border-left: 4px solid #ef4444; /* Modern Red Accent Left Border */
+  border-radius: 12px;
+  padding: 16px;
+  position: relative;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  cursor: pointer;
+  overflow: hidden;
+}
+
+/* Subtle background tint for extra warning feel */
+.news-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: linear-gradient(135deg, rgba(254, 226, 226, 0.5) 0%, transparent 100%);
+  z-index: 0;
+  pointer-events: none;
+}
+
+.news-card > * {
+  position: relative;
+  z-index: 1;
+}
+
+.news-card:hover {
+  transform: translateX(4px);
+  box-shadow: 0 6px 16px rgba(239, 68, 68, 0.12);
+  border-color: #f87171;
+}
+
+.news-card .title {
+  font-weight: 700;
+  color: #991b1b;
+  font-size: 1.05rem;
+  margin-bottom: 4px;
+  text-transform: capitalize; /* Automatically fixes the ALL CAPS text */
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Add a megaphone icon before the title */
+.news-card .title::before {
+  content: '📢';
+  font-size: 1.15rem;
+}
+
+.news-card .meta {
+  font-size: 0.75rem;
+  color: #64748b;
+  margin-bottom: 8px;
+  font-family: "Courier New", Courier, monospace; /* Techy clean date look */
+  letter-spacing: 0.5px;
+}
+
+.news-card .body {
+  color: #334155;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.news-card a {
+  color: #2563eb;
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.news-card a:hover {
+  text-decoration: underline;
+}
+
+/* Clean up old animations so they don't leak */
+@keyframes newsPulse { 0% {} }
+@keyframes newsGlow { 0% {} }
+@keyframes newsSweep { 0% {} }
+
+/* ============================================================================
+   AREA 10: KOMPONEN LAIN
+   ========================================================================== */
+.clock,
+#liveClock {
+  font-family: "Bernard MT Condensed", Inter, system-ui, Segoe UI, Roboto, Arial, sans-serif;
+  font-weight: 800;
+  font-size: clamp(2.2rem, 4vw, 3.6rem);
+  line-height: 1;
+  letter-spacing: .02em;
+  color: #ff0000;
+  font-variant-numeric: tabular-nums lining-nums;
+}
+
+/* Dialog Kamera */
+dialog.camdlg {
+  border: 0;
+  padding: 0;
+  background: transparent;
+  width: auto
+}
+
+dialog.camdlg::backdrop {
+  background: rgba(0, 0, 0, .85)
+}
+
+.cam-box {
+  width: min(94vw, 640px);
+  background: #0b1220;
+  border: 1px solid #1e293b;
+  border-radius: 14px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, .5);
+  padding: 12px
+}
+
+.cam-head {
+  display: flex;
+  justify-content: space-between;
+  color: #e5e7eb;
+  font-weight: 600;
+  margin-bottom: 8px
+}
+
+.cam-view {
+  position: relative;
+  background: #000;
+  border-radius: 10px;
+  overflow: hidden
+}
+
+.cam-view video {
+  width: 100%;
+  height: auto;
+  display: block
+}
+
+.cam-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: space-between;
+  margin-top: 10px
+}
+
+.cam-actions .btn {
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: 1px solid #334155;
+  background: #111827;
+  color: #e5e7eb
+}
+
+.cam-actions .btn.primary {
+  background: #2563eb;
+  border-color: #1d4ed8
+}
+
+.cam-actions .btn.warn {
+  background: #d97706;
+  border-color: #b45309;
+  color: #111
+}
+
+.cam-thumb {
+  margin-top: 8px;
+  width: 86px;
+  height: 86px;
+  border-radius: 10px;
+  object-fit: cover;
+  border: 1px solid #e5e7eb
+}
+
+/* Tabel Shift Compact */
+#tableSched.compact select.sched {
+  min-width: 86px;
+  height: 26px;
+  font-size: 12px;
+  padding: 2px 6px
+}
+
+#tableSched.compact th,
+#tableSched.compact td {
+  padding: 4px
+}
+
+/* ============================================================================
+   AREA 11: FULLSCREEN
+   ========================================================================== */
+#route-scan:fullscreen,
+#route-dashboard:fullscreen,
+#route-scan:-webkit-full-screen,
+#route-dashboard:-webkit-full-screen {
+  background: var(--app-gradient) !important;
+  min-height: 100vh;
+  margin: 0;
+  padding: 12px;
+  border-radius: 0;
+  position: relative;
+  z-index: 0;
+}
+
+#route-scan:fullscreen::before,
+#route-dashboard:fullscreen::before,
+#route-scan:-webkit-full-screen::before,
+#route-dashboard:-webkit-full-screen::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background: var(--bg-art-url) var(--bg-art-pos-fs, center)/var(--bg-art-size-fs, cover) no-repeat;
+  opacity: var(--bg-art-opac);
+  pointer-events: none;
+  z-index: -1;
+}
+
+#route-scan:fullscreen>*,
+#route-dashboard:fullscreen>*,
+#route-scan:-webkit-full-screen>*,
+#route-dashboard:-webkit-full-screen>* {
+  position: relative;
+  z-index: 1
+}
+
+/* ============================================================================
+   AREA 12: HELPERS, RESPONSIVE & AKSESIBILITAS
+   ========================================================================== */
+.hidden {
+  display: none
+}
+
+.muted {
+  color: var(--muted)
+}
+
+/* Responsive untuk scan panel */
+@media (max-width:1100px) {
+  #route-scan .scan-hero {
+    grid-template-columns: 1fr
+  }
+
+  #route-scan .scan-hero-right {
+    flex-direction: column;
+    text-align: center
+  }
+
+  .scan-profile-card {
+    grid-template-columns: 1fr;
+    justify-items: center;
+    text-align: center;
+  }
+
+  #route-scan .photo-big {
+    margin: 0 auto
+  }
+
+  #route-scan .scan-stats-grid {
+    grid-template-columns: 1fr
+  }
+
+  #route-scan .scan-stats canvas {
+    height: 220px !important
+  }
+}
+
+/* Performa Mobile */
+@media (max-device-width:1024px) {
+
+  html,
+  body {
+    background-attachment: scroll
+  }
+
+  body::before,
+  body::after {
+    position: absolute
+  }
+}
+
+/* Reduce Motion */
+@media (prefers-reduced-motion:reduce) {
+
+  .company-card.live,
+  .company-card.present,
+  .company-card.live .badge,
+  .company-card.present .badge,
+  .progress::after,
+  .news-card,
+  .news-card::before,
+  .news-card::after {
+    animation: none !important
+  }
+
+  .card:hover,
+  .btn:hover,
+  .company-card:hover {
+    transform: none
+  }
+}
+
+/* Focus Styles */
+:is(.navlink, .btn):focus-visible {
+  outline: 2px solid var(--primary-300);
+  outline-offset: 2px
+}
+
+:is(input, select, .search):focus-visible {
+  outline: none;
+  border-color: var(--primary-300);
+  box-shadow: var(--focus-ring)
+}
+
+/* ============================================================================
+   AREA 13: MINI CALENDAR OVERRIDES (sizing + colors)
+   ========================================================================== */
+/* Override variabel kalender agar compact */
+:root {
+  --cal-max-w: 400px;
+  --cal-cols: 4;
+  --cal-month-h: 20px;
+  --cal-gap: 3px;
+  --cal-radius: 8px;
+  --cal-pad: 6px 10px;
+  --cal-font: 10px;
+}
+
+/* Paksa kartu kalender transparan */
+#calendarCard,
+#miniCalendar:where(.card) {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+/* Lebar kartu + posisi kiri */
+#calendarCard {
+  max-width: var(--cal-max-w);
+  margin: 2px 0 0
+}
+
+/* Skala font kalender */
+#miniCalendar {
+  font-size: var(--cal-font)
+}
+
+/* Grid bulan rapat */
+#calendarCard #miniCalendar .cal-months {
+  grid-template-columns: repeat(var(--cal-cols), minmax(4px, 1fr)) !important;
+  gap: var(--cal-gap) !important;
+}
+
+/* Ukuran chip bulan & tahun */
+#miniCalendar .cal-month {
+  height: var(--cal-month-h);
+  padding: var(--cal-pad) !important;
+  border-radius: var(--cal-radius) !important
+}
+
+#miniCalendar .cal-years {
+  gap: var(--cal-gap) !important
+}
+
+#miniCalendar .cal-year {
+  padding: 6px 10px !important;
+  border-radius: var(--cal-radius) !important
+}
+
+/* Mode super-kompak opsional */
+#calendarCard.compact {
+  transform: scale(.8);
+  transform-origin: top left
+}
+
+/* Panel transparan */
+.card {
+  background: rgba(255, 255, 255, var(--panel-alpha)) !important;
+}
+
+.card.subtle,
+#route-scan .scan-table.card-light {
+  background: rgba(244, 248, 255, var(--panel-alpha-2)) !important;
+}
+
+.table-wrap {
+  background: rgba(255, 255, 255, var(--panel-alpha)) !important;
+}
+
+#route-scan .scan-hero-left,
+#route-scan .scan-hero-right {
+  background: rgba(255, 255, 255, var(--panel-alpha)) !important;
+  backdrop-filter: blur(6px);
+}
+
+/* ==== Kalender Bulan Ini (month-view) ==== */
+#monthCalendar {
+  --mc-cell-h: 42px;
+}
+
+#monthCalendar .mc-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px
+}
+
+#monthCalendar .mc-title {
+  font-weight: 800
+}
+
+#monthCalendar .mc-nav {
+  display: flex;
+  gap: 6px
+}
+
+#monthCalendar .mc-nav .btn {
+  padding: 6px 10px;
+  border-radius: 10px
+}
+
+#monthCalendar .mc-dow {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 6px;
+  margin-bottom: 4px
+}
+
+#monthCalendar .mc-d {
+  text-align: center;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--muted);
+  padding: 4px 0
+}
+
+#monthCalendar .mc-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 6px
+}
+
+#monthCalendar .mc-day {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: var(--mc-cell-h);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  font-weight: 700;
+  color: var(--text);
+  transition: transform .12s ease, box-shadow .12s ease;
+}
+
+#monthCalendar .mc-day:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 18px rgba(2, 6, 23, .06)
+}
+
+#monthCalendar .mc-day.muted {
+  color: #94a3b8;
+  background: var(--surface-2)
+}
+
+#monthCalendar .mc-day.today {
+  border-color: var(--primary-600);
+  background: var(--primary-100);
+  color: var(--primary-700);
+  box-shadow: 0 0 0 3px rgba(43, 123, 255, .18) inset;
+}
+
+#monthCalendar .mc-day.has-logs::after {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--success);
+  position: absolute;
+  bottom: 6px;
+}
+
+/* Lebar kartu kalender ringkas (default) */
+#monthCalendarCard {
+  max-width: 520px
+}
+
+@media (max-width:1100px) {
+  #monthCalendar .mc-day {
+    height: 38px
+  }
+}
+
+/* Kalender mengikuti kolom dash-trio */
+.dash-trio #monthCalendarCard {
+  max-width: none;
+  width: 100%
+}
+
+/* ============================================================================
+   AREA 14: SEMBUNYIKAN KALENDER STRIP LAMA (TAHUN/BULAN DI BAWAH)
+   ========================================================================== */
+#calendar,
+#calendarBottom,
+#yearCalendar,
+#yearNav,
+#monthNav,
+.calendar-bottom,
+.calendar-strip,
+.kalender-bawah {
+  display: none !important;
+}
+
+/* =========================
+   FINAL PATCH Ã¢â‚¬â€ DASHBOARD & LIST PANEL
+   ========================= */
+
+/* 1) Sembunyikan mini calendar lama (tahun & bulan) */
+#calendarCard,
+#miniCalendar {
+  display: none !important;
+}
+
+/* 2) Trio layout: Kalender | Info | Aktivitas */
+.dash-trio {
+  display: grid;
+  grid-template-columns: 0.95fr 1.05fr 1.2fr;
+  gap: 16px;
+  align-items: start;
+}
+
+/* Kartu di trio fleksibel dan bisa men-scroll isi */
+.dash-trio .card {
+  display: flex;
+  flex-direction: column;
+  min-height: 360px;
+}
+
+#newsCardDash .news-grid {
+  margin-top: 4px;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+  overflow: auto;
+  flex: 1;
+  min-height: 0;
+}
+
+#recentCard .table-wrap {
+  overflow: auto;
+  flex: 1;
+  min-height: 0;
+}
+
+/* Responsif */
+@media (max-width:1400px) {
+  .dash-trio {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  #recentCard {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width:900px) {
+  .dash-trio {
+    grid-template-columns: 1fr;
+  }
+
+  #monthCalendarCard,
+  #newsCardDash,
+  #recentCard {
+    min-height: auto;
+  }
+}
+
+/* 3) Kalender Bulan Ini (month-view) Ã¢â‚¬â€œ konsisten */
+#monthCalendar {
+  --mc-cell-h: 42px;
+}
+
+#monthCalendarCard {
+  max-width: 520px;
+}
+
+#monthCalendar .mc-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+#monthCalendar .mc-title {
+  font-weight: 800;
+}
+
+#monthCalendar .mc-nav {
+  display: flex;
+  gap: 6px;
+}
+
+#monthCalendar .mc-nav .btn {
+  padding: 6px 10px;
+  border-radius: 10px;
+}
+
+#monthCalendar .mc-dow {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
+#monthCalendar .mc-d {
+  text-align: center;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--muted);
+  padding: 4px 0;
+}
+
+#monthCalendar .mc-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 6px;
+}
+
+#monthCalendar .mc-day {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: var(--mc-cell-h);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  font-weight: 700;
+  color: var(--text);
+  transition: transform .12s ease, box-shadow .12s ease;
+}
+
+#monthCalendar .mc-day:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 18px rgba(2, 6, 23, .06);
+}
+
+#monthCalendar .mc-day.muted {
+  color: #94a3b8;
+  background: var(--surface-2);
+}
+
+#monthCalendar .mc-day.today {
+  border-color: var(--primary-600);
+  background: var(--primary-100);
+  color: var(--primary-700);
+  box-shadow: 0 0 0 3px rgba(43, 123, 255, .18) inset;
+}
+
+#monthCalendar .mc-day.has-logs::after {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--success);
+  position: absolute;
+  bottom: 6px;
+}
+
+@media (max-width:1100px) {
+  #monthCalendar .mc-day {
+    height: 38px;
+  }
+}
+
+/* 4) Konsistensi panel transparan & sembunyikan label persen Education */
+.card {
+  background: rgba(255, 255, 255, var(--panel-alpha, .70)) !important;
+}
+
+.table-wrap {
+  background: rgba(255, 255, 255, var(--panel-alpha, .70)) !important;
+}
+
+/* HIDE persen "95%" di Education Highlights */
+.edu-bar .val {
+  display: none !important;
+}
+
+/* =========================
+   FINAL PATCH Ã¢â‚¬â€ BRAND / LOGO PANEL PERSISTEN
+   (letakkan di paling bawah agar menang melawan style sebelumnya)
+   ========================= */
+
+/* Token ukuran panel logo (ubah bebas) */
+:root {
+  --brand-size: 200px;
+}
+
+/* Panel logo dasar yang tidak memudar isi */
+.logo-panel {
+  --panel-alpha: .50;
+  --panel-alpha-2: .45;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 100%;
+  padding: 9px;
+  backdrop-filter: blur(6px);
+}
+
+/* Gambar/logo di dalam panel */
+.logo-panel>img,
+.logo-panel .logo-img,
+.brand-corner .logo-img {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: contain;
+  display: block;
+  filter: none;
+}
+
+/* Jika ada inline width/height dari JS, timpa biar konsisten */
+.logo-panel[style*="width"],
+.logo-panel[style*="height"] {
+  width: var(--brand-size) !important;
+  height: var(--brand-size) !important;
+}
+
+/* Panel khusus pojok brand: kontrol opacity tanpa mempengaruhi konten */
+:root {
+  --brand-panel-alpha: .9;
+  --brand-panel-blur: 0px;
+  --brand-panel-bg-rgb: 225, 255, 255;
+  --brand-panel-border: var(--line);
+}
+
+.brand-corner.card,
+.brand-corner.card.subtle {
+  background: rgba(var(--brand-panel-bg-rgb), var(--brand-panel-alpha)) !important;
+  border: 1px solid var(--brand-panel-border) !important;
+  backdrop-filter: blur(var(--brand-panel-blur));
+  -webkit-backdrop-filter: blur(var(--brand-panel-blur));
+}
+
+/* Kontainer brand jangan menyusutkan panel */
+.brand-corner {
+  flex: 0 0 auto;
+}
+
+/* Opsional: panel greet sedikit lebih gelap (tanpa ubah layout) */
+#route-dashboard .greet {
+  --greet-tint: 0, 255, 255;
+  --greet-alpha: .68;
+  position: relative;
+  background: linear-gradient(135deg,
+      rgba(var(--greet-tint), calc(var(--greet-alpha) + .06)),
+      rgba(var(--greet-tint), var(--greet-alpha))) !important;
+  border-color: color-mix(in srgb, rgb(var(--greet-tint)) 40%, transparent);
+  backdrop-filter: blur(6px);
+  box-shadow: 0 10px 26px rgba(0, 0, 0, .12);
+}
+
+#route-dashboard .greet::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background: radial-gradient(120% 140% at 10% 0%, rgba(255, 255, 255, .893), transparent 20%);
+}
+
+/* ============================================================================
+   AREA 8: NEW DASHBOARD HEADER & STATS (Modern)
+   ========================================================================== */
+.header-modern {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.9), rgba(240, 249, 255, 0.85));
+  backdrop-filter: blur(10px);
+  padding: 16px 24px;
+  border-radius: 20px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.05);
+  margin-bottom: 24px;
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  min-height: fit-content;
+}
+
+.header-logo {
+  width: auto;
+  height: 135px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+}
+
+.header-logo img {
+  width: auto;
+  height: 100%;
+  object-fit: contain;
+  max-width: 450px;
+  /* Allow wider logos */
+}
+
+.header-content {
+  flex: 1;
+  text-align: center;
+  margin: 0 24px;
+}
+
+.header-title {
+  font-family: 'Inter', sans-serif;
+  font-weight: 800;
+  font-size: 1.5rem;
+  color: var(--primary-700);
+  margin: 0 0 4px 0;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.header-subtitle {
+  font-size: 0.95rem;
+  color: var(--muted);
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  max-width: 100%;
+  margin: 0 auto;
+}
+
+@keyframes marquee {
+  0% {
+    transform: translateX(0);
+  }
+
+  100% {
+    transform: translateX(-100%);
+  }
+}
+
+.marquee-wrap {
+  width: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.marquee-content {
+  display: inline-block;
+  padding-left: 100%;
+  /* Start from right */
+  animation: marquee 25s linear infinite;
+  font-weight: 600;
+  color: #64748b;
+  /* Use distinct color or var(--text-muted) */
+}
+
+.header-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+}
+
+.header-clock {
+  font-family: 'Monaco', 'Consolas', monospace;
+  font-size: 1.8rem;
+  font-weight: 700;
+  color: var(--primary-600);
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.header-btn {
+  background: white;
+  border: 1px solid var(--line);
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--muted);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.header-btn:hover {
+  background: var(--primary-50);
+  color: var(--primary-600);
+  border-color: var(--primary-200);
+}
+
+/* Grid 4 Columns */
+.grid-4 {
+  display: grid;
+  /* Fixed grid to ensure row of 4, but switch to wrapping if too small (via media query) 
+     OR use auto-fit for zoom stability. Let's use auto-fit. */
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+/* Solid Cards */
+.card-solid {
+  padding: 24px;
+  border-radius: var(--radius);
+  color: white;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08); /* Bayangan lebih premium */
+  transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 0.3s ease, filter 0.3s ease;
+  cursor: pointer;
+  min-height: 140px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.card-solid:hover {
+  transform: translateY(-6px) scale(1.02); /* Animasi melayang sedikit membesar */
+  box-shadow: 0 15px 40px rgba(0, 0, 0, 0.12);
+  filter: brightness(1.05);
+}
+
+/* Card Variants */
+/* Card Variants (PLN Corporate Theme) */
+.stat-blue {
+  /* Navy Blue */
+  background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 100%);
+  box-shadow: 0 10px 30px rgba(30, 58, 138, 0.25);
+}
+
+.stat-orange {
+  /* Royal Blue */
+  background: linear-gradient(135deg, #1d4ed8 0%, #3b82f6 100%);
+  box-shadow: 0 10px 30px rgba(59, 130, 246, 0.25);
+}
+
+.stat-cyan {
+  /* PLN Cyan */
+  background: linear-gradient(135deg, #0369a1 0%, #06b6d4 100%);
+  box-shadow: 0 10px 30px rgba(6, 182, 212, 0.25);
+}
+
+.stat-green {
+  /* Deep Corporate Teal */
+  background: linear-gradient(135deg, #0f766e 0%, #14b8a6 100%);
+  box-shadow: 0 10px 30px rgba(20, 184, 166, 0.25);
+}
+
+.pills {
+  display: flex;
+  margin-bottom: 12px;
+}
+
+.pill {
+  background: rgba(255, 255, 255, 0.25);
+  backdrop-filter: blur(4px);
+  padding: 4px 10px;
+  border-radius: 99px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.lbl {
+  font-size: 0.95rem;
+  font-weight: 600;
+  opacity: 0.9;
+}
+
+.val {
+  font-size: 2.4rem;
+  font-weight: 800;
+  line-height: 1.1;
+}
+
+/* Responsive */
+@media (max-width: 1200px) {
+  .grid-4 {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .header-modern {
+    flex-direction: column;
+    gap: 16px;
+    text-align: center;
+  }
+
+  .header-right {
+    align-items: center;
+  }
+
+  .dash-trio {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 600px) {
+  .grid-4 {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ===== Global Tooltip ===== */
+#global-tooltip {
+  position: fixed;
+  top: 0;
+  left: 0;
+  padding: 6px 12px;
+  background: rgba(15, 23, 42, 0.95);
+  color: #fff;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  pointer-events: none;
+  z-index: 99999;
+  opacity: 0;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+  white-space: nowrap;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  transform: translateY(4px);
+}
+
+#global-tooltip.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* ===== Loading & Skeletons (Performance UX) ===== */
+.spinner {
+  width: 24px;
+  height: 24px;
+  border: 3px solid rgba(0, 0, 0, 0.1);
+  border-radius: 50%;
+  border-top-color: var(--primary);
+  animation: spin 0.8s ease-in-out infinite;
+  display: inline-block;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.skeleton {
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: skeleton-loading 1.5s infinite;
+  border-radius: 4px;
+  min-height: 1em;
+}
+
+@keyframes skeleton-loading {
+  0% {
+    background-position: 200% 0;
+  }
+
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+.fade-in {
+  animation: fadeIn 0.3s ease-in;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ============================================================================
+   AREA FINAL: COMPREHENSIVE MOBILE RESPONSIVENESS
+   ========================================================================== */
+
+/* 1. Mobile Toggle Button */
+.mobile-nav-toggle {
+  display: none;
+  position: fixed;
+  top: 16px;
+  left: 16px;
+  z-index: 1100;
+  background: white;
+  border: 1px solid var(--line);
+  padding: 8px;
+  border-radius: 8px;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  color: var(--primary-700);
+}
+
+.sidebar-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+  z-index: 1040;
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.3s;
+}
+
+.sidebar-overlay.active {
+  opacity: 1;
+  visibility: visible;
+}
+
+/* 2. Responsive Breakpoints */
+@media (max-width: 1024px) {
+
+  /* Reset Main Layout */
+  .main {
+    margin-left: 0;
+    width: 100%;
+    padding: 16px;
+    padding-top: 80px;
+    /* Space for hamburger */
+  }
+
+  /* Show Toggle */
+  .mobile-nav-toggle {
+    display: flex;
+  }
+
+  /* Off-canvas Sidebar */
+  .sidebar {
+    transform: translateX(-100%);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    z-index: 1050;
+    box-shadow: 4px 0 24px rgba(0, 0, 0, 0.15);
+  }
+
+  .sidebar.active {
+    transform: translateX(0);
+  }
+
+  /* Reset Header Logo logic override */
+  .header-modern {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 16px;
+    padding: 16px;
+  }
+
+  .header-logo {
+    height: auto;
+    max-height: 80px;
+    justify-content: center;
+  }
+
+  .header-content {
+    margin: 0;
+    text-align: center;
+  }
+
+  .header-right {
+    flex-direction: row;
+    justify-content: space-between;
+    width: 100%;
+    margin-top: 8px;
+  }
+}
+
+/* 3. Small Mobile */
+@media (max-width: 480px) {
+
+  .grid-4,
+  .grid-3,
+  .grid-5,
+  .news-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .header-title {
+    font-size: 1.2rem;
+  }
+
+  .header-clock {
+    font-size: 1.4rem;
+  }
+
+  /* Tables */
+  .table-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    border-radius: 12px;
+    border: 1px solid var(--line);
+  }
+
+  th,
+  td {
+    white-space: nowrap;
+    font-size: 0.85rem;
+  }
+}
+
+/* ===== REBRANDING POLISH ===== */
+.header-title,
+h1.page-title {
+  color: var(--text-brand) !important;
+}
+
+/* ============================================================================
+   AREA FINAL: MOBILE REDESIGN (REF STYLE)
+   ========================================================================== */
+
+/* Default State: Mobile UI Hidden */
+.mob-dash-container {
+  display: none;
+}
+
+.desktop-dash {
+  display: block;
+}
+
+.mobile-bottom-nav {
+  display: none;
+}
+
+/* MOBILE BREAKPOINT */
+@media (max-width: 768px) {
+
+  /* 1. Toggle Views */
+  .mob-dash-container {
+    display: block;
+  }
+
+  .desktop-dash {
+    display: none !important;
+  }
+
+  /* Sidebar: Hidden by default on mobile, unless active */
+  .sidebar:not(.active-mobile) {
+    display: none !important;
+  }
+
+  /* Mobile Sidebar Drawer Style */
+  .sidebar.active-mobile {
+    display: flex !important;
+    flex-direction: column;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 280px;
+    height: 100vh;
+    /* Fallback */
+    height: 100dvh;
+    /* FIX: Stable on mobile browsers */
+    bottom: 0;
+    /* Anchor to bottom */
+    z-index: 10002;
+    /* Above everything */
+    animation: slideInSidebar 0.3s ease forwards;
+    /* FIX: Sync mobile sidebar background */
+    background: url('assets/sidebar-bg-final.png') no-repeat center bottom !important;
+    background-size: 100% 100% !important;
+    overflow-y: auto;
+    padding-bottom: 80px;
+    /* Ensure bottom content is reachable */
+    /* Allow scrolling for small screens */
+  }
+
+  /* FIX: Pastikan teks menu yg AKTIF berwarna biru (kontras dengan putih) */
+  .sidebar.active-mobile .navlink.active {
+    color: var(--primary-700) !important;
+    background: #fff;
+  }
+
+  /* FIX: Revert text color to white for dark background (yg tidak aktif) */
+  .sidebar.active-mobile .navlink:not(.active) {
+    color: #fff;
+  }
+
+  .sidebar.active-mobile .brand-sub {
+    color: rgba(255, 255, 255, 0.85);
+  }
+
+  @keyframes slideInSidebar {
+    from {
+      transform: translateX(-100%);
+    }
+
+    to {
+      transform: translateX(0);
+    }
+  }
+
+  /* Overlay Z-Index Fix */
+  .sidebar-overlay.active {
+    z-index: 10001;
+    display: block;
+    background: rgba(0, 0, 0, 0.5);
+  }
+
+  /* Kill Desktop Header & Toggle Button (redundant) */
+  .header-modern,
+  .mobile-nav-toggle,
+  #btnMobileNav {
+    display: none !important;
+  }
+
+  /* Kill Desktop Header */
+
+  /* Show Bottom Nav */
+  .mobile-bottom-nav {
+    display: flex !important;
+    justify-content: space-evenly;
+    align-items: center;
+    position: fixed;
+    bottom: 20px;
+    left: 16px;
+    right: 16px;
+    width: auto;
+    background: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    padding: 12px 16px;
+    border-radius: 30px;
+    box-shadow: 0 12px 40px rgba(15, 23, 42, 0.15);
+    border: 1px solid rgba(255, 255, 255, 0.4);
+    z-index: 9999;
+  }
+
+  /* Reset Main Padding */
+  .main {
+    margin-left: 0 !important;
+    width: 100% !important;
+    padding: 20px 20px 100px 20px !important;
+    /* Bottom pad for nav */
+  }
+
+  /* 2. Mobile Components Styling */
+  .mob-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 24px;
+  }
+
+  .mob-logo {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  }
+
+  .mob-brand h3 {
+    margin: 0;
+    color: var(--text);
+    font-size: 1.1rem;
+    font-weight: 800;
+  }
+
+  .mob-brand span {
+    font-size: 0.8rem;
+    color: var(--muted);
+  }
+
+  .mob-hero-card {
+    background: linear-gradient(135deg, var(--primary-600), var(--primary-500));
+    padding: 24px;
+    border-radius: 24px;
+    color: #fff;
+    text-align: center;
+    box-shadow: 0 12px 24px rgba(0, 174, 239, 0.25);
+    /* Cyan Shadow */
+    margin-bottom: 24px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  /* Decor circles */
+  .mob-hero-card::before {
+    content: "";
+    position: absolute;
+    top: -50px;
+    left: -50px;
+    width: 150px;
+    height: 150px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 50%;
+  }
+
+  .mob-clock {
+    font-size: 2.8rem;
+    font-weight: 800;
+    line-height: 1;
+    margin-bottom: 4px;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .mob-date {
+    font-size: 0.95rem;
+    opacity: 0.9;
+    margin-bottom: 12px;
+  }
+
+  .mob-greet {
+    display: inline-block;
+    background: rgba(255, 255, 255, 0.2);
+    padding: 6px 14px;
+    border-radius: 99px;
+    font-size: 0.85rem;
+    font-weight: 600;
+  }
+
+  .mob-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin-bottom: 24px;
+  }
+
+  .mob-stat-card {
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    padding: 16px 10px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
+  }
+
+  .mob-stat-card.red {
+    border-bottom: 3px solid var(--danger);
+  }
+
+  .mob-stat-card.blue {
+    border-bottom: 3px solid var(--primary-600);
+  }
+
+  .mob-stat-card.gray {
+    border-bottom: 3px solid var(--muted);
+  }
+
+  /* Comp Grid Mobile */
+  .company-grid-mobile {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  .mob-comp-card {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+
+  .mob-comp-card:active {
+    background: #e2e8f0;
+  }
+
+  .mob-comp-name {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #334155;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100px;
+  }
+
+  .mob-comp-countBadge {
+    font-size: 0.8rem;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 99px;
+    min-width: 24px;
+    text-align: center;
+  }
+
+  .mob-comp-countBadge.blue {
+    background: #dbeafe;
+    color: #1e40af;
+  }
+
+  .mob-comp-countBadge.orange {
+    background: #ffedd5;
+    color: #9a3412;
+  }
+
+  .mob-comp-countBadge.green {
+    background: #dcfce7;
+    color: #166534;
+  }
+
+  .mob-comp-countBadge.purple {
+    background: #f3e8ff;
+    color: #6b21a8;
+  }
+
+  .mob-comp-countBadge.gray {
+    background: #f1f5f9;
+    color: #475569;
+  }
+
+  .mob-stat-card .label {
+    font-size: 0.7rem;
+    color: var(--muted);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .mob-stat-card .val {
+    font-size: 1.6rem;
+    font-weight: 800;
+    color: var(--text);
+    margin: 6px 0;
+  }
+
+  .mob-stat-card .unit {
+    font-size: 0.65rem;
+    color: #94a3b8;
+  }
+
+  .mob-gauge-card {
+    background: #fff;
+    border-radius: 20px;
+    padding: 20px;
+    text-align: center;
+    border: 1px solid var(--line);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
+  }
+
+  .mob-gauge-card h4 {
+    margin: 0 0 16px 0;
+    font-size: 1rem;
+    color: var(--text);
+  }
+
+  .gauge-wrap {
+    width: 140px;
+    height: 140px;
+    border-radius: 50%;
+    border: 12px solid var(--primary-100);
+    margin: 0 auto 12px auto;
+    display: grid;
+    place-items: center;
+    position: relative;
+  }
+
+  /* Simple CSS Gauge Simulation */
+  .gauge-wrap::after {
+    content: "";
+    position: absolute;
+    inset: -12px;
+    border-radius: 50%;
+    border: 12px solid transparent;
+    border-top-color: var(--primary-600);
+    border-right-color: var(--primary-600);
+    transform: rotate(-45deg);
+    /* Demo 75% filled */
+  }
+
+  /* Gauge Val */
+  .gauge-val {
+    font-size: 2rem;
+    font-weight: 800;
+    color: var(--primary-700);
+  }
+
+  /* ============================================================================ 
+     AREA 3: GENERAL REPORT OPTIMIZATION (MOBILE)
+     Force charts to be smaller (180px) to reduce scrolling
+     ========================================================================== */
+  #route-general-report {
+    padding-bottom: 80px;
+    /* Space for bottom nav */
+  }
+
+  /* Compact Chart Containers */
+  #route-general-report .card>div {
+    height: 200px !important;
+    /* Force override inline 300px */
+    min-height: 0 !important;
+  }
+
+  /* Compact Cards */
+  #route-general-report .card {
+    margin-bottom: 12px;
+    padding: 12px;
+  }
+
+  #route-general-report .card-title {
+    font-size: 0.9rem;
+    margin-bottom: 8px;
+  }
+
+  /* Compact Top Stats (Cards Row) */
+  #route-general-report .grid-4 {
+    grid-template-columns: repeat(2, 1fr) !important;
+    /* 2 cols instead of 1 stack */
+    gap: 8px;
+  }
+
+  #route-general-report .card-solid {
+    padding: 10px;
+    margin-bottom: 0;
+  }
+
+  #route-general-report .card-solid .val {
+    font-size: 1.2rem;
+  }
+
+  #route-general-report .card-solid .lbl {
+    font-size: 0.7rem;
+  }
+}
+
+/* 3. Mobile Table "Card View" Transformation */
+@media (max-width: 768px) {
+
+  /* Generic Table Reset for Card View */
+  .emp-table,
+  #route-inventory table,
+  #route-latest table,
+  #route-education table {
+    display: block;
+    width: 100%;
+  }
+
+  .emp-table thead,
+  #route-inventory thead,
+  #route-latest thead,
+  #route-education thead {
+    display: none;
+    /* Hide headers */
+  }
+
+  .emp-table tbody,
+  #route-inventory tbody,
+  #route-latest tbody,
+  #route-education tbody {
+    display: block;
+    width: 100%;
+  }
+
+  .emp-table tr,
+  #route-inventory tr,
+  #route-latest tr,
+  #route-education tr {
+    display: block;
+    background: #fff;
+    margin-bottom: 16px;
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    padding: 16px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.02);
+  }
+
+  .emp-table td,
+  #route-inventory td,
+  #route-latest td,
+  #route-education td {
+    display: flex;
+    justify-content: space-between;
+    /* Label Left, Value Right */
+    align-items: center;
+    padding: 8px 0;
+    border: none;
+    border-bottom: 1px solid #f3f4f6;
+    font-size: 0.9rem;
+    text-align: right;
+    /* Value align right */
+  }
+
+  .emp-table td:last-child,
+  #route-inventory td:last-child {
+    border-bottom: none;
+    padding-top: 16px;
+    justify-content: center;
+    /* Actions centered */
+  }
+
+  /* Inject Label via data-label */
+  .emp-table td::before,
+  #route-inventory td::before,
+  #route-latest td::before,
+  #route-education td::before {
+    content: attr(data-label);
+    font-weight: 600;
+    color: var(--muted);
+    text-align: left;
+    margin-right: 16px;
+    font-size: 0.85rem;
+  }
+
+  /* Fix Image Alignment in Employee Card */
+  .emp-table td[data-label="Foto"] {
+    justify-content: center;
+    border-bottom: none;
+    padding-bottom: 4px;
+    padding-top: 0;
+  }
+
+  .emp-table td[data-label="Foto"]::before {
+    display: none;
+    /* Hide label for photo */
+  }
+
+  /* Make Action Buttons Bigger on Mobile */
+  .btn.small {
+    padding: 8px 12px;
+    font-size: 0.9rem;
+    min-width: 40px;
+    min-height: 40px;
+  }
+
+  /* Adjust Toolbar Layouts */
+  .toolbar .left,
+  .toolbar .right {
+    flex-direction: column;
+    align-items: stretch;
+    width: 100%;
+  }
+
+  .toolbar input,
+  .toolbar select,
+  .toolbar button {
+    width: 100% !important;
+    margin-bottom: 8px;
+  }
+
+  /* SpecificTweaks */
+  .emp-table td[data-label="Nama"] {
+    font-weight: 700;
+    color: var(--primary-700);
+    font-size: 1.1rem;
+    display: block;
+    text-align: center;
+  }
+
+  .emp-table td[data-label="Nama"]::before {
+    display: none;
+  }
+
+  /* 4. Mobile Dashboard Grid Adjustments */
+  .grid-4 {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 12px !important;
+  }
+
+  /* Adjust Card size for 2-column layout */
+  .card-stat {
+    padding: 16px !important;
+    min-height: 140px;
+  }
+
+  .card-stat .val {
+    font-size: 2rem !important;
+  }
+
+  .card-stat .lbl {
+    font-size: 0.8rem !important;
+  }
+
+  .card-stat h3 {
+    font-size: 0.9rem !important;
+  }
+
+  /* 5. Fix Scan Page Layout on Mobile */
+  .scan-hero {
+    flex-direction: column !important;
+    gap: 16px;
+  }
+
+  .scan-hero-left,
+  .scan-hero-right {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  /* Fix Input Scan */
+  .scan-input {
+    font-size: 1.1rem !important;
+    padding: 12px !important;
+  }
+
+  /* Scan Profile Card Mobile */
+  .scan-profile-card {
+    flex-direction: row;
+    /* Keep row for photo + details */
+    align-items: flex-start;
+    padding: 16px;
+    background: #fff;
+    border-radius: 16px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  }
+
+  .scan-profile-card .photo-big {
+    width: 80px;
+    height: 80px;
+    flex: 0 0 80px;
+  }
+
+  /* Fix Table in Scan Page */
+  #route-scan .table-wrap {
+    border: none;
+    box-shadow: none;
+  }
+}
+
+/* 6. Fix Logistik (Inventory) Toolbar on Mobile */
+@media (max-width: 768px) {
+  #route-inventory .toolbar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 16px !important;
+  }
+
+  /* Target the nested container with date inputs */
+  #route-inventory .toolbar .left>div {
+    flex-direction: column;
+    align-items: stretch !important;
+    border-left: none !important;
+    padding-left: 0 !important;
+    margin-left: 0 !important;
+    gap: 12px !important;
+    width: 100%;
+    margin-top: 12px;
+  }
+
+  /* Make date inputs full width */
+  #route-inventory input[type="date"] {
+    width: 100% !important;
+    box-sizing: border-box;
+    /* Ensure padding doesn't overflow */
+  }
+
+  /* Fix small buttons in toolbar to be full width/bigger */
+  #route-inventory .toolbar .btn.small {
+    width: 100%;
+    justify-content: center;
+    padding: 10px;
+  }
+
+  /* Allow text wrap in Card View Values */
+  #route-inventory td {
+    white-space: normal !important;
+    /* Allow wrapping */
+  }
+
+  #route-inventory td {
+    align-items: flex-start !important;
+    /* Align label/value to top if wrapped */
+  }
+
+  #route-inventory td::before {
+    white-space: nowrap;
+    /* Keep label single line */
+    flex-shrink: 0;
+    /* Prevent label from shrinking */
+  }
+
+  /* Specific fix for "Barang" value alignment */
+  #route-inventory td[data-label="Jenis Barang & Jumlah"] {
+    text-align: right;
+    /* Keep right align but allow wrap */
+    word-break: break-word;
+  }
+
+  /* 7. Fix Karyawan (Employees) Toolbar on Mobile */
+  #route-employees .toolbar {
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  /* Make button container a grid for neat alignment */
+  #route-employees .toolbar .left {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    /* 2 columns */
+    gap: 8px;
+    width: 100%;
+  }
+
+  /* "Tambah" button full width */
+  #btnAddEmp {
+    grid-column: 1 / -1;
+    justify-content: center;
+  }
+
+  /* "Sync Cloud" button also full width for emphasis */
+  #btnSyncEmp {
+    grid-column: 1 / -1;
+    justify-content: center;
+  }
+
+  #route-employees .toolbar .left .btn {
+    justify-content: center;
+    width: 100%;
+    margin: 0;
+  }
+
+  /* Stack inputs on the right */
+  #route-employees .toolbar .right {
+    flex-direction: column;
+    width: 100%;
+    gap: 8px !important;
+  }
+
+  #route-employees .toolbar .right select,
+  #route-employees .toolbar .right input {
+    width: 100% !important;
+    max-width: 100% !important;
+
+    /* 8. Fix Add Employee Modal on Mobile */
+    #empModal .grid-2 {
+      grid-template-columns: 1fr !important;
+      /* Force 1 column */
+      gap: 16px;
+    }
+
+    /* Force Labels to stack vertically with Inputs */
+    #empModal label {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 4px;
+      width: 100%;
+    }
+
+    /* Full width inputs/selects */
+    #empModal input,
+    #empModal select {
+      width: 100% !important;
+      max-width: 100% !important;
+      box-sizing: border-box;
+      padding: 12px;
+      /* Bigger touch target */
+    }
+
+    /* Camera Actions: 2 columns for buttons */
+    #empModal .camera-actions {
+      display: grid !important;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      width: 100%;
+      margin-top: 8px;
+    }
+
+    #empModal .camera-actions button {
+      width: 100%;
+      justify-content: center;
+    }
+
+    #empModal .camera-actions small {
+      grid-column: 1 / -1;
+      /* Hint text spans full width */
+      text-align: center;
+    }
+
+    /* Modal Actions (Save/Cancel) */
+    #empModal .modal-actions {
+      display: grid;
+      /* Grid for 2 big buttons at bottom */
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-top: 20px;
+    }
+
+    #empModal .modal-actions button {
+      width: 100%;
+      justify-content: center;
+      padding: 12px;
+    }
+  }
+}
+
+/* MOBILE DASHBOARD NEW */
+.mob-stat-grid-3 {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 8px;
+}
+
+.mob-stat-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 4px;
+  text-align: center;
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+.mob-stat-card.stat-red {
+  border-bottom: 3px solid var(--danger);
+}
+
+.mob-stat-card.stat-blue {
+  border-bottom: 3px solid var(--primary);
+}
+
+.mob-stat-card.stat-gray {
+  border-bottom: 3px solid #64748b;
+}
+
+.mob-stat-card .lbl-sm {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #64748b;
+  letter-spacing: 0.5px;
+  margin-bottom: 4px;
+  text-transform: uppercase;
+}
+
+.mob-stat-card .val {
+  font-size: 1.6rem;
+  font-weight: 800;
+  line-height: 1;
+  margin-bottom: 2px;
+  color: #0f172a;
+}
+
+.mob-stat-card .lbl-xs {
+  font-size: 0.7rem;
+  color: #94a3b8;
+}
+
+/* Gauge styles */
+.gauge-simple {
+  position: relative;
+  width: 140px;
+  height: 140px;
+  margin: 0 auto;
+  border-radius: 50%;
+  background: conic-gradient(var(--primary) 0%, #e2e8f0 0%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.gauge-simple::before {
+  content: '';
+  position: absolute;
+  width: 110px;
+  height: 110px;
+  background: #fff;
+  border-radius: 50%;
+}
+
+.gauge-val {
+  position: relative;
+  z-index: 2;
+  font-size: 2rem;
+  font-weight: 800;
+  color: var(--primary);
+}
+
+/* MOBILE DASHBOARD GAUGE FIX */
+.mob-stat-grid-3 {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 8px;
+}
+
+.mob-stat-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 4px;
+  text-align: center;
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+/* ============================================================================ 
+   AREA: DATA HOVER INTERACTIONS (Tooltip & Focus)
+   ========================================================================== */
+/* Generic Data Panel Hover Effect */
+[data-hover-card] {
+  position: relative;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  cursor: help;
+}
+
+[data-hover-card="interactive"] {
+  cursor: pointer;
+}
+
+[data-hover-card]:hover {
+  transform: translateY(-4px) scale(1.01);
+  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.15);
+  z-index: 10;
+}
+
+/* Tooltip Implementation using ::after (and ::before for arrow) */
+[data-tooltip] {
+  position: relative;
+}
+
+[data-tooltip]::before,
+[data-tooltip]::after {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  z-index: 9999;
+  visibility: hidden;
+}
+
+/* The arrow */
+[data-tooltip]::before {
+  content: "";
+  border: 6px solid transparent;
+  border-top-color: #1e293b;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%) translateY(4px);
+  margin-bottom: -12px;
+}
+
+/* The body */
+[data-tooltip]::after {
+  content: attr(data-tooltip);
+  background: #1e293b;
+  color: #fff;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  white-space: pre-wrap;
+  /* Critical for newlines */
+  width: max-content;
+  max-width: 260px;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%) translateY(8px);
+  margin-bottom: 8px;
+  text-align: left;
+  /* Critical for readability */
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  line-height: 1.4;
+}
+
+/* Hover State */
+[data-tooltip]:hover::before,
+[data-tooltip]:hover::after {
+  opacity: 1;
+  visibility: visible;
+  transform: translateX(-50%) translateY(0);
+}
+
+
+
+/* ============================================================================ 
+   AREA: MODALS (Generic & Company Detail)
+   ========================================================================== */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.6);
+  z-index: 10000;
+  display: none;
+  /* START HIDDEN */
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(2px);
+}
+
+.modal-overlay.active {
+  display: flex;
+  /* Show flex on active */
+}
+
+.modal-card {
+  background: #fff;
+  width: 90%;
+  max-width: 450px;
+  border-radius: 16px;
+  display: flex;
+  flex-direction: column;
+  max-height: 85vh;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+}
+
+.modal-header {
+  padding: 16px 20px;
+  border-bottom: 1px solid #e2e8f0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.modal-header h3 {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.close-btn {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  color: #64748b;
+  padding: 0 4px;
+}
+
+.modal-body {
+  padding: 0;
+  overflow-y: auto;
+}
+
+.modal-footer {
+  padding: 16px;
+  border-top: 1px solid #e2e8f0;
+  display: flex;
+  justify-content: center;
+}
+
+.btn-primary {
+  background-color: var(--primary, #0f766e);
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  font-weight: 600;
+  cursor: pointer;
+  border-radius: 8px;
+}
+
+/* Company Detail Modal List Styles */
+.comp-detail-list {
+  display: flex;
+  flex-direction: column;
+  max-height: 60vh;
+  overflow-y: auto;
+  padding: 0 16px;
+}
+
+.comp-detail-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 12px 0;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.comp-detail-item:last-child {
+  border-bottom: none;
+}
+
+.comp-detail-left {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.comp-detail-name {
+  font-weight: 700;
+  color: #0f172a;
+  font-size: 0.95rem;
+}
+
+.comp-detail-sub {
+  font-size: 0.75rem;
+  color: #64748b;
+  text-transform: uppercase;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.comp-detail-right {
+  text-align: right;
+  min-width: 60px;
+}
+
+.comp-detail-lbl {
+  font-size: 0.65rem;
+  color: #64748b;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  margin-bottom: 2px;
+}
+
+.comp-detail-time {
+  font-weight: 700;
+  color: #0f172a;
+  font-size: 0.9rem;
+}
+
+/* Scrollbar for modal list */
+.comp-detail-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.comp-detail-list::-webkit-scrollbar-track {
+  background: #f1f5f9;
+}
+
+.comp-detail-list::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 3px;
+}
+/* Extracted from index.html */
+
+    /* Styling for Inventory, Latest Info, Education, Attendance & Employee Table Borders */
+    #route-inventory table,
+    #route-latest table,
+    #route-education table,
+    #route-attendance table,
+    .emp-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    #route-inventory table th,
+    #route-inventory table td,
+    #route-latest table th,
+    #route-latest table td,
+    #route-education table th,
+    #route-education table td,
+    #route-attendance table th,
+    #route-attendance table td,
+    .emp-table th,
+    .emp-table td {
+      border: 1px solid #ccc;
+      padding: 8px;
+      text-align: left;
+    }
+
+    #route-inventory table th,
+    #route-latest table th,
+    #route-education table th,
+    #route-attendance table th,
+    .emp-table th {
+      background: #f3f4f6;
+    }
+
+    /* === CRITICAL FIX: MOBILE GAUGE CSS (Direct Injection) === */
+    .mob-stat-grid-3 {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 8px;
+    }
+
+    .mob-stat-card {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 12px 4px;
+      text-align: center;
+      border-radius: 16px;
+      background: #fff;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    }
+
+    .mob-stat-card.stat-red {
+      border-bottom: 3px solid var(--danger);
+    }
+
+    .mob-stat-card.stat-blue {
+      border-bottom: 3px solid var(--primary);
+    }
+
+    .mob-stat-card.stat-gray {
+      border-bottom: 3px solid #64748b;
+    }
+
+    .mob-stat-card .lbl-sm {
+      font-size: 0.7rem;
+      font-weight: 700;
+      color: #64748b;
+      letter-spacing: 0.5px;
+      margin-bottom: 4px;
+      text-transform: uppercase;
+    }
+
+    .mob-stat-card .val {
+      font-size: 1.6rem;
+      font-weight: 800;
+      line-height: 1;
+      margin-bottom: 2px;
+      color: #0f172a;
+    }
+
+    .mob-stat-card .lbl-xs {
+      font-size: 0.7rem;
+      color: #94a3b8;
+    }
+
+    /* Gauge styles */
+    .gauge-simple {
+      position: relative;
+      width: 140px;
+      height: 140px;
+      margin: 0 auto;
+      border-radius: 50%;
+      background: conic-gradient(#0ea5e9 0%, #e2e8f0 0%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .gauge-simple::before {
+      content: '';
+      position: absolute;
+      width: 110px;
+      height: 110px;
+      background: #fff;
+      border-radius: 50%;
+    }
+
+    .gauge-val {
+      position: relative;
+      z-index: 2;
+      font-size: 2rem;
+      font-weight: 800;
+      color: #0ea5e9;
+    }
+
+    /* Mobile Company Grid */
+    .company-grid-mobile {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 4px;
+    }
+
+    .company-grid-mobile .company-card {
+      padding: 4px 6px !important;
+      border-radius: 8px !important;
+      flex-direction: column !important;
+      align-items: flex-start !important;
+      text-align: left !important;
+      border: 1px solid #e2e8f0;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+      background: #fff;
+    }
+
+    .company-grid-mobile .company-card .name {
+      font-size: 0.65rem !important;
+      margin-bottom: 2px;
+      white-space: normal !important;
+      /* Allow wrapping */
+      line-height: 1.1;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 100%;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      /* Limit to 2 lines */
+      line-clamp: 2;
+      /* Standard property */
+      -webkit-box-orient: vertical;
+    }
+
+    .company-grid-mobile .company-card .sub {
+      display: none !important;
+    }
+
+    .company-grid-mobile .company-card .badge {
+      font-size: 1rem !important;
+      font-weight: 800;
+      color: var(--primary-600);
+      align-self: flex-end;
+      margin-top: -4px;
+    }
+
+    .company-grid-mobile .company-card.live {
+      background: #f0f9ff;
+      border-color: #bae6fd;
+    }
+
+    .company-grid-mobile .company-card.live .badge {
+      color: #0284c7;
+    }
+
+/* Extracted from index.html */
+
+    #empModal .modal {
+      position: relative
+    }
+
+    #empModal .modal-close {
+      position: absolute;
+      right: 10px;
+      top: 8px;
+      border: 0;
+      background: transparent;
+      font-size: 24px;
+      line-height: 1;
+      cursor: pointer
+    }
+
+    .camera-actions {
+      display: flex;
+      gap: 10px;
+      align-items: center
+    }
+
+    .hidden {
+      display: none
+    }
+
+    .company-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 10px
+    }
+
+    .company-card {
+      background: var(--panel, #fff);
+      border: 1px solid #e5e7eb;
+      border-radius: 12px;
+      padding: 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, .04)
+    }
+
+    .company-card .name {
+      font-weight: 600
+    }
+
+    .company-card .sub {
+      color: #64748b;
+      font-size: 12px;
+      margin-top: 2px
+    }
+
+    .company-card .badge {
+      font-weight: 800;
+      font-size: 22px
+    }
+
+    #tableShiftTime input[type="time"] {
+      width: 140px;
+      max-width: 100%
+    }
+
+    @media (max-width:1100px) {
+      #route-scan .scan-stats-grid {
+        grid-template-columns: 1fr
+      }
+    }
+
+    /* === EDUCATION UI (dasar) === */
+    .img-preview {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-top: 6px
+    }
+
+    .img-preview img {
+      width: 96px;
+      height: 96px;
+      object-fit: cover;
+      border-radius: 10px;
+      border: 1px solid #e5e7eb
+    }
+
+    .edu-thumb {
+      width: 56px;
+      height: 56px;
+      object-fit: cover;
+      border-radius: 8px;
+      border: 1px solid #e5e7eb;
+      cursor: pointer
+    }
+
+    #eduHighlightsCard .card-title {
+      display: flex;
+      align-items: center;
+      gap: 8px
+    }
+
+    /* ===== MARQUEE EDUCATION (Gulir Otomatis & Kembangan) ===== */
+    .edu-marquee-container {
+      height: 420px; /* Fixed height for dashboard balance */
+      overflow: hidden; /* Hide the scrollbar, we animate it! */
+      position: relative;
+      margin-top: 8px;
+      /* Tambahkan efek gradient fade di atas dan bawah agar scroll terlihat halus menghilang */
+      -webkit-mask-image: linear-gradient(to bottom, transparent, black 10%, black 90%, transparent);
+      mask-image: linear-gradient(to bottom, transparent, black 10%, black 90%, transparent);
+    }
+
+    .edu-marquee-track {
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+      will-change: transform;
+    }
+
+    /* Base Item Style */
+    .edu-item.marquee-item {
+      background: transparent;
+      border: none;
+      border-bottom: 1px solid #f1f5f9;
+      border-radius: 12px;
+      padding: 14px 12px;
+      margin: 4px 8px; /* Margin agar saat bloom (membesar) tidak terpotong tepi */
+      display: flex;
+      align-items: flex-start;
+      gap: 14px;
+      transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1); /* Bouncy bloom effect */
+      cursor: pointer;
+      opacity: 0.6; /* Pudar saat tidak di tengah */
+      transform: scale(0.95); /* Sedikit mengecil saat tidak di tengah */
+    }
+
+    /* Kembangan Effect (Bloom) saat berada di tengah */
+    .edu-item.marquee-item.bloom {
+      opacity: 1;
+      transform: scale(1.02);
+      background: #ffffff;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
+      border-color: transparent;
+      z-index: 10;
+    }
+
+    /* Hover effect */
+    .edu-marquee-container:hover .edu-item.marquee-item {
+      /* Saat di-hover, beri sedikit opacity ke semua agar tidak terlalu redup */
+      opacity: 0.8;
+    }
+    
+    .edu-marquee-container:hover .edu-item.marquee-item:hover {
+      /* Item yang disorot langsung membesar */
+      opacity: 1;
+      transform: scale(1.02);
+      background: #f8fafc;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
+    }
+
+    .edu-item.marquee-item .thumb {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 1px solid #e2e8f0;
+      background: #f8fafc;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+    
+    .edu-item.marquee-item .edu-content-wrapper {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .edu-item.marquee-item .edu-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 12px;
+      width: 100%;
+    }
+
+    .edu-item.marquee-item .t {
+      font-weight: 700;
+      color: #0f172a;
+      font-size: 0.92rem;
+      line-height: 1.2;
+      flex: 1;
+      display: -webkit-box;
+      -webkit-box-orient: vertical;
+      -webkit-line-clamp: 2;
+      line-clamp: 2;
+      overflow: hidden;
+      transition: color 0.3s;
+    }
+
+    .edu-item.marquee-item.bloom .t {
+      color: #2563eb; /* Judul berwarna biru saat mekar/bloom */
+    }
+
+    .edu-item.marquee-item .meta {
+      color: #94a3b8;
+      font-size: 0.75rem;
+      font-weight: 500;
+      white-space: nowrap;
+      flex-shrink: 0;
+      margin-top: 0;
+    }
+
+    .edu-item.marquee-item .d {
+      color: #64748b;
+      font-size: 0.85rem;
+      line-height: 1.4;
+      display: -webkit-box;
+      -webkit-box-orient: vertical;
+      -webkit-line-clamp: 2;
+      line-clamp: 2;
+      overflow: hidden;
+    }\n\n    /* ===== BRAND CORNER (Logo kiri-atas untuk Dashboard & Scan) ===== */
+    :root {
+      --brand-size: 150px;
+      --brand-gap: 12px;
+    }
+
+    #route-dashboard,
+    #route-scan {
+      position: relative;
+    }
+
+    .brand-corner {
+      --panel-alpha: .55;
+      position: absolute;
+      top: 12px;
+      left: 12px;
+      width: var(--brand-size);
+      height: var(--brand-size);
+      display: grid;
+      place-items: center;
+      padding: 10px;
+      background: rgba(255, 255, 255, var(--panel-alpha));
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      box-shadow: var(--shadow);
+      z-index: 4;
+      backdrop-filter: blur(6px);
+    }
+
+    .brand-corner img {
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+      display: block;
+    }
+
+    /* Responsif */
+@media (max-width:1300px) {
+  .dash-trio {
+    grid-template-columns: 1fr 1fr
+  }
+
+  #recentCard {
+    grid-column: 1 / -1
+  }
+}
+
+@media (max-width:850px) {
+  .dash-trio {
+    grid-template-columns: 1fr
+  }
+}
+
+/* ============================================================================
+   AREA 7: COMPANY PRESENCE CARDS
+   ========================================================================== */
+.company-grid,
+#companyPresenceGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px
+}
+
+.company-card {
+  --accent: #2563eb;
+  --accent-shadow: rgba(37, 99, 235, 0.3);
+  background: var(--surface-solid);
+  border: 1px solid var(--line);
+  border-left: 6px solid var(--accent);
+  border-radius: 14px;
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  transition: transform .2s ease, box-shadow .2s ease;
+}
+
+.company-card .name {
+  font-weight: 700;
+  letter-spacing: .2px
+}
+
+.company-card .sub {
+  color: #64748b;
+  font-size: 12px;
+  margin-top: 2px
+}
+
+.company-card .badge {
+  min-width: 36px;
+  height: 36px;
+  line-height: 36px;
+  text-align: center;
+  border-radius: 40px;
+  font-weight: 800;
+  font-size: 1.1rem;
+  background: var(--accent);
+  color: #ffffff;
+  box-shadow: 0 4px 10px var(--accent-shadow);
+  border: none;
+}
+
+.company-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 22px rgba(2, 6, 23, .10)
+}
+
+.company-card:nth-child(4n+1) {
+  --accent: #ef4444;
+  --accent-shadow: rgba(239, 68, 68, 0.3);
+}
+
+.company-card:nth-child(4n+2) {
+  --accent: #f59e0b;
+  --accent-shadow: rgba(245, 158, 11, 0.3);
+}
+
+.company-card:nth-child(4n+3) {
+  --accent: #10b981;
+  --accent-shadow: rgba(16, 185, 129, 0.3);
+}
+
+.company-card:nth-child(4n+4) {
+  --accent: #8b5cf6;
+  --accent-shadow: rgba(139, 92, 246, 0.3);
+}
+
+@keyframes cardBlink {
+
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent, #22c55e) 0%, transparent)
+  }
+
+  50% {
+    box-shadow: 0 0 0 10px color-mix(in srgb, var(--accent, #22c55e) 20%, transparent)
+  }
+}
+
+@keyframes badgePing {
+
+  0%,
+  100% {
+    transform: scale(1)
+  }
+
+  50% {
+    transform: scale(1.06)
+  }
+}
+
+.company-card.live,
+.company-card.present {
+  animation: cardBlink 1.4s ease-in-out infinite
+}
+
+.company-card.live .badge,
+.company-card.present .badge {
+  animation: badgePing 1.4s ease-in-out infinite
+}
+
+.company-card.empty {
+  filter: grayscale(.25);
+  opacity: .95
+}
+
+/* LIVE STATS CHIPS */
+.live-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 6px 0 2px
+}
+
+.chip-wrap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px
+}
+
+.stat-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: .35rem .7rem;
+  border-radius: 999px;
+  background: var(--primary-100);
+  border: 1px solid var(--line);
+  font-weight: 600;
+  color: var(--text);
+}
+
+.stat-chip b {
+  font-variant-numeric: tabular-nums
+}
+
+/* ============================================================================
    AREA 9: NEWS CARDS
    ========================================================================== */
 .news-grid {
@@ -4179,154 +7106,6 @@ h1.page-title {
     /* === EDUCATION UI (dasar) === */
     .img-preview {
       display: flex;
-      align-items: center;
-      gap: 10px;
-      margin-top: 6px
-    }
-
-    .img-preview img {
-      width: 96px;
-      height: 96px;
-      object-fit: cover;
-      border-radius: 10px;
-      border: 1px solid #e5e7eb
-    }
-
-    .edu-thumb {
-      width: 56px;
-      height: 56px;
-      object-fit: cover;
-      border-radius: 8px;
-      border: 1px solid #e5e7eb;
-      cursor: pointer
-    }
-
-    #eduHighlightsCard .card-title {
-      display: flex;
-      align-items: center;
-      gap: 8px
-    }
-
-    .edu-list {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-      gap: 12px
-    }
-
-    .edu-item {
-      background: var(--surface, #fff);
-      border: 1px solid var(--line, #e6eefc);
-      border-radius: 16px;
-      padding: 12px;
-      box-shadow: 0 4px 14px rgba(0, 0, 0, .05);
-      display: grid;
-      grid-template-columns: 72px 1fr;
-      gap: 12px
-    }
-
-    .edu-item .thumb {
-      width: 72px;
-      height: 72px;
-      border-radius: 12px;
-      object-fit: cover;
-      border: 1px solid var(--line, #e6eefc);
-      background: #f3f4f6
-    }
-
-    .edu-item .t {
-      font-weight: 700;
-      line-height: 1.25;
-      margin-bottom: 2px
-    }
-
-    .edu-item .d {
-      color: #64748b;
-      font-size: 13px;
-      line-height: 1.35;
-      display: -webkit-box;
-      -webkit-box-orient: vertical;
-      -webkit-line-clamp: 2;
-      line-clamp: 2;
-      overflow: hidden;
-    }
-
-    .edu-item .meta {
-      color: #94a3b8;
-      font-size: 12px;
-      margin-top: 6px
-    }
-
-    .edu-bar {
-      position: relative;
-      margin-top: 10px;
-      height: 14px;
-      border-radius: 999px;
-      background: var(--line, #e6eefc);
-      overflow: hidden;
-      box-shadow: inset 0 1px 2px rgba(0, 0, 0, .05)
-    }
-
-    .edu-bar i {
-      display: block;
-      height: 100%;
-      width: var(--pct, 60%);
-      border-radius: inherit;
-      background: linear-gradient(90deg, var(--primary-500, #4a8cff), var(--primary-300, #a6c8ff))
-    }
-
-    .edu-bar .val {
-      position: absolute;
-      inset: 0;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-weight: 700;
-      font-size: 12px;
-      color: #0b2545
-    }
-
-    /* ===== BRAND CORNER (Logo kiri-atas untuk Dashboard & Scan) ===== */
-    :root {
-      --brand-size: 150px;
-      /* 76â€“150px sesuai kebutuhan */
-      --brand-gap: 12px;
-    }
-
-    #route-dashboard,
-    #route-scan {
-      position: relative;
-    }
-
-    .brand-corner {
-      --panel-alpha: .55;
-      /* opasitas panel logo */
-
-      position: absolute;
-      top: 12px;
-      left: 12px;
-      width: var(--brand-size);
-      height: var(--brand-size);
-      display: grid;
-      place-items: center;
-      padding: 10px;
-      background: rgba(255, 255, 255, var(--panel-alpha));
-      border: 1px solid var(--line);
-      border-radius: 16px;
-      box-shadow: var(--shadow);
-      z-index: 4;
-      backdrop-filter: blur(6px);
-    }
-
-    .brand-corner img {
-      max-width: 100%;
-      max-height: 100%;
-      object-fit: contain;
-      display: block;
-    }
-
-    /* Geser konten agar tidak ketimpa logo - DIHAPUS karena logo sudah di header */
-    /* #route-dashboard .greet {
-      margin-left: calc(var(--brand-size) + var(--brand-gap));
     }
 
     #route-scan .scan-hero-left {
@@ -4499,118 +7278,10 @@ h1.page-title {
       #recentCard .recent-edu {
         order: 2
       }
-    }
-
-    /* =========================
-       >> BARU: Animasi â€œhidupâ€ untuk Education (Highlights)
-       ========================= */
-    .edu-item {
-      position: relative;
-      will-change: transform, box-shadow;
-      animation: eduPulse 3.4s ease-in-out infinite;
-    }
-
-    .edu-item::after {
-      content: "";
-      position: absolute;
-      inset: -20% -10% auto -10%;
-      height: 60%;
-      background: radial-gradient(60% 50% at 20% 0%, rgba(255, 255, 255, .55), rgba(255, 255, 255, 0) 60%);
-      pointer-events: none;
-      animation: eduGlow 3.4s ease-in-out infinite;
-    }
-
-    .edu-item::before {
-      content: "";
-      position: absolute;
-      inset: 0;
-      background: linear-gradient(130deg, transparent 5%, rgba(255, 255, 255, .55) 50%, transparent 95%);
-      mix-blend-mode: screen;
-      transform: translateX(-130%);
-      animation: eduSweep 6s linear infinite;
-      pointer-events: none;
-    }
-
-    .edu-item .thumb {
-      animation: eduPing 2.6s ease-in-out infinite;
-      transform-origin: center;
-    }
-
-    .edu-bar i {
-      position: relative;
-    }
-
-    .edu-bar i::after {
-      content: "";
-      position: absolute;
-      inset: 0;
-      transform: translateX(-120%);
-      background: linear-gradient(120deg, transparent 0%, rgba(255, 255, 255, .65) 50%, transparent 100%);
-      animation: eduBarShine 2.6s linear infinite;
-    }
-
-    @keyframes eduPulse {
-
-      0%,
-      100% {
-        box-shadow: 0 8px 18px rgba(2, 6, 23, .08);
-        transform: translateY(0)
-      }
-
-      50% {
-        box-shadow: 0 14px 28px rgba(2, 6, 23, .16);
-        transform: translateY(-2px)
-      }
-    }
-
-    @keyframes eduGlow {
-
-      0%,
-      100% {
-        opacity: .18;
-        transform: translateY(0)
-      }
-
-      50% {
-        opacity: .34;
-        transform: translateY(-4px)
-      }
-    }
-
-    @keyframes eduSweep {
-      0% {
-        transform: translateX(-130%)
-      }
-
-      100% {
-        transform: translateX(130%)
-      }
-    }
-
-    @keyframes eduPing {
-
-      0%,
-      100% {
-        transform: scale(1)
-      }
-
-      50% {
-        transform: scale(1.04)
-      }
-    }
-
-    @keyframes eduBarShine {
-      0% {
-        transform: translateX(-120%)
-      }
-
-      100% {
-        transform: translateX(120%)
-      }
+      /* Animasi Education Highlights telah dihapus agar desain lebih minimalis dan profesional */
     }
 
     @media (prefers-reduced-motion:reduce) {
-
       .edu-item,
       .edu-item::before,
       .edu-item::after,
@@ -4934,3 +7605,55 @@ h1.page-title {
                 }
 
 
+\n\n
+/* ===== LATEST INFORMATION CAROUSEL (SMOOTH & BLOOM EFFECT) ===== */
+.news-carousel-container {
+  position: relative;
+  overflow: hidden;
+  min-height: 140px; 
+  height: auto;
+  display: flex;
+  align-items: stretch;
+  padding: 10px 6px; /* Memberi ruang ekstra agar saat membesar (bloom) tidak terpotong */
+  margin: -10px -6px; /* Menyesuaikan posisi padding */
+}
+
+/* Base style for the sliding cards (Awal muncul dari bawah/kecil) */
+.news-card-slide {
+  position: absolute !important;
+  top: 10px; left: 6px; right: 6px; /* offset karena padding container */
+  opacity: 0;
+  transform: scale(0.85) translateY(30px);
+  pointer-events: none;
+  /* Transisi sangat mulus dengan efek pantulan (bouncy/mengembang) */
+  transition: all 0.9s cubic-bezier(0.34, 1.56, 0.64, 1);
+  margin: 0 !important; 
+}
+
+/* State: Active (Mekar / Mengembang menjadi pusat perhatian) */
+.news-card-slide.active {
+  position: relative !important; 
+  opacity: 1;
+  /* Mengembang sedikit lebih besar dari ukuran aslinya */
+  transform: scale(1.02) translateY(0);
+  pointer-events: auto;
+  z-index: 2;
+  /* Memancarkan bayangan merah lembut saat mekar */
+  box-shadow: 0 14px 30px rgba(239, 68, 68, 0.18);
+  border-color: #fca5a5;
+}
+
+/* State: Exit (Menghilang secara halus ke atas) */
+.news-card-slide.exit {
+  opacity: 0;
+  transform: scale(0.95) translateY(-30px);
+  /* Menghilang dengan mulus tanpa pantulan */
+  transition: all 0.7s cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: 1;
+  position: absolute !important;
+}
+
+.news-grid {
+  display: block; 
+  margin: 0; padding: 0; gap: 0;
+}

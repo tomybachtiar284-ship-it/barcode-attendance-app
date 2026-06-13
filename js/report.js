@@ -226,7 +226,7 @@
                 }
 
                 // Populate buckets
-                attendance.forEach(a => {
+                filteredAtt.forEach(a => {
                     const d = new Date(a.ts);
                     const ymd = d.toISOString().split('T')[0];
                     if (statsMap[ymd] && (a.status === 'datang' || a.status === 'late')) {
@@ -245,8 +245,8 @@
                 const queue = [
                     // Chart 1: Composition
                     () => {
-                        const cLate = attendance.filter(a => (a.status === 'datang' || a.status === 'late') && a.late).length;
-                        const cOnTime = attendance.filter(a => (a.status === 'datang' || a.status === 'late') && !a.late).length;
+                        const cLate = filteredAtt.filter(a => (a.status === 'datang' || a.status === 'late') && a.late).length;
+                        const cOnTime = filteredAtt.filter(a => (a.status === 'datang' || a.status === 'late') && !a.late).length;
 
                         const ctx = document.getElementById('chartAttendanceRate')?.getContext('2d');
                         if (ctx) {
@@ -331,21 +331,33 @@
                             });
                         }
                     },
-                    // Chart 4: Top 5 Late (Horizontal Bar)
+                    // Chart 4: Top 10 Late (Horizontal Bar)
                     () => {
                         const ctx = document.getElementById('chartTopLate')?.getContext('2d');
                         if (ctx) {
                             const lateMap = {};
-                            const dataRange = attendance.filter(a => (a.status === 'datang' || a.status === 'late') && a.late);
+                            const countedDays = new Set();
+                            const dataRange = filteredAtt.filter(a => (a.status === 'datang' || a.status === 'late') && a.late);
 
                             dataRange.forEach(a => {
-                                const name = a.name || a.nid;
-                                lateMap[name] = (lateMap[name] || 0) + 1;
+                                const key = a.nid || a.name;
+                                const date = new Date(a.ts);
+                                const dateKey = `${key}_${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
+                                
+                                if (!countedDays.has(dateKey)) {
+                                    countedDays.add(dateKey);
+                                    
+                                    if (!lateMap[key]) {
+                                        lateMap[key] = { name: a.name || a.nid, searchKey: a.nid || a.name, count: 0 };
+                                    }
+                                    lateMap[key].count++;
+                                }
                             });
 
-                            const sorted = Object.entries(lateMap).sort((a, b) => b[1] - a[1]).slice(0, 5);
-                            const labels = sorted.map(x => x[0]);
-                            const vals = sorted.map(x => x[1]);
+                            const sorted = Object.values(lateMap).sort((a, b) => b.count - a.count).slice(0, 10);
+                            const labels = sorted.map(x => x.name);
+                            const vals = sorted.map(x => x.count);
+                            const searchKeys = sorted.map(x => x.searchKey);
 
                             grCharts['chartTopLate'] = new Chart(ctx, {
                                 type: 'bar',
@@ -359,7 +371,34 @@
                                         borderRadius: 4
                                     }]
                                 },
-                                options: { responsive: true, maintainAspectRatio: false, animation: false, scales: { x: { beginAtZero: true, ticks: { stepSize: 1 } } } }
+                                options: { 
+                                    responsive: true, 
+                                    maintainAspectRatio: false, 
+                                    animation: false, 
+                                    scales: { x: { beginAtZero: true, ticks: { stepSize: 1 } } },
+                                    onHover: (e, activeEls) => {
+                                        if (e.native && e.native.target) {
+                                            e.native.target.style.cursor = activeEls && activeEls.length > 0 ? 'pointer' : 'default';
+                                        }
+                                    },
+                                    onClick: (e, activeEls) => {
+                                        if (activeEls && activeEls.length > 0) {
+                                            const idx = activeEls[0].index;
+                                            const searchKey = searchKeys[idx];
+                                            if (searchKey) {
+                                                const navLink = document.querySelector('.navlink[data-route="employees"]');
+                                                if (navLink) navLink.click();
+                                                setTimeout(() => {
+                                                    const searchBox = document.getElementById('searchEmp');
+                                                    if (searchBox) {
+                                                        searchBox.value = searchKey;
+                                                        searchBox.dispatchEvent(new Event('input', { bubbles: true }));
+                                                    }
+                                                }, 300);
+                                            }
+                                        }
+                                    }
+                                }
                             });
                         }
                     }

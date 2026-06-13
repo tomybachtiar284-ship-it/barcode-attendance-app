@@ -1075,19 +1075,75 @@ window.addEventListener('DOMContentLoaded', () => {
   setInterval(runLoops, 30000);
 
   // News widgets
+  // News Carousel variables
+  window.newsCarouselIntervals = {};
+
   function renderNewsWidgets() {
     ['#newsGridDash', '#newsGridScan'].forEach(sel => {
-      const host = $(sel); if (!host) return; host.innerHTML = '';
+      const host = $(sel); if (!host) return; 
+      
+      // Clear previous interval for this host if exists
+      if (window.newsCarouselIntervals[sel]) {
+          clearInterval(window.newsCarouselIntervals[sel]);
+      }
+      
+      host.innerHTML = '';
+      
       const arr = [...news].sort((a, b) => b.ts - a.ts);
-      if (arr.length === 0) { const d = document.createElement('div'); d.style.color = '#64748b'; d.textContent = 'Belum ada informasi.'; host.appendChild(d); return; }
-      arr.forEach(n => {
-        const card = document.createElement('div'); card.className = 'news-card';
+      if (arr.length === 0) { 
+          const d = document.createElement('div'); 
+          d.style.color = '#64748b'; 
+          d.textContent = 'Belum ada informasi.'; 
+          host.appendChild(d); 
+          return; 
+      }
+
+      // Add a container for the carousel
+      const container = document.createElement('div');
+      container.className = 'news-carousel-container';
+      host.appendChild(container);
+
+      // Create slides
+      const slides = [];
+      arr.forEach((n, idx) => {
+        const card = document.createElement('div'); 
+        card.className = 'news-card news-card-slide' + (idx === 0 ? ' active' : '');
         card.setAttribute('data-hover-card', '');
         card.setAttribute('data-tooltip', 'Klik ikon pensil untuk mengedit info ini.');
+        
         card.innerHTML = `<div class="title">${esc(n.title)}</div><div class="meta">${fmtTs(n.ts)}</div>
-                        <div class="body">${esc(n.body || '')}${n.link ? ` • <a href="${esc(n.link)}" target="_blank" rel="noopener">Link</a>` : ''}</div>`;
-        host.appendChild(card);
+                        <div class="body">${esc(n.body || '').replace(/\n/g, '<br>')}${n.link ? ` • <a href="${esc(n.link)}" target="_blank" rel="noopener">Link</a>` : ''}</div>`;
+        
+        container.appendChild(card);
+        slides.push(card);
       });
+
+      // If more than 1 news, start carousel loop
+      if (slides.length > 1) {
+          let currentIndex = 0;
+          let isPaused = false;
+
+          // Pause on hover
+          container.addEventListener('mouseenter', () => isPaused = true);
+          container.addEventListener('mouseleave', () => isPaused = false);
+          container.addEventListener('touchstart', () => isPaused = true);
+          container.addEventListener('touchend', () => isPaused = false);
+
+          window.newsCarouselIntervals[sel] = setInterval(() => {
+              if (isPaused) return;
+
+              const currentSlide = slides[currentIndex];
+              currentSlide.classList.remove('active');
+              currentSlide.classList.add('exit');
+
+              currentIndex = (currentIndex + 1) % slides.length;
+              
+              const nextSlide = slides[currentIndex];
+              nextSlide.classList.remove('exit');
+              nextSlide.classList.add('active');
+
+          }, 4500); // Ganti setiap 4.5 detik
+      }
     });
   }
 
@@ -1371,7 +1427,115 @@ window.addEventListener('DOMContentLoaded', () => {
     renderCompanyPresence();
     renderLiveCompanyStats();
     if (window.renderMobileDashboard) window.renderMobileDashboard();
+    if (window.renderDashTopLateChart) window.renderDashTopLateChart();
   }
+
+  window.renderDashTopLateChart = async function() {
+    const ctx = document.getElementById('chartDashTopLate')?.getContext('2d');
+    if (!ctx) return;
+    if (typeof Chart === 'undefined') return; // Ensure Chart is loaded
+
+    // Ambil timestamp awal bulan ini
+    const now = new Date();
+    const startOfMonthTs = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
+    
+    // Untuk memastikan data benar-benar valid (bukan hanya cache lokal 3 hari),
+    // kita tarik langsung datanya dari server jika koneksi tersedia.
+    let dataRange = [];
+    if (window.sb) {
+        try {
+            const { data, error } = await window.sb.from('attendance')
+                .select('name, nid, late, ts, status')
+                .gte('ts', startOfMonthTs)
+                .in('status', ['datang', 'late'])
+                .eq('late', true);
+                
+            if (!error && data) {
+                dataRange = data;
+            } else {
+                dataRange = attendance.filter(a => a.ts >= startOfMonthTs && (a.status === 'datang' || a.status === 'late') && a.late);
+            }
+        } catch(e) {
+            dataRange = attendance.filter(a => a.ts >= startOfMonthTs && (a.status === 'datang' || a.status === 'late') && a.late);
+        }
+    } else {
+        // Fallback offline
+        dataRange = attendance.filter(a => a.ts >= startOfMonthTs && (a.status === 'datang' || a.status === 'late') && a.late);
+    }
+    
+    const lateMap = {};
+    const countedDays = new Set(); // Mencegah double-counting dalam hari yang sama
+
+    dataRange.forEach(a => {
+        const key = a.nid || a.name;
+        
+        // Ambil tanggal (tanpa jam) untuk memastikan 1 late per orang per hari
+        const date = new Date(a.ts);
+        const dateKey = `${key}_${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
+        
+        if (!countedDays.has(dateKey)) {
+            countedDays.add(dateKey);
+            
+            if (!lateMap[key]) {
+                lateMap[key] = { name: a.name || a.nid, count: 0 };
+            }
+            lateMap[key].count++;
+        }
+    });
+
+    const sorted = Object.values(lateMap).sort((a, b) => b.count - a.count).slice(0, 10);
+    const labels = sorted.map(x => x.name);
+    const vals = sorted.map(x => x.count);
+
+    if (window.dashTopLateChart) window.dashTopLateChart.destroy();
+    if (window._dashTopLateAnimInterval) clearInterval(window._dashTopLateAnimInterval);
+    
+    window.dashTopLateChart = new Chart(ctx, {
+        type: 'line', // User asked for "hidup bergerak"
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Total Terlambat',
+                data: vals,
+                borderColor: '#dc2626',
+                backgroundColor: 'rgba(220, 38, 38, 0.1)',
+                borderWidth: 3,
+                borderDash: [10, 10], // Added dashed line for moving effect
+                fill: true,
+                tension: 0.4, // Smooth curve
+                pointBackgroundColor: '#dc2626',
+                pointRadius: 4,
+                pointHoverRadius: 6
+            }]
+        },
+        options: { 
+            responsive: true, 
+            maintainAspectRatio: false, 
+            animation: {
+                duration: 1500,
+                easing: 'easeOutQuart'
+            },
+            scales: { 
+                x: { display: true, ticks: { maxRotation: 45, minRotation: 0, font: { size: 10 } } },
+                y: { beginAtZero: true, ticks: { stepSize: 1, display: false }, grid: { display: false } }
+            },
+            plugins: {
+                legend: { display: false }
+            }
+        }
+    });
+
+    // Animate the line continuously (flowing effect)
+    window._dashTopLateAnimInterval = setInterval(() => {
+        if (window.dashTopLateChart && window.dashTopLateChart.data.datasets[0]) {
+            let offset = window.dashTopLateChart.data.datasets[0].borderDashOffset || 0;
+            window.dashTopLateChart.data.datasets[0].borderDashOffset = offset - 1;
+            window.dashTopLateChart.update('none'); // Update without triggering full animation
+        } else {
+            clearInterval(window._dashTopLateAnimInterval);
+        }
+    }, 40); // 25fps for a smooth flowing effect
+  };
 
   window.renderMobileDashboard = function () {
     if (window.innerWidth > 768) return;
@@ -1456,7 +1620,7 @@ window.addEventListener('DOMContentLoaded', () => {
   function renderScanTable() {
     const tb = $('#tableScan tbody'); if (!tb) return;
     const sod = new Date(todayISO() + 'T00:00:00').getTime();
-    const rows = attendance.filter(a => a.ts >= sod).sort((a, b) => b.ts - a.ts).slice(0, 5);
+    const rows = attendance.filter(a => a.ts >= sod).sort((a, b) => b.ts - a.ts); // Tampilkan semua untuk hari ini
     tb.innerHTML = ''; rows.forEach(r => {
       const tr = document.createElement('tr');
       tr.innerHTML = `<td>${fmtTs(r.ts)}</td><td>${capStatus(r.status)}</td><td>${r.nid}</td>
@@ -1468,7 +1632,7 @@ window.addEventListener('DOMContentLoaded', () => {
   function renderMobileScanFeed() {
     const feed = $('#mobScanFeed'); if (!feed) return;
     const sod = new Date(todayISO() + 'T00:00:00').getTime();
-    const rows = attendance.filter(a => a.ts >= sod).sort((a, b) => b.ts - a.ts).slice(0, 5);
+    const rows = attendance.filter(a => a.ts >= sod).sort((a, b) => b.ts - a.ts); // Tampilkan semua untuk hari ini
 
     if (rows.length === 0) {
       feed.innerHTML = '<div style="text-align:center; padding:20px; color:#94a3b8; font-size:0.85rem;">Belum ada riwayat scan hari ini.</div>';
@@ -1504,7 +1668,7 @@ window.addEventListener('DOMContentLoaded', () => {
     const tb = $('#tableScan tbody');
     if (tb) {
       const sod = new Date(todayISO() + 'T00:00:00').getTime();
-      const rows = attendance.filter(a => a.ts >= sod).sort((a, b) => b.ts - a.ts).slice(0, 5);
+      const rows = attendance.filter(a => a.ts >= sod).sort((a, b) => b.ts - a.ts); // Tampilkan semua untuk hari ini
       tb.innerHTML = ''; rows.forEach(r => {
         const tr = document.createElement('tr');
         tr.innerHTML = `<td>${fmtTs(r.ts)}</td><td>${capStatus(r.status)}</td><td>${r.nid}</td>
@@ -3705,38 +3869,113 @@ window.addEventListener('DOMContentLoaded', () => {
   });
 
 
+  // Variabel global untuk animasi agar bisa dihentikan/restart
+  window.eduMarqueeReq = null;
+  window.eduMarqueePaused = false;
+
   function renderHighlights() {
     const hostStandalone = document.querySelector('#eduList');
     const hostInRecent = document.querySelector('#eduListRecent');
     const rc = document.getElementById('recentCard');
 
-    const items = loadEdu().sort((a, b) => b.ts - a.ts).slice(0, 6);
-    const recencyPercent = (ts) => {
-      const age = Date.now() - ts;
-      const max = 7 * 24 * 3600 * 1000; // 7 days
-      return Math.max(10, 100 - (age / max) * 90);
+    const items = loadEdu().sort((a, b) => b.ts - a.ts); // Semua data
+    
+    const defaultAvatar = 'data:image/svg+xml;charset=UTF-8,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22%2394a3b8%22%3E%3Cpath d=%22M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z%22/%3E%3C/svg%3E';
+    
+    // Buat HTML item
+    const generateItems = (dataList) => {
+        return dataList.map((it, idx) => {
+            const img = it.img || defaultAvatar;
+            return `
+              <div class="edu-item marquee-item" data-id="${it.id || idx}" onclick="$('.navlink[data-route=\\'education\\']').click()">
+                <img class="thumb" src="${img}" alt="" onerror="this.onerror=null; this.src='${defaultAvatar}'">
+                <div class="edu-content-wrapper">
+                  <div class="edu-header">
+                    <div class="t">${esc(it.title)}</div>
+                    <div class="meta">${fmtTs(it.ts)}</div>
+                  </div>
+                  <div class="d">${esc(it.body).replace(/\n/g, ' ')}</div>
+                </div>
+              </div>`;
+        }).join('');
     };
 
-    const html = items.length
-      ? items.map(it => {
-        const pct = recencyPercent(it.ts);
-        const img = it.img || '';
-        return `
-          <div class="edu-item" data-hover-card="interactive" data-tooltip="${esc(it.title)}\n${esc(it.body).slice(0, 50)}..." onclick="$('.navlink[data-route=\\'education\\']').click()">
-            <img class="thumb" src="${img}" alt="" onerror="this.style.display='none'">
-            <div>
-              <div class="t">${esc(it.title)}</div>
-              <div class="d">${esc(it.body).replace(/\n/g, ' ')}</div>
-              <div class="edu-bar" style="--pct:${pct}%"><i></i></div>
-              <div class="meta">${fmtTs(it.ts)}</div>
-            </div>
-          </div>`;
-      }).join('')
-      : `<div class="muted">Belum ada data education.</div>`;
+    if (items.length === 0) {
+        const emptyHtml = `<div class="muted">Belum ada data education.</div>`;
+        if (hostInRecent) hostInRecent.innerHTML = emptyHtml;
+        if (hostStandalone) hostStandalone.innerHTML = emptyHtml;
+        if (rc) rc.setAttribute('data-has-edu', '0');
+        return;
+    }
+
+    // Jika item sedikit, duplikasi agar animasi bergulir bisa mulus (infinite)
+    let displayItems = [...items];
+    while(displayItems.length < 6 && displayItems.length > 0) {
+        displayItems = [...displayItems, ...items];
+    }
+    
+    const html = `
+      <div class="edu-marquee-container" id="eduMarqueeContainer">
+          <div class="edu-marquee-track" id="eduMarqueeTrack">
+              ${generateItems(displayItems)}
+              ${generateItems(displayItems)} <!-- Duplikat untuk seamless loop -->
+          </div>
+      </div>
+    `;
 
     if (hostInRecent) hostInRecent.innerHTML = html;
     if (hostStandalone) hostStandalone.innerHTML = html;
-    if (rc) rc.setAttribute('data-has-edu', items.length ? '1' : '0');
+    if (rc) rc.setAttribute('data-has-edu', '1');
+
+    // Inisiasi animasi
+    setTimeout(() => {
+        const container = document.getElementById('eduMarqueeContainer');
+        const track = document.getElementById('eduMarqueeTrack');
+        if (!container || !track) return;
+
+        // Reset previous animation if exists
+        if (window.eduMarqueeReq) cancelAnimationFrame(window.eduMarqueeReq);
+        
+        let scrollY = 0;
+        const speed = 0.5; // Kecepatan gulir lambat
+        const singleSetHeight = track.scrollHeight / 2;
+
+        container.addEventListener('mouseenter', () => window.eduMarqueePaused = true);
+        container.addEventListener('mouseleave', () => window.eduMarqueePaused = false);
+        container.addEventListener('touchstart', () => window.eduMarqueePaused = true);
+        container.addEventListener('touchend', () => window.eduMarqueePaused = false);
+
+        // Observer untuk "kembangan" (bloom effect) di tengah
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('bloom');
+                } else {
+                    entry.target.classList.remove('bloom');
+                }
+            });
+        }, {
+            root: container,
+            rootMargin: "-35% 0px -35% 0px", // Hanya aktif persis di area tengah (sekitar 30% dari tinggi container)
+            threshold: 0
+        });
+
+        // Pantau semua item
+        document.querySelectorAll('#eduMarqueeTrack .marquee-item').forEach(el => observer.observe(el));
+
+        function animate() {
+            if (!window.eduMarqueePaused) {
+                scrollY += speed;
+                if (scrollY >= singleSetHeight) {
+                    scrollY = 0; // Reset ke awal tanpa ketahuan (seamless loop)
+                }
+                track.style.transform = `translateY(-${scrollY}px)`;
+            }
+            window.eduMarqueeReq = requestAnimationFrame(animate);
+        }
+        
+        animate();
+    }, 100);
   }
 
   function updateEduPreview() {
