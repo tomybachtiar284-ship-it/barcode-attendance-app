@@ -1608,11 +1608,56 @@ window.addEventListener('DOMContentLoaded', () => {
   };
 
   // Fullscreen
-  function fs(btnSel, targetSel) {
+// Fullscreen Auto-Scaler
+function fs(btnSel, targetSel) {
     const b = $(btnSel); if (!b) return; const t = $(targetSel) || document.documentElement;
-    const sync = () => { b.textContent = document.fullscreenElement ? '⛶ Keluar Penuh' : '⛶ Layar Penuh'; };
-    b.addEventListener('click', () => { if (!document.fullscreenElement) t.requestFullscreen?.(); else document.exitFullscreen?.(); });
-    document.addEventListener('fullscreenchange', sync); sync();
+    
+    // Auto-scale logic (Menyesuaikan otomatis agar pas 1 layar penuh)
+    const applyScale = () => {
+      if (!document.fullscreenElement || document.fullscreenElement !== t) {
+        t.style.zoom = 1;
+        return;
+      }
+      
+      // Reset zoom sementara untuk mendapatkan tinggi konten asli yang akurat
+      t.style.zoom = 1;
+      
+      // Hitung tinggi asli
+      const originalHeight = t.scrollHeight;
+      const screenHeight = window.innerHeight;
+      
+      // Jika konten melebihi tinggi layar, perkecil ukurannya dengan zoom
+      if (originalHeight > screenHeight) {
+          // Sisakan sedikit ruang padding bawah (misal 20px)
+          const scaleRatio = screenHeight / (originalHeight + 20); 
+          t.style.zoom = scaleRatio;
+      }
+    };
+
+    const sync = () => { 
+        b.textContent = document.fullscreenElement ? '⛶ Keluar Penuh' : '⛶ Layar Penuh'; 
+        if(document.fullscreenElement) {
+            // Beri waktu sedikit agar browser selesai merender layout baru sebelum diukur
+            setTimeout(applyScale, 150);
+        }
+    };
+    
+    b.addEventListener('click', () => { 
+        if (!document.fullscreenElement) {
+            t.requestFullscreen?.().catch(e => console.log(e));
+        } else {
+            document.exitFullscreen?.(); 
+            t.style.zoom = 1;
+        }
+    });
+    
+    document.addEventListener('fullscreenchange', sync); 
+    window.addEventListener('resize', () => {
+        if(document.fullscreenElement === t) applyScale();
+    });
+    
+    // Initial sync
+    b.textContent = document.fullscreenElement ? '⛶ Keluar Penuh' : '⛶ Layar Penuh';
   }
   fs('#btnFull', '#route-scan'); fs('#btnFullDash', '#route-dashboard');
 
@@ -1620,7 +1665,7 @@ window.addEventListener('DOMContentLoaded', () => {
   function renderScanTable() {
     const tb = $('#tableScan tbody'); if (!tb) return;
     const sod = new Date(todayISO() + 'T00:00:00').getTime();
-    const rows = attendance.filter(a => a.ts >= sod).sort((a, b) => b.ts - a.ts); // Tampilkan semua untuk hari ini
+    const rows = attendance.filter(a => a.ts >= sod).sort((a, b) => b.ts - a.ts).slice(0, 5); // Tampilkan maksimal 5 untuk scan history
     tb.innerHTML = ''; rows.forEach(r => {
       const tr = document.createElement('tr');
       tr.innerHTML = `<td>${fmtTs(r.ts)}</td><td>${capStatus(r.status)}</td><td>${r.nid}</td>
@@ -1632,7 +1677,7 @@ window.addEventListener('DOMContentLoaded', () => {
   function renderMobileScanFeed() {
     const feed = $('#mobScanFeed'); if (!feed) return;
     const sod = new Date(todayISO() + 'T00:00:00').getTime();
-    const rows = attendance.filter(a => a.ts >= sod).sort((a, b) => b.ts - a.ts); // Tampilkan semua untuk hari ini
+    const rows = attendance.filter(a => a.ts >= sod).sort((a, b) => b.ts - a.ts).slice(0, 5); // Tampilkan maksimal 5 untuk scan history
 
     if (rows.length === 0) {
       feed.innerHTML = '<div style="text-align:center; padding:20px; color:#94a3b8; font-size:0.85rem;">Belum ada riwayat scan hari ini.</div>';
@@ -1668,7 +1713,7 @@ window.addEventListener('DOMContentLoaded', () => {
     const tb = $('#tableScan tbody');
     if (tb) {
       const sod = new Date(todayISO() + 'T00:00:00').getTime();
-      const rows = attendance.filter(a => a.ts >= sod).sort((a, b) => b.ts - a.ts); // Tampilkan semua untuk hari ini
+      const rows = attendance.filter(a => a.ts >= sod).sort((a, b) => b.ts - a.ts).slice(0, 5); // Tampilkan maksimal 5 untuk scan history
       tb.innerHTML = ''; rows.forEach(r => {
         const tr = document.createElement('tr');
         tr.innerHTML = `<td>${fmtTs(r.ts)}</td><td>${capStatus(r.status)}</td><td>${r.nid}</td>
@@ -6542,3 +6587,12 @@ window.addEventListener('DOMContentLoaded', () => {
   };
 
 
+  // Sidebar Minimizer
+  const btnMin = document.getElementById('btnMinimizeSidebar');
+  if(btnMin) {
+      btnMin.addEventListener('click', () => {
+          document.documentElement.classList.toggle('sidebar-mini');
+          const isMin = document.documentElement.classList.contains('sidebar-mini');
+          localStorage.setItem('sidebar_minimized', isMin);
+      });
+  }

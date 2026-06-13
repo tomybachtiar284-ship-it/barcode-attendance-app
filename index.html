@@ -147,6 +147,12 @@
   </script>
 
   <!-- Helper style kecil (tidak bentrok) -->
+
+  <script>
+    if(localStorage.getItem('sidebar_minimized') === 'true') {
+        document.documentElement.classList.add('sidebar-mini');
+    }
+  </script>
 </head>
 
 <body>
@@ -165,6 +171,9 @@
 
   <!-- SIDEBAR -->
   <aside class="sidebar">
+  <button id="btnMinimizeSidebar" class="sidebar-toggle-btn" title="Toggle Sidebar">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+    </button>
     <div class="brand">
       <img src="assets/AMAN-S-Logo.jpg" alt="AMAN-S Logo" style="height: 44px; width: auto; border-radius: 8px;">
       <div>

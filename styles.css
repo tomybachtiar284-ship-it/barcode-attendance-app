@@ -7656,4 +7656,90 @@ h1.page-title {
 .news-grid {
   display: block; 
   margin: 0; padding: 0; gap: 0;
+}\n
+/* ===== MINIMIZED SIDEBAR ===== */
+html.sidebar-mini .sidebar {
+  width: 80px !important;
+  padding-left: 12px;
+  padding-right: 12px;
+  background-size: cover;
+}
+html.sidebar-mini .main {
+  margin-left: 80px !important;
+}
+html.sidebar-mini .brand-name,
+html.sidebar-mini .brand-sub,
+html.sidebar-mini .navlink span,
+html.sidebar-mini .sidebar-footer {
+  display: none !important;
+}
+html.sidebar-mini .brand {
+  justify-content: center;
+  padding: 0;
+}
+html.sidebar-mini .brand img {
+  margin: 0 auto;
+}
+html.sidebar-mini .navlink {
+  justify-content: center;
+  padding-left: 0;
+  padding-right: 0;
+  font-size: 1.25rem;
+}
+html.sidebar-mini #btnMinimizeSidebar {
+  transform: rotate(180deg);
+}
+@media (max-width: 768px) {
+  html.sidebar-mini .sidebar {
+    width: 280px !important;
+    transform: translateX(-100%);
+  }
+  html.sidebar-mini .main {
+    margin-left: 0 !important;
+  }
+  html.sidebar-mini #btnMinimizeSidebar {
+    display: none !important;
+  }
+}
+
+html.sidebar-mini #btnMinimizeSidebar { right: auto !important; left: 50% !important; margin-left: -14px !important; }
+
+
+/* ===== NEW SIDEBAR TOGGLE BUTTON ===== */
+.sidebar-toggle-btn {
+  position: absolute;
+  top: 16px;
+  right: -16px; /* Stick it slightly out to be visible when expanded */
+  width: 32px;
+  height: 32px;
+  background: var(--primary, #0ea5e9);
+  color: #fff;
+  border: 3px solid #fff;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 9999;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+  transition: all 0.3s ease;
+}
+.sidebar-toggle-btn svg {
+  width: 18px;
+  height: 18px;
+  stroke-width: 2.5;
+}
+
+/* When minimized, move it to the bottom center so it doesn't overlap the logo */
+html.sidebar-mini .sidebar-toggle-btn {
+  top: auto !important;
+  bottom: 24px !important;
+  right: auto !important;
+  left: 50% !important;
+  transform: translateX(-50%) rotate(180deg) !important;
+  width: 44px;
+  height: 44px;
+  background: var(--primary, #0ea5e9);
+  border: 3px solid rgba(255,255,255,0.3);
+  box-shadow: 0 6px 12px rgba(0,0,0,0.3);
 }
