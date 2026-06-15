@@ -1408,18 +1408,69 @@ window.addEventListener('DOMContentLoaded', () => {
     const pct = (ontime + late ? (ontime / (ontime + late)) * 100 : 0);
     const bar = $('#onTimeBar'); if (bar) bar.style.width = pct + '%';
 
-    const tb = $('#tableRecent tbody');
-    if (tb) {
+    const tbs = document.querySelectorAll('#tableRecent tbody');
+    tbs.forEach(tb => {
       tb.innerHTML = '';
-      today.sort((a, b) => b.ts - a.ts).slice(0, 3).forEach(r => {
-        const tr = document.createElement('tr');
+      const data = today.sort((a, b) => b.ts - a.ts).slice(0, 10);
+      
+      let rowsHtml = '';
+      data.forEach(r => {
         const emp = employees.find(e => e.nid === r.nid);
         const groupLabel = emp ? `(Grup ${emp.shift})` : '';
-        tr.innerHTML = `<td>${fmtTs(r.ts)}</td><td>${capStatus(r.status)}</td><td>${r.nid}</td><td>${r.name}</td>
-                      <td>${CODE_TO_LABEL[r.shift] || r.shift || '-'} ${groupLabel}</td>`;
-        tb.appendChild(tr);
+        rowsHtml += `<tr><td>${fmtTs(r.ts)}</td><td>${capStatus(r.status)}</td><td>${r.nid}</td><td>${r.name}</td>
+                      <td>${CODE_TO_LABEL[r.shift] || r.shift || '-'} ${groupLabel}</td></tr>`;
       });
-    }
+
+      if (data.length > 0) {
+          // Duplikasi untuk animasi gulir
+          tb.innerHTML = rowsHtml + rowsHtml;
+          
+          const wrap = tb.closest('.table-wrap');
+          const thead = tb.parentElement.querySelector('thead');
+          if (wrap && thead) {
+              thead.style.position = 'sticky';
+              thead.style.top = '0';
+              thead.style.zIndex = '10';
+              thead.style.backgroundColor = 'var(--surface, #ffffff)';
+              
+              wrap.style.overflow = 'hidden';
+              wrap.style.maxHeight = '250px';
+              
+              if (wrap.dataset.reqId) cancelAnimationFrame(parseInt(wrap.dataset.reqId));
+              
+              let scrollY = 0;
+              const speed = 0.3; // Lebih lambat dari education karena data tabel padat
+              let paused = false;
+              
+              wrap.addEventListener('mouseenter', () => paused = true);
+              wrap.addEventListener('mouseleave', () => paused = false);
+              wrap.addEventListener('touchstart', () => paused = true);
+              wrap.addEventListener('touchend', () => paused = false);
+              wrap.addEventListener('touchcancel', () => paused = false);
+
+              function animateTable() {
+                  if (!paused) {
+                      let currentHeight = tb.scrollHeight / 2;
+                      if (currentHeight > 0) {
+                          scrollY += speed;
+                          if (scrollY >= currentHeight) {
+                              scrollY = 0;
+                          }
+                          wrap.scrollTop = scrollY;
+                      }
+                  }
+                  wrap.dataset.reqId = requestAnimationFrame(animateTable);
+              }
+              wrap.dataset.reqId = requestAnimationFrame(animateTable);
+          }
+      } else {
+          tb.innerHTML = '<tr><td colspan="5" style="text-align:center;">Tidak ada aktivitas</td></tr>';
+      }
+    });
+
+    // Update label "(3 terakhir hari ini)" menjadi "(10 terakhir hari ini)"
+    const countLabels = document.querySelectorAll('#recentCount');
+    countLabels.forEach(lbl => lbl.textContent = '(10 terakhir hari ini)');
     renderCurrentShiftPanel();
     // Use standardized Global Overtime Renderer
     if (window.renderOvertimePanel) window.renderOvertimePanel();
