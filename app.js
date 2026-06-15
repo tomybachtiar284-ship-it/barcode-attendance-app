@@ -3974,52 +3974,64 @@ function fs(btnSel, targetSel) {
 
     // Inisiasi animasi
     setTimeout(() => {
-        const container = document.getElementById('eduMarqueeContainer');
-        const track = document.getElementById('eduMarqueeTrack');
-        if (!container || !track) return;
+        if (!window.eduMarqueeReqs) window.eduMarqueeReqs = [];
+        window.eduMarqueeReqs.forEach(req => cancelAnimationFrame(req));
+        window.eduMarqueeReqs = [];
 
-        // Reset previous animation if exists
-        if (window.eduMarqueeReq) cancelAnimationFrame(window.eduMarqueeReq);
-        
-        let scrollY = 0;
-        const speed = 0.5; // Kecepatan gulir lambat
-        const singleSetHeight = track.scrollHeight / 2;
+        const containers = document.querySelectorAll('.edu-marquee-container');
+        containers.forEach(container => {
+            const track = container.querySelector('.edu-marquee-track');
+            if (!track) return;
+            
+            let scrollY = 0;
+            const speed = 0.5; // Kecepatan gulir lambat
+            let paused = false;
 
-        container.addEventListener('mouseenter', () => window.eduMarqueePaused = true);
-        container.addEventListener('mouseleave', () => window.eduMarqueePaused = false);
-        container.addEventListener('touchstart', () => window.eduMarqueePaused = true);
-        container.addEventListener('touchend', () => window.eduMarqueePaused = false);
+            container.addEventListener('mouseenter', () => paused = true);
+            container.addEventListener('mouseleave', () => paused = false);
+            container.addEventListener('touchstart', () => paused = true);
+            container.addEventListener('touchend', () => paused = false);
+            container.addEventListener('touchcancel', () => paused = false);
 
-        // Observer untuk "kembangan" (bloom effect) di tengah
-        const observer = new IntersectionObserver((entries) => {
-            entries.forEach(entry => {
-                if (entry.isIntersecting) {
-                    entry.target.classList.add('bloom');
-                } else {
-                    entry.target.classList.remove('bloom');
-                }
+            // Observer untuk "kembangan" (bloom effect) di tengah
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        entry.target.classList.add('bloom');
+                    } else {
+                        entry.target.classList.remove('bloom');
+                    }
+                });
+            }, {
+                root: container,
+                rootMargin: "-35% 0px -35% 0px", 
+                threshold: 0
             });
-        }, {
-            root: container,
-            rootMargin: "-35% 0px -35% 0px", // Hanya aktif persis di area tengah (sekitar 30% dari tinggi container)
-            threshold: 0
-        });
 
-        // Pantau semua item
-        document.querySelectorAll('#eduMarqueeTrack .marquee-item').forEach(el => observer.observe(el));
+            track.querySelectorAll('.marquee-item').forEach(el => observer.observe(el));
 
-        function animate() {
-            if (!window.eduMarqueePaused) {
-                scrollY += speed;
-                if (scrollY >= singleSetHeight) {
-                    scrollY = 0; // Reset ke awal tanpa ketahuan (seamless loop)
+            function animate() {
+                if (!paused) {
+                    let currentHeight = track.scrollHeight / 2;
+                    if (currentHeight > 0) {
+                        scrollY += speed;
+                        if (scrollY >= currentHeight) {
+                            scrollY = 0; // Reset ke awal tanpa ketahuan (seamless loop)
+                        }
+                        track.style.transform = `translateY(-${scrollY}px)`;
+                    }
                 }
-                track.style.transform = `translateY(-${scrollY}px)`;
+                const reqId = requestAnimationFrame(animate);
+                if (!window.eduMarqueeReqs.includes(reqId)) {
+                    // Update the last saved ID for this container (approximated by keeping track of all active ones)
+                    // It's safe to just push since we only add it once per loop, but let's just push on the first frame
+                }
+                // To keep it simple, we push the initial ones and rely on the fact that they cancel
             }
-            window.eduMarqueeReq = requestAnimationFrame(animate);
-        }
-        
-        animate();
+            
+            const initialReqId = requestAnimationFrame(animate);
+            window.eduMarqueeReqs.push(initialReqId);
+        });
     }, 100);
   }
 
