@@ -1417,8 +1417,22 @@ window.addEventListener('DOMContentLoaded', () => {
       data.forEach(r => {
         const emp = employees.find(e => e.nid === r.nid);
         const groupLabel = emp ? `(Grup ${emp.shift})` : '';
-        rowsHtml += `<tr><td>${fmtTs(r.ts)}</td><td>${capStatus(r.status)}</td><td>${r.nid}</td><td>${r.name}</td>
-                      <td>${CODE_TO_LABEL[r.shift] || r.shift || '-'} ${groupLabel}</td></tr>`;
+        
+        const statusLower = r.status.toLowerCase();
+        const isMasuk = statusLower.includes('datang') || statusLower.includes('masuk');
+        const isKeluar = statusLower.includes('pulang') || statusLower.includes('keluar');
+        
+        let colorStyle = '';
+        if (isMasuk) colorStyle = 'color: #2563eb; font-weight: 600;';
+        else if (isKeluar) colorStyle = 'color: #dc2626; font-weight: 600;';
+
+        rowsHtml += `<tr>
+                      <td>${fmtTs(r.ts)}</td>
+                      <td style="${colorStyle}">${capStatus(r.status)}</td>
+                      <td>${r.nid}</td>
+                      <td style="${colorStyle}">${r.name}</td>
+                      <td>${CODE_TO_LABEL[r.shift] || r.shift || '-'} ${groupLabel}</td>
+                    </tr>`;
       });
 
       if (data.length > 0) {
