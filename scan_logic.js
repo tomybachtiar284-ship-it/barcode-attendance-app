@@ -437,3 +437,23 @@ function startAutoScroll() {
 document.addEventListener('DOMContentLoaded', () => {
     startAutoScroll();
 });
+
+window.logoutScan = async function() {
+    Swal.fire({
+        title: 'Logout?',
+        text: 'Anda akan keluar dari mode Scanner.',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#ef4444',
+        cancelButtonColor: '#64748b',
+        confirmButtonText: 'Ya, Logout'
+    }).then(async (result) => {
+        if (result.isConfirmed) {
+            if (window.sb) {
+                await window.sb.auth.signOut();
+            }
+            window.location.replace('login.html?redirect=scan.html');
+        }
+    });
+};
+
