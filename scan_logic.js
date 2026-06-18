@@ -94,7 +94,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     scanInput.value = ''; // clear input
                     await extractAndProcessScan(raw);
                 }
-            }, 300); // Tunggu 300ms setelah karakter terakhir diketik
+            }, 800); // Perbesar jeda jadi 800ms untuk scanner lambat
         });
 
         // Fallback jika scanner tetap mengirimkan tombol Enter
@@ -109,7 +109,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                         scanInput.value = ''; // clear input
                         await extractAndProcessScan(raw);
                     }
-                }, 300);
+                }, 800);
             }
         });
         
@@ -180,23 +180,39 @@ document.addEventListener('DOMContentLoaded', async () => {
 // --- CORE LOGIC ---
 
 async function extractAndProcessScan(rawData) {
-    let nid = rawData;
-    // Cari format "NID: 9420023APN" atau variasinya
-    const match = rawData.match(/NID\s*[:\-]?\s*([a-zA-Z0-9]+)/i);
-    if (match && match[1]) {
-        nid = match[1];
+    let nid = rawData.trim();
+    
+    // Coba parse jika formatnya JSON
+    if (nid.startsWith('{') && nid.endsWith('}')) {
+        try {
+            const obj = JSON.parse(nid);
+            if (obj.nid) nid = obj.nid;
+            else if (obj.NID) nid = obj.NID;
+            else if (obj.id) nid = obj.id;
+        } catch(e) {}
     } else {
-        const words = rawData.split(/\s+/);
-        if (words.length > 1) {
-            // Jika tidak ada "NID:" tapi teksnya panjang, cari kata yang mirip NID
-            const possibleNid = words.find(w => /^[a-zA-Z0-9]{8,15}$/.test(w));
-            if (possibleNid) nid = possibleNid;
+        // Coba cari NID: XXXXXX dengan/tanpa spasi/tanda kutip
+        // Mendukung NID: 9420023APN, "nid":"9420023APN", dll
+        const match = nid.match(/NID\s*["':\-=]*\s*([a-zA-Z0-9]+)/i);
+        if (match && match[1]) {
+            nid = match[1];
+        } else {
+            const words = nid.split(/[\s\n,;]+/);
+            if (words.length > 1) {
+                // Cari kata yang mengandung angka dan minimal 6 karakter (khas NID)
+                const possibleNid = words.find(w => /[0-9]/.test(w) && w.length >= 6);
+                if (possibleNid) nid = possibleNid;
+            }
         }
     }
-    await processScan(nid);
+    
+    // Bersihkan karakter non-alfanumerik jika ada (misal tertinggal koma)
+    nid = nid.replace(/[^a-zA-Z0-9]/g, '');
+
+    await processScan(nid, rawData);
 }
 
-async function processScan(nid) {
+async function processScan(nid, rawData = '') {
     if (!window.employees || !window.attendance) return;
 
     // Cari karyawan
@@ -206,9 +222,10 @@ async function processScan(nid) {
         Swal.fire({
             icon: 'error',
             title: 'Tidak Ditemukan',
-            text: `Karyawan dengan ID ${nid} tidak terdaftar.`,
-            timer: 2000,
-            showConfirmButton: false
+            html: `NID: <b>${nid}</b> tidak terdaftar.<br><br><div style="font-size:0.8rem; color:gray; text-align:left; background:#f4f4f4; padding:8px; border-radius:4px; margin-top:10px;"><b>Data QR Asli:</b><br>${rawData.substring(0, 100)}...</div>`,
+            timer: 5000,
+            showConfirmButton: true,
+            confirmButtonText: 'Tutup'
         });
         return;
     }
