@@ -126,6 +126,26 @@ document.addEventListener('DOMContentLoaded', async () => {
             if(nid) {
                 await processScan(nid);
                 document.getElementById('manualNid').value = '';
+                document.getElementById('manualName').value = '';
+            }
+        });
+    }
+
+    // Auto-fill nama saat NID diketik
+    const manualNid = document.getElementById('manualNid');
+    const manualName = document.getElementById('manualName');
+    if (manualNid && manualName) {
+        manualNid.addEventListener('input', () => {
+            const nid = manualNid.value.trim();
+            if (nid && window.employees) {
+                const emp = window.employees.find(e => e.nid === nid);
+                if (emp) {
+                    manualName.value = emp.nama;
+                } else {
+                    manualName.value = '';
+                }
+            } else {
+                manualName.value = '';
             }
         });
     }
