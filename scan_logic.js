@@ -140,7 +140,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (nid && window.employees) {
                 const emp = window.employees.find(e => e.nid === nid);
                 if (emp) {
-                    manualName.value = emp.nama;
+                    manualName.value = emp.name;
                 } else {
                     manualName.value = '';
                 }
