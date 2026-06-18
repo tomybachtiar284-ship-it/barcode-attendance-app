@@ -226,7 +226,7 @@
                 }
 
                 // Populate buckets
-                filteredAtt.forEach(a => {
+                attendance.forEach(a => {
                     const d = new Date(a.ts);
                     const ymd = d.toISOString().split('T')[0];
                     if (statsMap[ymd] && (a.status === 'datang' || a.status === 'late')) {
@@ -245,8 +245,8 @@
                 const queue = [
                     // Chart 1: Composition
                     () => {
-                        const cLate = filteredAtt.filter(a => (a.status === 'datang' || a.status === 'late') && a.late).length;
-                        const cOnTime = filteredAtt.filter(a => (a.status === 'datang' || a.status === 'late') && !a.late).length;
+                        const cLate = attendance.filter(a => (a.status === 'datang' || a.status === 'late') && a.late).length;
+                        const cOnTime = attendance.filter(a => (a.status === 'datang' || a.status === 'late') && !a.late).length;
 
                         const ctx = document.getElementById('chartAttendanceRate')?.getContext('2d');
                         if (ctx) {
@@ -337,7 +337,7 @@
                         if (ctx) {
                             const lateMap = {};
                             const countedDays = new Set();
-                            const dataRange = filteredAtt.filter(a => (a.status === 'datang' || a.status === 'late') && a.late);
+                            const dataRange = attendance.filter(a => (a.status === 'datang' || a.status === 'late') && a.late);
 
                             dataRange.forEach(a => {
                                 const key = a.nid || a.name;
