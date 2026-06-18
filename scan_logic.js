@@ -143,6 +143,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                 if (emp) {
                     manualName.value = emp.name;
                     if (manualShift && emp.shift) {
+                        let exists = Array.from(manualShift.options).some(opt => opt.value === emp.shift);
+                        if (!exists) {
+                            manualShift.add(new Option(emp.shift, emp.shift));
+                        }
                         manualShift.value = emp.shift;
                     }
                 } else {
