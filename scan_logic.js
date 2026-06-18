@@ -182,22 +182,30 @@ document.addEventListener('DOMContentLoaded', async () => {
 async function extractAndProcessScan(rawData) {
     let nid = rawData.trim();
     
-    // Coba parse jika formatnya JSON
-    if (nid.startsWith('{') && nid.endsWith('}')) {
+    // 1. Coba parse format Barcode bawaan aplikasi lama: NID|Nama|Jabatan|Perusahaan
+    if (nid.includes('|')) {
+        const parts = nid.split('|');
+        if (parts.length >= 1) {
+            nid = parts[0].trim();
+        }
+    }
+    // 2. Coba parse jika formatnya JSON
+    else if (nid.startsWith('{') && nid.endsWith('}')) {
         try {
             const obj = JSON.parse(nid);
             if (obj.nid) nid = obj.nid;
             else if (obj.NID) nid = obj.NID;
             else if (obj.id) nid = obj.id;
         } catch(e) {}
-    } else {
+    } 
+    // 3. Fallback pencarian manual di dalam teks QR (jika format teks bebas)
+    else {
         // Coba cari NID: XXXXXX dengan/tanpa spasi/tanda kutip
-        // Mendukung NID: 9420023APN, "nid":"9420023APN", dll
         const match = nid.match(/NID\s*["':\-=]*\s*([a-zA-Z0-9]+)/i);
         if (match && match[1]) {
             nid = match[1];
         } else {
-            const words = nid.split(/[\s\n,;]+/);
+            const words = nid.split(/[\s\n,;|]+/); // Tambahkan | sebagai pemisah juga
             if (words.length > 1) {
                 // Cari kata yang mengandung angka dan minimal 6 karakter (khas NID)
                 const possibleNid = words.find(w => /[0-9]/.test(w) && w.length >= 6);
