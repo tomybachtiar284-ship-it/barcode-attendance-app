@@ -388,8 +388,8 @@ async function processScan(nid, rawData = '', isManual = false) {
         late = calculateLateStatus(emp, ts.getTime(), effShift);
     }
 
-    // Tentukan shift akhir
-    let finalShift = effShift || emp.shift || '-';
+    // Tentukan shift akhir (Prioritaskan Grup asli karyawan, bukan status Libur/P/S/M)
+    let finalShift = emp.shift || effShift || '-';
     if (isManual && document.getElementById('manualShift')?.value) {
         finalShift = document.getElementById('manualShift').value;
     }
