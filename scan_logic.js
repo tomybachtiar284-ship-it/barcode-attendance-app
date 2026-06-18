@@ -89,10 +89,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         scanInput.addEventListener('input', () => {
             clearTimeout(scanTimeout);
             scanTimeout = setTimeout(async () => {
-                const nid = scanInput.value.trim();
-                if (nid) {
+                const raw = scanInput.value.trim();
+                if (raw) {
                     scanInput.value = ''; // clear input
-                    await processScan(nid);
+                    await extractAndProcessScan(raw);
                 }
             }, 300); // Tunggu 300ms setelah karakter terakhir diketik
         });
@@ -100,12 +100,16 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Fallback jika scanner tetap mengirimkan tombol Enter
         scanInput.addEventListener('keypress', async (e) => {
             if (e.key === 'Enter') {
-                clearTimeout(scanTimeout); // Cegah double scan
-                const nid = scanInput.value.trim();
-                if (nid) {
-                    scanInput.value = ''; // clear input
-                    await processScan(nid);
-                }
+                e.preventDefault();
+                scanInput.value += ' '; // Tambah spasi untuk menggabungkan multiline
+                clearTimeout(scanTimeout); // Restart debounce
+                scanTimeout = setTimeout(async () => {
+                    const raw = scanInput.value.trim();
+                    if (raw) {
+                        scanInput.value = ''; // clear input
+                        await extractAndProcessScan(raw);
+                    }
+                }, 300);
             }
         });
         
@@ -119,22 +123,36 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Manual Submit
     const btnManualSubmit = document.getElementById('btnManualSubmit');
-    if (btnManualSubmit) {
-        btnManualSubmit.addEventListener('click', async () => {
-
-            const nid = document.getElementById('manualNid').value.trim();
-            if(nid) {
-                await processScan(nid);
-                document.getElementById('manualNid').value = '';
-                document.getElementById('manualName').value = '';
-            }
-        });
-    }
-
-    // Auto-fill nama & shift saat NID diketik
     const manualNid = document.getElementById('manualNid');
     const manualName = document.getElementById('manualName');
     const manualShift = document.getElementById('manualShift');
+
+    const handleManualSubmit = async () => {
+        const nid = manualNid ? manualNid.value.trim() : '';
+        if(nid) {
+            await processScan(nid);
+            if (manualNid) manualNid.value = '';
+            if (manualName) manualName.value = '';
+        }
+    };
+
+    if (btnManualSubmit) {
+        btnManualSubmit.addEventListener('click', handleManualSubmit);
+    }
+
+    // Trigger submit on Enter key
+    const submitOnEnter = (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            handleManualSubmit();
+        }
+    };
+
+    if (manualNid) manualNid.addEventListener('keypress', submitOnEnter);
+    if (manualShift) manualShift.addEventListener('keypress', submitOnEnter);
+    if (manualName) manualName.addEventListener('keypress', submitOnEnter);
+
+    // Auto-fill nama & shift saat NID diketik
     if (manualNid && manualName) {
         manualNid.addEventListener('input', () => {
             const nid = manualNid.value.trim();
@@ -160,6 +178,23 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 // --- CORE LOGIC ---
+
+async function extractAndProcessScan(rawData) {
+    let nid = rawData;
+    // Cari format "NID: 9420023APN" atau variasinya
+    const match = rawData.match(/NID\s*[:\-]?\s*([a-zA-Z0-9]+)/i);
+    if (match && match[1]) {
+        nid = match[1];
+    } else {
+        const words = rawData.split(/\s+/);
+        if (words.length > 1) {
+            // Jika tidak ada "NID:" tapi teksnya panjang, cari kata yang mirip NID
+            const possibleNid = words.find(w => /^[a-zA-Z0-9]{8,15}$/.test(w));
+            if (possibleNid) nid = possibleNid;
+        }
+    }
+    await processScan(nid);
+}
 
 async function processScan(nid) {
     if (!window.employees || !window.attendance) return;
