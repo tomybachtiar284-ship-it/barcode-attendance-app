@@ -263,12 +263,9 @@ h1, h2, h3, h4, h5, h6 {
   content: '';
   position: absolute;
   top: 0; left: 0; right: 0; bottom: 0;
-  background: rgba(248, 250, 252, 0.85); /* transparan sedikit */
+  /* Gabungkan efek cahaya PLN (radial-gradient) dengan overlay transparan */
+  background: radial-gradient(circle, rgba(0, 174, 239, 0.15) 0%, rgba(248, 250, 252, 0.85) 60%);
   z-index: 1;
-}
-  overflow: hidden;
-  background: radial-gradient(circle, var(--pln-blue-light) 0%, transparent 60%);
-  border-radius: 12px;
 }
 
 .radar-bg {
