@@ -251,6 +251,22 @@ h1, h2, h3, h4, h5, h6 {
   align-items: center;
   justify-content: center;
   overflow: hidden;
+  background-image: url('assets/peta-kelistrikan.jpg');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  border-radius: 8px;
+}
+
+/* Overlay tipis agar peta tetap terlihat namun tidak menabrak teks/node */
+.radar-container::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(248, 250, 252, 0.85); /* transparan sedikit */
+  z-index: 1;
+}
+  overflow: hidden;
   background: radial-gradient(circle, var(--pln-blue-light) 0%, transparent 60%);
   border-radius: 12px;
 }
@@ -259,6 +275,7 @@ h1, h2, h3, h4, h5, h6 {
   position: absolute;
   width: 400px;
   height: 400px;
+  z-index: 2;
   border: 1px solid rgba(0, 174, 239, 0.2);
   border-radius: 50%;
   animation: spin 30s linear infinite;
