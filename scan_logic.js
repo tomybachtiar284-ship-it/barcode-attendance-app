@@ -131,9 +131,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
-    // Auto-fill nama saat NID diketik
+    // Auto-fill nama & shift saat NID diketik
     const manualNid = document.getElementById('manualNid');
     const manualName = document.getElementById('manualName');
+    const manualShift = document.getElementById('manualShift');
     if (manualNid && manualName) {
         manualNid.addEventListener('input', () => {
             const nid = manualNid.value.trim();
@@ -141,6 +142,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const emp = window.employees.find(e => e.nid === nid);
                 if (emp) {
                     manualName.value = emp.name;
+                    if (manualShift && emp.shift) {
+                        manualShift.value = emp.shift;
+                    }
                 } else {
                     manualName.value = '';
                 }
