@@ -132,9 +132,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     const handleManualSubmit = async () => {
         const nid = manualNid ? manualNid.value.trim() : '';
         if(nid) {
-            await processScan(nid);
+            await processScan(nid, '', true); // true = isManual
             if (manualNid) manualNid.value = '';
             if (manualName) manualName.value = '';
+            if (manualShift) manualShift.value = '';
         }
     };
 
@@ -320,7 +321,7 @@ function nextStatusFor(nid) {
 // Double Scan Prevention
 const lastScanMap = new Map();
 
-async function processScan(nid, rawData = '') {
+async function processScan(nid, rawData = '', isManual = false) {
     if (!window.employees || !window.attendance) return;
 
     // Cari karyawan
@@ -387,6 +388,12 @@ async function processScan(nid, rawData = '') {
         late = calculateLateStatus(emp, ts.getTime(), effShift);
     }
 
+    // Tentukan shift akhir
+    let finalShift = effShift || emp.shift || '-';
+    if (isManual && document.getElementById('manualShift')?.value) {
+        finalShift = document.getElementById('manualShift').value;
+    }
+
     // Buat objek absensi
     const record = {
         ts: ts.getTime(),
@@ -395,7 +402,7 @@ async function processScan(nid, rawData = '') {
         name: emp.name,
         title: emp.title || '-',
         company: emp.company || '-',
-        shift: document.getElementById('manualShift')?.value || effShift || emp.shift || '-',
+        shift: finalShift,
         okShift: inWin,
         note: noteOverride || (status === 'datang' ? (late ? 'Terlambat' : 'On-time') : '—') + (inWin ? '' : ' • Di luar jam shift'),
         late: !!late
