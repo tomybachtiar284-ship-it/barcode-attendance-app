@@ -41,8 +41,10 @@ document.addEventListener('DOMContentLoaded', async () => {
             const connected = await window.checkConn();
             if (connected) {
                 try {
-                    // KITA MATIKAN SEMENTARA pullAll() AGAR DATA LOKAL BAPAK TIDAK TERHAPUS OLEH DATABASE YANG KOSONG
-                    // await window.pullAll(); 
+                    // Mengaktifkan kembali pullAll() agar data sinkron dengan database utama (Shifts, Schedule, dll)
+                    if (typeof window.pullAll === 'function') {
+                        await window.pullAll();
+                    }
                     
                     if (typeof window.subscribeToRealtime === 'function') {
                         window.subscribeToRealtime(); // Listen to live changes
@@ -52,7 +54,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                         toast: true,
                         position: 'top-end',
                         icon: 'success',
-                        title: 'Terkoneksi ke Database',
+                        title: 'Terkoneksi ke Database & Sinkron',
                         showConfirmButton: false,
                         timer: 3000
                     });
@@ -220,6 +222,104 @@ async function extractAndProcessScan(rawData) {
     await processScan(nid, rawData);
 }
 
+// Helper Constants untuk Logika Shift
+const NORMALIZE_GROUP = {
+    'a': 'A', 'group a': 'A', 'grup a': 'A',
+    'b': 'B', 'group b': 'B', 'grup b': 'B',
+    'c': 'C', 'group c': 'C', 'grup c': 'C',
+    'd': 'D', 'group d': 'D', 'grup d': 'D',
+    'daytime': 'DAYTIME', 'day': 'DAYTIME', 'group daytime': 'DAYTIME', 'grup daytime': 'DAYTIME'
+};
+const NORMALIZE_SHIFT = {
+    'p': 'P', 'pagi': 'P', 'shift pagi': 'P',
+    's': 'S', 'sore': 'S', 'shift sore': 'S',
+    'm': 'M', 'malam': 'M', 'shift malam': 'M',
+    'day': 'DAYTIME', 'daytime': 'DAYTIME', 'siang': 'DAYTIME',
+    'off': 'OFF', 'l': 'OFF', 'libur': 'OFF'
+};
+
+const monthKey = d => {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    return `${y}-${m}`;
+};
+
+function effectiveShiftFor(emp, date) {
+    if (!emp || !emp.shift) return null;
+    let group = emp.shift;
+    const groupAlias = NORMALIZE_GROUP[group.toLowerCase()];
+    if (groupAlias) group = groupAlias;
+
+    const id = monthKey(date), day = date.getDate();
+    const dailyCode = (window.sched && window.sched[id]) ? window.sched[id][group]?.[day] : null;
+
+    if (dailyCode) {
+        if (dailyCode === 'L' || dailyCode === 'OFF' || dailyCode.toLowerCase() === 'libur') return 'OFF';
+        const normalized = NORMALIZE_SHIFT[dailyCode.toLowerCase()];
+        const shiftCode = normalized || dailyCode.toUpperCase();
+        if (window.shifts && window.shifts[shiftCode]) return shiftCode;
+    }
+
+    const DEFAULT_GROUP_SHIFT = { A: 'P', B: 'S', C: 'M', D: 'P', DAYTIME: 'DAYTIME' };
+    const defaultShift = DEFAULT_GROUP_SHIFT[group];
+    if (defaultShift && window.shifts && window.shifts[defaultShift]) return defaultShift;
+
+    return 'OFF';
+}
+
+function shiftWindow(code) {
+    const s = window.shifts ? window.shifts[code] : null; if (!s) return null;
+    const [h1, m1] = s.start.split(':').map(Number);
+    const [h2, m2] = s.end.split(':').map(Number);
+    return { start: h1 * 60 + m1, end: h2 * 60 + m2, code };
+}
+
+function minutesOf(dt) { return dt.getHours() * 60 + dt.getMinutes(); }
+
+function isInWindow(m, win) {
+    if (win.end > win.start) return m >= win.start && m < win.end;
+    return m >= win.start || m < win.end;
+}
+
+function scheduleDateFor(code, dt) {
+    const win = shiftWindow(code); if (!win) return dt;
+    if (win.end > win.start) return dt;
+    const m = minutesOf(dt);
+    if (m < win.end) { const y = new Date(dt); y.setDate(dt.getDate() - 1); return y; }
+    return dt;
+}
+
+function calculateLateStatus(emp, ts, shiftCode) {
+    if (!shiftCode || shiftCode === 'OFF') return false;
+    const sDef = (window.shifts && window.shifts[shiftCode]) ? window.shifts[shiftCode] : null;
+    if (!sDef || !sDef.start) return false;
+
+    const baseDay = scheduleDateFor(shiftCode, new Date(ts));
+    const [sh, sm] = sDef.start.split(':').map(Number);
+    const shiftStart = new Date(baseDay);
+    shiftStart.setHours(sh, sm, 0, 0);
+
+    return ts >= (shiftStart.getTime() + 5 * 60 * 1000);
+}
+
+function nextStatusFor(nid) {
+    // Gunakan zona waktu lokal untuk mendapatkan awal hari
+    const now = new Date();
+    const sodDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const sodTs = sodDate.getTime();
+    
+    const todays = (window.attendance||[]).filter(a => a.nid === nid && a.ts >= sodTs && (a.status === 'datang' || a.status === 'pulang'));
+
+    if (todays.length === 0) return 'datang';
+
+    todays.sort((a, b) => b.ts - a.ts);
+    const last = todays[0];
+    return last.status === 'datang' ? 'pulang' : 'datang';
+}
+
+// Double Scan Prevention
+const lastScanMap = new Map();
+
 async function processScan(nid, rawData = '') {
     if (!window.employees || !window.attendance) return;
 
@@ -238,54 +338,83 @@ async function processScan(nid, rawData = '') {
         return;
     }
 
-    // Logic Sederhana: Datang / Pulang
-    // Cek record terakhir hari ini
-    const today = new Date();
-    today.setHours(0,0,0,0);
-    
-    const todayRecords = window.attendance.filter(a => a.nid === emp.nid && a.ts >= today.getTime());
-    todayRecords.sort((a,b) => b.ts - a.ts); // Descending
-
-    let status = 'datang';
-    let isLate = false;
-
-    // Jika sudah ada record 'datang' hari ini dan belum 'pulang', maka dia 'pulang'
-    if (todayRecords.length > 0 && (todayRecords[0].status === 'datang' || todayRecords[0].status === 'break_in')) {
-        status = 'pulang';
+    if (emp.status === 'Non-Aktif') {
+        Swal.fire('Akses Ditolak', 'Karyawan berstatus Non-Aktif.', 'error');
+        return;
     }
 
-    // Cek keterlambatan (Dummy logic: Masuk lewat jam 08:00 dianggap telat)
-    // Dalam realita gunakan logic 'shifts' yang ada di aplikasi utama
-    if (status === 'datang') {
-        const nowHr = new Date().getHours();
-        const nowMin = new Date().getMinutes();
-        if (nowHr >= 8 && nowMin > 0) {
-            isLate = true;
+    const ts = new Date();
+    
+    // === DOUBLE SCAN PREVENTION (7 Seconds Cooldown) ===
+    const lastTime = lastScanMap.get(emp.nid) || 0;
+    if (ts.getTime() - lastTime < 7000) {
+        Swal.fire({
+            toast: true, position: 'top-end', icon: 'warning',
+            title: `⏳ Tunggu 7 detik sebelum scan ${emp.name} lagi.`,
+            showConfirmButton: false, timer: 3000
+        });
+        return;
+    }
+    lastScanMap.set(emp.nid, ts.getTime());
+
+    let effShift = effectiveShiftFor(emp, ts);
+    let noteOverride = ''; 
+    if (effShift === 'OFF') { noteOverride = 'Libur'; }
+
+    let status = nextStatusFor(emp.nid);
+
+    // === CONTEXT AWARE LOGIC: Night Shift Detection ===
+    const lastRec = window.attendance.slice().reverse().find(a => a.nid === emp.nid);
+    if (lastRec && lastRec.status === 'datang') {
+        const hoursSinceLast = (ts.getTime() - lastRec.ts) / (1000 * 60 * 60);
+        const isSameDay = new Date(lastRec.ts).getDate() === ts.getDate();
+        const wasNightShift = lastRec.shift === 'M' || new Date(lastRec.ts).getHours() >= 18;
+
+        if (ts.getHours() < 14 && hoursSinceLast < 20 && !isSameDay && wasNightShift) {
+            status = 'pulang';
+            effShift = 'M';
+            noteOverride = 'Pulang Shift Malam (Auto-Detected)';
+        } else if (!isSameDay && !wasNightShift) {
+            status = 'datang';
         }
+    }
+
+    const sWin = effShift === 'OFF' ? null : shiftWindow(effShift);
+    const inWin = sWin ? isInWindow(minutesOf(ts), sWin) : false;
+
+    let late = false;
+    if (effShift !== 'OFF' && status === 'datang' && sWin) {
+        late = calculateLateStatus(emp, ts.getTime(), effShift);
     }
 
     // Buat objek absensi
     const record = {
-        ts: Date.now(),
+        ts: ts.getTime(),
         status: status,
         nid: emp.nid,
         name: emp.name,
         title: emp.title || '-',
         company: emp.company || '-',
-        shift: document.getElementById('manualShift')?.value || emp.shift || '-',
-        note: '',
-        late: isLate,
-        okShift: true
+        shift: document.getElementById('manualShift')?.value || effShift || emp.shift || '-',
+        okShift: inWin,
+        note: noteOverride || (status === 'datang' ? (late ? 'Terlambat' : 'On-time') : '—') + (inWin ? '' : ' • Di luar jam shift'),
+        late: !!late
     };
 
     // Tampilkan Overlay Foto & Info
     showOverlay(emp, record);
 
+    // Update Lokal Langsung agar responsif
+    window.attendance.push(record);
+    window.attendance.sort((a, b) => a.ts - b.ts);
+    localStorage.setItem('SA_ATTENDANCE', JSON.stringify(window.attendance));
+    window.dispatchEvent(new Event('data:synced'));
+
     // Push ke Database
     if (typeof window.pushAttendance === 'function') {
         try {
             await window.pushAttendance(record);
-            // pushAttendance akan memicu Realtime yang kemudian merender ulang UI via data:synced
+            // pushAttendance akan memicu Realtime
         } catch (err) {
             console.error('Gagal push absensi', err);
         }
