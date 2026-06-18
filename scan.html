@@ -192,12 +192,17 @@
   <script src="js/db.js"></script>
   <script>
     // Pastikan user sudah login
-    if (window.sb) {
-        window.sb.auth.getSession().then(({data}) => {
+    if (window.supabase && window.SA_SUPABASE_URL) {
+        const sbClient = window.supabase.createClient(window.SA_SUPABASE_URL, window.SA_SUPABASE_ANON, {
+            auth: { storage: window.sessionStorage }
+        });
+        sbClient.auth.getSession().then(({data}) => {
             if (!data.session) {
                 window.location.replace('login.html?redirect=scan.html');
             }
         });
+    } else {
+        window.location.replace('login.html?redirect=scan.html');
     }
   </script>
   <script src="scan_logic.js"></script>
