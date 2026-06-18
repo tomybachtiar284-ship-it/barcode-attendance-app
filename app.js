@@ -557,26 +557,41 @@ window.addEventListener('DOMContentLoaded', () => {
     // 3. Persist
     localStorage.setItem('SA_CURRENT_ROUTE', route);
 
-    // 4. Show/Hide Sections
-    $$('.route').forEach(s => s.classList.add('hidden'));
+    // 4. Show/Hide Sections (Instant visual transition)
+    $$('.route').forEach(s => {
+      s.classList.add('hidden');
+      s.classList.remove('fade-in-active');
+    });
     const section = $('#route-' + route);
-    if (section) section.classList.remove('hidden');
+    if (section) {
+      section.classList.remove('hidden');
+      // Trigger reflow to ensure CSS animation plays smoothly
+      void section.offsetWidth;
+      section.classList.add('fade-in-active');
+    }
 
-    // 5. Trigger Initializers
-    if (route === 'dashboard') { renderDashboard(); window.scrollTo(0, 0); }
-    if (route === 'employees') renderEmployees();
-    if (route === 'attendance') renderAttendance();
-    if (route === 'scan') { renderScanPage(); $('#scanInput')?.focus(); }
-    if (route === 'latest') renderLatest();
-    if (route === 'shifts') { renderShiftForm(); initMonthlyScheduler(); }
-    if (route === 'inventory') renderInventory();
-    if (route === 'analysis') renderAnalysisPage();
-    if (route === 'general-report') {
-      if (window.renderGeneralReport) window.renderGeneralReport();
-    }
-    if (route === 'emergency') {
-      if (window.renderMusterList) window.renderMusterList();
-    }
+    // 5. Trigger Initializers (Deferred to eliminate jank/lag)
+    requestAnimationFrame(() => {
+      setTimeout(() => {
+        // Safety check: abort if the user has navigated away from this route during the delay
+        if (localStorage.getItem('SA_CURRENT_ROUTE') !== route) return;
+
+        if (route === 'dashboard') { renderDashboard(); window.scrollTo(0, 0); }
+        if (route === 'employees') renderEmployees();
+        if (route === 'attendance') renderAttendance();
+        if (route === 'scan') { renderScanPage(); $('#scanInput')?.focus(); }
+        if (route === 'latest') renderLatest();
+        if (route === 'shifts') { renderShiftForm(); initMonthlyScheduler(); }
+        if (route === 'inventory') renderInventory();
+        if (route === 'analysis') renderAnalysisPage();
+        if (route === 'general-report') {
+          if (window.renderGeneralReport) window.renderGeneralReport();
+        }
+        if (route === 'emergency') {
+          if (window.renderMusterList) window.renderMusterList();
+        }
+      }, 0);
+    });
   };
 
   // Bind existing sidebar links
