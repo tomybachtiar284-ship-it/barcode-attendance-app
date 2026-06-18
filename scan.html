@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0" />
+  <title>Digital Twin Scanner Interface</title>
+
+  <!-- CSS & Fonts -->
+  <link rel="stylesheet" href="scan-styles.css" />
+  
+  <!-- Supabase -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  
+  <!-- SweetAlert2 untuk notifikasi elegan -->
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+</head>
+<body>
+
+  <!-- Overlay untuk Foto Karyawan -->
+  <div id="employeePhotoOverlay">
+    <img id="overlayPhoto" class="emp-photo" src="assets/dummy-avatar.png" alt="Foto">
+    <div id="overlayName" class="emp-name">NAMA KARYAWAN</div>
+    <div id="overlayStatus" class="emp-status">MASUK - TEPAT WAKTU</div>
+  </div>
+
+  <div class="dashboard-container">
+    
+    <!-- HEADER -->
+    <header class="header">
+      <div class="header-left">
+        <img src="assets/LOGO PLN NP SERVICES - FIN.png" alt="PLN NPS" class="header-logo" onerror="this.src='assets/AMAN-S-Logo.jpg'">
+        <div class="header-title-box">
+          <div class="header-title">PLN NPS Digital Twin Interface v3.1</div>
+          <div class="header-subtitle" id="currentDateStr">Selasa, 18 Juni 2026</div>
+        </div>
+      </div>
+      
+      <div class="header-center">
+        <div class="clock" id="liveClock">10:43:01 WIB</div>
+        <div class="live-badge">Live Update</div>
+      </div>
+
+      <div class="header-right">
+        <div class="admin-profile">
+          <div class="admin-text">
+            <div class="admin-name">Pos Security</div>
+            <div class="admin-role">Kiosk Mode</div>
+          </div>
+          <div class="admin-avatar"></div>
+        </div>
+      </div>
+    </header>
+
+    <!-- STATS ROW -->
+    <div class="stats-grid">
+      <div class="stat-card blue">
+        <div class="stat-title">TOTAL KARYAWAN</div>
+        <div class="stat-value" id="statTotalEmp">0</div>
+      </div>
+      <div class="stat-card green">
+        <div class="stat-title">AKTIF DI SITE</div>
+        <div class="stat-value" id="statActiveSite">0</div>
+      </div>
+      <div class="stat-card orange">
+        <div class="stat-title">HADIR TEPAT WAKTU</div>
+        <div class="stat-value" id="statOntime">0</div>
+      </div>
+      <div class="stat-card red">
+        <div class="stat-title">TERLAMBAT</div>
+        <div class="stat-value" id="statLate">0</div>
+      </div>
+    </div>
+
+    <!-- MAIN MIDDLE GRID -->
+    <div class="main-grid">
+      
+      <!-- RADAR & SCAN AREA (Kiri) -->
+      <div class="panel">
+        <div class="panel-title">Scanner Barcode & Node Perusahaan</div>
+        <div style="display: flex; height: 100%;">
+          <div class="radar-container" id="radarContainer">
+            <div class="radar-bg"></div>
+            
+            <div class="scan-box-wrapper">
+              <h3 style="margin-bottom: 8px;">Scan Barcode / NID</h3>
+              <input type="text" id="scanInput" class="scan-input" placeholder="Tap ID Card disini..." autocomplete="off" autofocus />
+            </div>
+
+            <!-- Company Nodes (Will be injected by JS) -->
+            <!-- <div class="company-node" style="top: 20%; left: 10%;">PT MKP <span class="node-count">10</span></div> -->
+          </div>
+        </div>
+      </div>
+
+      <!-- FORM & NOTIF AREA (Kanan) -->
+      <div class="right-column">
+        <div class="panel" style="flex: 1;">
+          <div class="panel-title">Form Data Karyawan (Manual)</div>
+          <div class="input-group">
+            <label>NID / ID Karyawan</label>
+            <input type="text" id="manualNid" class="input-control" placeholder="Masukkan NID">
+          </div>
+          <div class="input-group" style="display: flex; gap: 10px;">
+            <div style="flex: 1;">
+              <label>Nama</label>
+              <input type="text" id="manualName" class="input-control" placeholder="- Otomatis -">
+            </div>
+            <div style="flex: 1;">
+              <label>Shift</label>
+              <select id="manualShift" class="input-control">
+                <option value="Daytime">Daytime</option>
+                <option value="Group A">Group A</option>
+                <option value="Group B">Group B</option>
+                <option value="Group C">Group C</option>
+                <option value="Group D">Group D</option>
+              </select>
+            </div>
+          </div>
+          <button id="btnManualSubmit" style="width: 100%; padding: 12px; border-radius: 8px; background: var(--primary-color); border: none; color: #fff; font-weight: 700; cursor: pointer; margin-top: 10px;">Submit Manual</button>
+        </div>
+
+        <div class="panel" style="flex: 1; border-color: rgba(239, 68, 68, 0.4);">
+          <div class="panel-title" style="color: var(--danger);">Notifikasi Penting ⚠️</div>
+          <div id="notifArea" style="flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 8px;">
+            <!-- Notif Items injected by JS -->
+            <div style="padding: 10px; background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 8px; font-size: 0.8rem;">
+              <b style="color: var(--danger);">INFO:</b> Jangan lupa tap pulang saat selesai shift.
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- BOTTOM GRID (Tabel Log & Kalender) -->
+    <div class="bottom-grid">
+      
+      <!-- Tabel Log 1 -->
+      <div class="panel">
+        <div class="panel-title">Attendance & Shift Log</div>
+        <div class="table-wrapper">
+          <table class="custom-table" id="tableAttendance">
+            <thead>
+              <tr>
+                <th>Waktu</th>
+                <th>Status</th>
+                <th>Nama</th>
+                <th>Perusahaan</th>
+              </tr>
+            </thead>
+            <tbody>
+              <!-- Injected by JS -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Kalender / Info Live Stream (Sesuai Referensi) -->
+      <div class="panel">
+        <div class="panel-title">Live Updates</div>
+        <div class="table-wrapper" id="liveUpdatesArea" style="display: flex; flex-direction: column; gap: 10px;">
+           <!-- Injected by JS -->
+        </div>
+      </div>
+
+      <!-- Tabel Aktivitas -->
+      <div class="panel">
+        <div class="panel-title">Log Aktivitas Terbaru</div>
+        <div class="table-wrapper">
+          <table class="custom-table" id="tableActivity">
+            <thead>
+              <tr>
+                <th>Waktu</th>
+                <th>NID</th>
+                <th>Nama</th>
+                <th>Ket.</th>
+              </tr>
+            </thead>
+            <tbody>
+              <!-- Injected by JS -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+
+  </div>
+
+  <!-- Scripts -->
+  <script src="config.local.js"></script>
+  <script src="js/db.js"></script>
+  <script>
+    // Pastikan user sudah login
+    if (window.sb) {
+        window.sb.auth.getSession().then(({data}) => {
+            if (!data.session) {
+                window.location.replace('login.html?redirect=scan.html');
+            }
+        });
+    }
+  </script>
+  <script src="scan_logic.js"></script>
+</body>
+</html>

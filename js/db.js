@@ -349,7 +349,7 @@ async function pullAll() {
     }
 
     // Schedule (bulan ini)
-    const m = monthKey ? monthKey(new Date()) : (new Date().toISOString().substring(0, 7));
+    const m = typeof monthKey !== 'undefined' ? monthKey(new Date()) : (new Date().toISOString().substring(0, 7));
     const { data: sc } = await (window.sb || sb).from('shift_monthly').select('*').eq('month', m).single();
     if (sc && sc.data) {
         if (window.sched) window.sched[m] = sc.data;

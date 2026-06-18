@@ -186,6 +186,12 @@
     <!-- Script Import -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="config.local.js?v=2"></script>
+    <script>
+        const params = new URLSearchParams(window.location.search);
+        if (params.has('redirect')) {
+            window.SA_REDIRECT_AFTER_LOGIN = params.get('redirect');
+        }
+    </script>
     <script src="login.app.js?v=2"></script>
 </body>
 
