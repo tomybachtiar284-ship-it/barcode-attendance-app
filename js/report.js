@@ -424,5 +424,463 @@
     // Expose to Global
     window.renderGeneralReport = renderGeneralReport;
 
+    // ============================================================================
+    // INDIVIDUAL MONTHLY REPORT & PERFORMANCE GRAPH
+    // ============================================================================
+    
+    let autocompleteListInitialized = false;
+
+    window.switchReportTab = function(tabName) {
+        const btns = document.querySelectorAll('.report-tab-btn');
+        btns.forEach(btn => {
+            if (btn.getAttribute('onclick').includes(tabName)) {
+                btn.classList.add('active');
+                btn.style.color = 'var(--primary)';
+                btn.style.borderBottom = '3px solid var(--primary)';
+            } else {
+                btn.classList.remove('active');
+                btn.style.color = 'var(--muted)';
+                btn.style.borderBottom = '3px solid transparent';
+            }
+        });
+
+        const generalTab = document.getElementById('tab-general-report');
+        const individualTab = document.getElementById('tab-individual-report');
+
+        if (tabName === 'general') {
+            if (generalTab) generalTab.classList.remove('hidden');
+            if (individualTab) individualTab.classList.add('hidden');
+            renderGeneralReport(); 
+        } else if (tabName === 'individual') {
+            if (generalTab) generalTab.classList.add('hidden');
+            if (individualTab) individualTab.classList.remove('hidden');
+            
+            // Set default month & year if not already selected
+            const mSelect = document.getElementById('indivMonthSelect');
+            const ySelect = document.getElementById('indivYearSelect');
+            const now = new Date();
+            if (mSelect && !mSelect.value) {
+                mSelect.value = now.getMonth() + 1;
+            }
+            if (ySelect && !ySelect.value) {
+                ySelect.value = now.getFullYear();
+            }
+
+            initIndividualAutocomplete();
+        }
+    };
+
+    function initIndividualAutocomplete() {
+        const input = document.getElementById('indivSearchInput');
+        const dropdown = document.getElementById('indivAutocompleteList');
+        if (!input || !dropdown) return;
+
+        if (autocompleteListInitialized) return; 
+        autocompleteListInitialized = true;
+
+        document.addEventListener('click', (e) => {
+            if (!input.contains(e.target) && !dropdown.contains(e.target)) {
+                dropdown.style.display = 'none';
+            }
+        });
+
+        input.addEventListener('focus', () => {
+            showAutocompleteResults(input.value);
+        });
+
+        input.addEventListener('input', () => {
+            showAutocompleteResults(input.value);
+        });
+    }
+
+    function showAutocompleteResults(query) {
+        const dropdown = document.getElementById('indivAutocompleteList');
+        const employees = window.employees || [];
+        if (!dropdown) return;
+
+        const q = query.trim().toLowerCase();
+        
+        const matched = employees.filter(emp => {
+            const name = (emp.name || '').toLowerCase();
+            const nid = (emp.nid || '').toLowerCase();
+            return name.includes(q) || nid.includes(q);
+        }).slice(0, 10); 
+
+        if (matched.length === 0) {
+            dropdown.style.display = 'none';
+            return;
+        }
+
+        dropdown.innerHTML = matched.map(emp => `
+            <div class="autocomplete-item" data-nid="${emp.nid}" data-name="${emp.name}">
+                <strong>${emp.name}</strong> <span style="color:var(--muted); font-size:0.8rem;">(${emp.nid}) - ${emp.company || ''}</span>
+            </div>
+        `).join('');
+
+        dropdown.style.display = 'block';
+
+        dropdown.querySelectorAll('.autocomplete-item').forEach(item => {
+            item.addEventListener('click', () => {
+                const nid = item.dataset.nid;
+                const name = item.dataset.name;
+                const input = document.getElementById('indivSearchInput');
+                input.value = `${name} (${nid})`;
+                input.dataset.selectedNid = nid;
+                dropdown.style.display = 'none';
+                renderIndividualReport();
+            });
+        });
+    }
+
+    window.renderIndividualReport = async function() {
+        const input = document.getElementById('indivSearchInput');
+        if (!input) return;
+
+        let selectedNid = input.dataset.selectedNid;
+        if (!selectedNid && input.value.trim()) {
+            const rawVal = input.value.trim();
+            const matchParentheses = rawVal.match(/\(([^)]+)\)/);
+            if (matchParentheses) {
+                selectedNid = matchParentheses[1];
+            } else {
+                selectedNid = rawVal;
+            }
+        }
+
+        if (!selectedNid) {
+            alert('Silakan pilih karyawan terlebih dahulu dari daftar autocomplete.');
+            return;
+        }
+
+        const employees = window.employees || [];
+        const employee = employees.find(e => e.nid === selectedNid);
+        if (!employee) {
+            alert('Karyawan dengan NID tersebut tidak ditemukan.');
+            return;
+        }
+
+        const month = parseInt(document.getElementById('indivMonthSelect').value) || (new Date().getMonth() + 1);
+        const year = parseInt(document.getElementById('indivYearSelect').value) || new Date().getFullYear();
+
+        const startOfMonth = new Date(year, month - 1, 1);
+        const endOfMonth = new Date(year, month, 0, 23, 59, 59);
+        const startMs = startOfMonth.getTime();
+        const endMs = endOfMonth.getTime();
+
+        if (window.sb) {
+            try {
+                const { data: atts } = await window.sb.from('attendance')
+                    .select('*')
+                    .eq('nid', selectedNid)
+                    .gte('ts', startMs)
+                    .lte('ts', endMs);
+
+                const { data: brks } = await window.sb.from('breaks')
+                    .select('*')
+                    .eq('nid', selectedNid)
+                    .gte('ts', startMs)
+                    .lte('ts', endMs);
+
+                const attList = window.attendance || [];
+                if (atts) {
+                    atts.forEach(x => {
+                        const ts = new Date(x.ts).getTime();
+                        if (!attList.some(a => a.ts === ts && a.nid === x.nid)) {
+                            attList.push({
+                                ts, status: x.status, nid: x.nid, name: x.name,
+                                title: x.title, company: x.company, shift: x.shift,
+                                late: x.late, note: x.note, device: x.device,
+                                isGhost: false
+                            });
+                        }
+                    });
+                }
+                const brkList = window.breaks || [];
+                if (brks) {
+                    brks.forEach(x => {
+                        const ts = new Date(x.ts).getTime();
+                        if (!brkList.some(b => b.ts === ts && b.nid === x.nid)) {
+                            brkList.push({
+                                ts, nid: x.nid, name: x.name, status: x.status
+                            });
+                        }
+                    });
+                }
+                window.attendance = attList;
+                window.breaks = brkList;
+            } catch (err) {
+                console.error("Error fetching individual history:", err);
+            }
+        }
+
+        const allAtt = window.attendance || [];
+        const personalAtt = allAtt.filter(a => a.nid === selectedNid && a.ts >= startMs && a.ts <= endMs);
+
+        const numDays = new Date(year, month, 0).getDate(); 
+        const calendarGrid = document.getElementById('indivCalendarGrid');
+        if (!calendarGrid) return;
+        calendarGrid.innerHTML = '';
+
+        const monthNames = [
+            "Januari", "Februari", "Maret", "April", "Mei", "Juni", 
+            "Juli", "Agustus", "September", "Oktober", "November", "Desember"
+        ];
+        document.getElementById('indivCalendarTitle').textContent = `${monthNames[month - 1]} ${year}`;
+
+        let startDayOfWeek = startOfMonth.getDay();
+        if (startDayOfWeek === 0) startDayOfWeek = 7; 
+        const paddingDays = startDayOfWeek - 1; 
+
+        for (let i = 0; i < paddingDays; i++) {
+            const emptyCell = document.createElement('div');
+            emptyCell.className = 'day-box empty';
+            emptyCell.style.opacity = '0';
+            emptyCell.style.pointerEvents = 'none';
+            calendarGrid.appendChild(emptyCell);
+        }
+
+        let daysPresent = 0;
+        let daysLate = 0;
+        let daysAbsent = 0;
+        let totalOvertimeHours = 0;
+        let daysOff = 0;
+
+        const dateStatusArray = []; 
+
+        for (let day = 1; day <= numDays; day++) {
+            const currentDate = new Date(year, month - 1, day);
+            const currentMsStart = currentDate.getTime();
+            const currentMsEnd = currentMsStart + (24 * 3600 * 1000) - 1;
+
+            let shiftCode = 'OFF';
+            if (window.effectiveShiftFor) {
+                shiftCode = window.effectiveShiftFor(employee, currentDate);
+            } else {
+                shiftCode = employee.shift || 'OFF';
+            }
+
+            const todayLogs = personalAtt.filter(a => a.ts >= currentMsStart && a.ts <= currentMsEnd);
+            const inLog = todayLogs.find(a => a.status === 'datang' || a.status === 'late');
+            const outLog = todayLogs.find(a => a.status === 'pulang');
+
+            let statusClass = '';
+            let statusText = '';
+            let statusIcon = '';
+            let tooltipContent = `Tanggal: ${day} ${monthNames[month - 1]} ${year}\nShift: ${shiftCode}\n`;
+
+            if (shiftCode === 'OFF') {
+                daysOff++;
+                statusClass = 'info';
+                statusIcon = '💤';
+                statusText = 'OFF';
+                tooltipContent += `Status: Hari Libur (OFF)`;
+                dateStatusArray.push('OFF');
+            } else {
+                if (inLog) {
+                    daysPresent++;
+                    tooltipContent += `Masuk: ${new Date(inLog.ts).toLocaleTimeString('id-ID', {hour:'2-digit', minute:'2-digit'})}\n`;
+                    if (outLog) {
+                        tooltipContent += `Pulang: ${new Date(outLog.ts).toLocaleTimeString('id-ID', {hour:'2-digit', minute:'2-digit'})}\n`;
+                    } else {
+                        tooltipContent += `Pulang: - (Lupa Tap)\n`;
+                    }
+
+                    if (inLog.late) {
+                        daysLate++;
+                        statusClass = 'warning';
+                        statusIcon = '⚠️';
+                        statusText = 'Terlambat';
+                        tooltipContent += `Status: Terlambat`;
+                        dateStatusArray.push('Terlambat');
+                    } else {
+                        statusClass = 'success';
+                        statusIcon = '✅';
+                        statusText = 'Tepat Waktu';
+                        tooltipContent += `Status: Tepat Waktu`;
+                        dateStatusArray.push('Tepat Waktu');
+                    }
+                } else {
+                    if (currentMsEnd > Date.now()) {
+                        statusClass = '';
+                        statusIcon = '';
+                        statusText = 'Mendatang';
+                        tooltipContent += `Status: Belum Terjadi`;
+                        dateStatusArray.push('Future');
+                    } else {
+                        daysAbsent++;
+                        statusClass = 'danger';
+                        statusIcon = '❌';
+                        statusText = 'Mangkir / Alpha';
+                        tooltipContent += `Status: Mangkir (Alpha / Tanpa Keterangan)`;
+                        dateStatusArray.push('Mangkir');
+                    }
+                }
+            }
+
+            let isOvertime = false;
+            let otHours = 0;
+            if (outLog && shiftCode !== 'OFF') {
+                const shiftDetail = (window.shifts || {})[shiftCode];
+                if (shiftDetail && shiftDetail.end) {
+                    const [shH, shM] = shiftDetail.end.split(':').map(Number);
+                    const shiftEndToday = new Date(year, month - 1, day, shH, shM, 0);
+                    const actualOutTime = new Date(outLog.ts);
+                    if (actualOutTime.getTime() > shiftEndToday.getTime() + (30 * 60000)) { 
+                        isOvertime = true;
+                        otHours = (actualOutTime.getTime() - shiftEndToday.getTime()) / (3600000); 
+                        otHours = Math.round(otHours * 10) / 10; 
+                        totalOvertimeHours += otHours;
+                        tooltipContent += `\nLembur: ${otHours} Jam`;
+                    }
+                }
+            }
+
+            const dayBox = document.createElement('div');
+            dayBox.className = `day-box ${statusClass}`;
+            dayBox.setAttribute('data-tooltip', tooltipContent);
+            
+            const dayNumEl = document.createElement('div');
+            dayNumEl.className = 'day-num';
+            dayNumEl.textContent = day;
+            dayBox.appendChild(dayNumEl);
+
+            if (statusIcon) {
+                const statusEl = document.createElement('div');
+                statusEl.className = 'day-status-icon';
+                statusEl.textContent = isOvertime ? '⚡' : statusIcon;
+                dayBox.appendChild(statusEl);
+            }
+
+            calendarGrid.appendChild(dayBox);
+        }
+
+        const totalScheduledDays = numDays - daysOff;
+        const presentRate = totalScheduledDays > 0 ? Math.round((daysPresent / totalScheduledDays) * 100) : 0;
+        
+        document.getElementById('indivTotalPresent').textContent = `${presentRate}%`;
+        document.getElementById('indivTotalLate').textContent = `${daysLate} Kali`;
+        document.getElementById('indivTotalOT').textContent = `${totalOvertimeHours} Jam`;
+        document.getElementById('indivTotalAbsent').textContent = `${daysAbsent} Hari`;
+
+        initIndividualCharts(dateStatusArray, personalAtt, startMs, endMs);
+    };
+
+    function initIndividualCharts(statusArray, personalAtt, startMs, endMs) {
+        ['chartIndivComposition', 'chartIndivTimeTrend'].forEach(id => {
+            if (grCharts[id]) {
+                try { grCharts[id].destroy(); } catch (e) { }
+                delete grCharts[id];
+            }
+        });
+
+        const cOnTime = statusArray.filter(s => s === 'Tepat Waktu').length;
+        const cLate = statusArray.filter(s => s === 'Terlambat').length;
+        const cAbsent = statusArray.filter(s => s === 'Mangkir').length;
+        const cOff = statusArray.filter(s => s === 'OFF').length;
+
+        const ctxDonut = document.getElementById('chartIndivComposition')?.getContext('2d');
+        if (ctxDonut) {
+            grCharts['chartIndivComposition'] = new Chart(ctxDonut, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Tepat Waktu', 'Terlambat', 'Mangkir', 'Libur (OFF)'],
+                    datasets: [{
+                        data: [cOnTime, cLate, cAbsent, cOff],
+                        backgroundColor: ['#def7ec', '#fef08a', '#fee2e2', '#e0f2fe'],
+                        borderColor: ['#bcf0da', '#fde047', '#fca5a5', '#bae6fd'],
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                boxWidth: 12,
+                                font: { size: 11 }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        const daysWithLogs = [];
+        const arrivalTimes = [];
+
+        const incomingLogs = personalAtt
+            .filter(a => a.status === 'datang' || a.status === 'late')
+            .sort((a, b) => a.ts - b.ts);
+
+        incomingLogs.forEach(log => {
+            const date = new Date(log.ts);
+            const label = `${date.getDate()}/${date.getMonth() + 1}`;
+            daysWithLogs.push(label);
+
+            const hours = date.getHours();
+            const minutes = date.getMinutes();
+            const fractionalHour = hours + (minutes / 60);
+            arrivalTimes.push(Math.round(fractionalHour * 100) / 100);
+        });
+
+        let minHour = 6;
+        let maxHour = 12;
+        if (arrivalTimes.length > 0) {
+            const minVal = Math.min(...arrivalTimes);
+            const maxVal = Math.max(...arrivalTimes);
+            minHour = Math.max(0, Math.floor(minVal - 1));
+            maxHour = Math.min(24, Math.ceil(maxVal + 1));
+            
+            // Ensure minimum scale range of 2 hours for readability
+            if (maxHour - minHour < 2) {
+                minHour = Math.max(0, minHour - 1);
+                maxHour = Math.min(24, maxHour + 1);
+            }
+        }
+
+        const ctxLine = document.getElementById('chartIndivTimeTrend')?.getContext('2d');
+        if (ctxLine) {
+            grCharts['chartIndivTimeTrend'] = new Chart(ctxLine, {
+                type: 'line',
+                data: {
+                    labels: daysWithLogs.length > 0 ? daysWithLogs : ['No Data'],
+                    datasets: [{
+                        label: 'Jam Kedatangan',
+                        data: arrivalTimes.length > 0 ? arrivalTimes : [0],
+                        borderColor: '#0ea5e9',
+                        backgroundColor: 'rgba(14, 165, 233, 0.1)',
+                        borderWidth: 2,
+                        tension: 0.3,
+                        fill: true,
+                        pointBackgroundColor: '#0ea5e9',
+                        pointRadius: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    scales: {
+                        y: {
+                            min: minHour,
+                            max: maxHour, 
+                            ticks: {
+                                callback: function(value) {
+                                    const h = Math.floor(value);
+                                    const m = Math.round((value - h) * 60);
+                                    return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+    }
+
 })();
 

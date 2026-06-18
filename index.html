@@ -97,17 +97,23 @@
     /* Scrollbar minimalis untuk slide & inner list */
     .swiper-slide::-webkit-scrollbar,
     .news-grid::-webkit-scrollbar,
-    .edu-list::-webkit-scrollbar,
-    .table-wrap::-webkit-scrollbar {
+    .edu-list::-webkit-scrollbar {
       width: 4px;
       height: 4px;
+    }
+    .table-wrap::-webkit-scrollbar {
+      width: 8px;
+      height: 10px; /* Lebih tebal untuk scroll horizontal agar mudah digeser */
     }
     .swiper-slide::-webkit-scrollbar-thumb,
     .news-grid::-webkit-scrollbar-thumb,
     .edu-list::-webkit-scrollbar-thumb,
     .table-wrap::-webkit-scrollbar-thumb {
-      background: rgba(100, 116, 139, 0.3);
+      background: rgba(100, 116, 139, 0.45); /* Sedikit lebih kontras agar terlihat */
       border-radius: 4px;
+    }
+    .table-wrap::-webkit-scrollbar-thumb:hover {
+      background: rgba(100, 116, 139, 0.7); /* Lebih gelap saat kursor diarahkan agar interaktif */
     }
   </style>
 
@@ -137,11 +143,15 @@
         const sbClient = window.supabase.createClient(url, key, { auth: { storage: window.sessionStorage } });
         const { data: { session }, error } = await sbClient.auth.getSession();
         if (error || !session) {
-          alert('Sesi tidak ditemukan atau kedaluwarsa. Mengalihkan ke halaman login...');
-          window.location.replace('login.html');
+          if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+            alert('Sesi tidak ditemukan atau kedaluwarsa. Mengalihkan ke halaman login...');
+            window.location.replace('login.html');
+          }
         }
       } else {
-        window.location.replace('login.html');
+        if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+          window.location.replace('login.html');
+        }
       }
     });
   </script>
@@ -705,102 +715,244 @@
         </div>
       </div>
 
-      <!-- Filter Toolbar -->
-      <div class="card toolbar" style="margin-bottom: 20px;">
-        <div style="display:flex; flex-wrap:wrap; gap:12px; align-items:center; width:100%;">
+      <!-- Sub-Tab Navigation for Reports -->
+      <div class="report-tabs" style="display:flex; gap:16px; margin-bottom:20px; border-bottom:1px solid var(--line); padding-bottom:4px;">
+        <button class="report-tab-btn active" onclick="window.switchReportTab('general')" style="background:none; border:none; padding:8px 16px; font-weight:600; font-size:0.95rem; cursor:pointer; color:var(--primary); border-bottom:3px solid var(--primary); transition:all 0.2s;">
+          📊 Ringkasan Umum
+        </button>
+        <button class="report-tab-btn" onclick="window.switchReportTab('individual')" style="background:none; border:none; padding:8px 16px; font-weight:600; font-size:0.95rem; cursor:pointer; color:var(--muted); border-bottom:3px solid transparent; transition:all 0.2s;">
+          👤 Performa Individu
+        </button>
+      </div>
 
-          <!-- Periode -->
-          <div style="display:flex; align-items:center; gap:8px;">
-            <label style="font-weight:600; font-size:0.9rem;">Periode:</label>
-            <input type="date" id="repStartDate" class="input small">
-            <span>-</span>
-            <input type="date" id="repEndDate" class="input small">
+      <!-- GENERAL REPORT TAB -->
+      <div id="tab-general-report" class="report-tab-content">
+        <!-- Filter Toolbar -->
+        <div class="card toolbar" style="margin-bottom: 20px;">
+          <div style="display:flex; flex-wrap:wrap; gap:12px; align-items:center; width:100%;">
+
+            <!-- Periode -->
+            <div style="display:flex; align-items:center; gap:8px;">
+              <label style="font-weight:600; font-size:0.9rem;">Periode:</label>
+              <input type="date" id="repStartDate" class="input small">
+              <span>-</span>
+              <input type="date" id="repEndDate" class="input small">
+            </div>
+
+            <!-- Perusahaan -->
+            <div style="display:flex; align-items:center; gap:8px;">
+              <label style="font-weight:600; font-size:0.9rem;">Perusahaan:</label>
+              <select id="repCompanyFilter" class="input small" style="min-width:150px;">
+                <option value="">Semua Perusahaan</option>
+              </select>
+            </div>
+
+            <!-- Shift -->
+            <div style="display:flex; align-items:center; gap:8px;">
+              <label style="font-weight:600; font-size:0.9rem;">Shift:</label>
+              <select id="repShiftFilter" class="input small" style="min-width:120px;">
+                <option value="">Semua Shift</option>
+                <option value="A">Group A</option>
+                <option value="B">Group B</option>
+                <option value="C">Group C</option>
+                <option value="D">Group D</option>
+                <option value="DAYTIME">Daytime</option>
+              </select>
+            </div>
+
+            <!-- Button -->
+            <button onclick="renderGeneralReport()" class="btn primary small" style="margin-left:auto;">
+              🔍 Tampilkan
+            </button>
+
+          </div>
+        </div>
+
+        <!-- Summary Stats Row -->
+        <div class="grid-4" style="margin-bottom:20px;">
+          <div class="card-solid stat-blue">
+            <div class="lbl">Total Karyawan Aktif</div>
+            <div class="val" id="repTotalEmp">0</div>
+          </div>
+          <div class="card-solid stat-green">
+            <div class="lbl">Tingkat Kehadiran</div>
+            <div class="val" id="repAvgPresent">0%</div>
+          </div>
+          <div class="card-solid stat-orange">
+            <div class="lbl">Tingkat Keterlambatan</div>
+            <div class="val" id="repAvgLate">0%</div>
+          </div>
+          <div class="card-solid stat-cyan">
+            <div class="lbl">Divisi Paling Disiplin</div>
+            <div class="val" id="repTopDiv" style="font-size:1.2rem;">-</div>
+          </div>
+        </div>
+
+        <!-- Essential Charts Grid (2x2 layout) -->
+        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(450px, 1fr)); gap:20px;">
+
+          <!-- Chart 1: Komposisi Kehadiran -->
+          <div class="card">
+            <div class="card-title">Komposisi Kehadiran (Periode Terpilih)</div>
+            <div style="position:relative; height:320px; width:100%; display:flex; justify-content:center;">
+              <canvas id="chartAttendanceRate"></canvas>
+            </div>
           </div>
 
-          <!-- Perusahaan -->
-          <div style="display:flex; align-items:center; gap:8px;">
-            <label style="font-weight:600; font-size:0.9rem;">Perusahaan:</label>
-            <select id="repCompanyFilter" class="input small" style="min-width:150px;">
-              <option value="">Semua Perusahaan</option>
-            </select>
+          <!-- Chart 2: Tren Kedisiplinan -->
+          <div class="card">
+            <div class="card-title">Tren Kehadiran & Keterlambatan Harian</div>
+            <div style="position:relative; height:320px; width:100%;">
+              <canvas id="chartLateTrend"></canvas>
+            </div>
           </div>
 
-          <!-- Shift -->
-          <div style="display:flex; align-items:center; gap:8px;">
-            <label style="font-weight:600; font-size:0.9rem;">Shift:</label>
-            <select id="repShiftFilter" class="input small" style="min-width:120px;">
-              <option value="">Semua Shift</option>
-              <option value="A">Group A</option>
-              <option value="B">Group B</option>
-              <option value="C">Group C</option>
-              <option value="D">Group D</option>
-              <option value="DAYTIME">Daytime</option>
-            </select>
+          <!-- Chart 3: Kinerja Per Divisi -->
+          <div class="card">
+            <div class="card-title">Kinerja Kedisiplinan Per Perusahaan/Divisi</div>
+            <div style="position:relative; height:320px; width:100%;">
+              <canvas id="chartDivPerformance"></canvas>
+            </div>
           </div>
 
-          <!-- Button -->
-          <button onclick="renderGeneralReport()" class="btn primary small" style="margin-left:auto;">
-            🔍 Tampilkan
-          </button>
+          <!-- Chart 4: Top 10 Sering Terlambat -->
+          <div class="card" style="border: 1px solid #fee2e2;">
+            <div class="card-title" style="color: #dc2626;">Top 10 Karyawan Sering Terlambat</div>
+            <div style="position:relative; height:320px; width:100%;">
+              <canvas id="chartTopLate"></canvas>
+            </div>
+          </div>
 
         </div>
       </div>
 
-      <!-- Summary Stats Row -->
-      <div class="grid-4" style="margin-bottom:20px;">
-        <div class="card-solid stat-blue">
-          <div class="lbl">Total Karyawan Aktif</div>
-          <div class="val" id="repTotalEmp">0</div>
-        </div>
-        <div class="card-solid stat-green">
-          <div class="lbl">Tingkat Kehadiran</div>
-          <div class="val" id="repAvgPresent">0%</div>
-        </div>
-        <div class="card-solid stat-orange">
-          <div class="lbl">Tingkat Keterlambatan</div>
-          <div class="val" id="repAvgLate">0%</div>
-        </div>
-        <div class="card-solid stat-cyan">
-          <div class="lbl">Divisi Paling Disiplin</div>
-          <div class="val" id="repTopDiv" style="font-size:1.2rem;">-</div>
-        </div>
-      </div>
+      <!-- INDIVIDUAL REPORT TAB -->
+      <div id="tab-individual-report" class="report-tab-content hidden">
+        <!-- Filter Toolbar -->
+        <div class="card toolbar" style="margin-bottom: 20px;">
+          <div style="display:flex; flex-wrap:wrap; gap:16px; align-items:center; width:100%;">
 
-      <!-- Essential Charts Grid (2x2 layout) -->
-      <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(450px, 1fr)); gap:20px;">
+            <!-- Pilih Karyawan -->
+            <div style="display:flex; align-items:center; gap:8px; position:relative; flex-grow:1; max-width:400px;">
+              <label style="font-weight:600; font-size:0.9rem; white-space:nowrap;">Karyawan:</label>
+              <div style="position:relative; width:100%;">
+                <input type="text" id="indivSearchInput" class="input small" placeholder="Ketik nama atau NID..." style="width:100%;" autocomplete="off">
+                <div id="indivAutocompleteList" class="autocomplete-dropdown" style="display:none;"></div>
+              </div>
+            </div>
 
-        <!-- Chart 1: Komposisi Kehadiran -->
-        <div class="card">
-          <div class="card-title">Komposisi Kehadiran (Periode Terpilih)</div>
-          <div style="position:relative; height:320px; width:100%; display:flex; justify-content:center;">
-            <canvas id="chartAttendanceRate"></canvas>
+            <!-- Pilih Bulan -->
+            <div style="display:flex; align-items:center; gap:8px;">
+              <label style="font-weight:600; font-size:0.9rem;">Bulan:</label>
+              <select id="indivMonthSelect" class="input small" style="min-width:130px;">
+                <option value="1">Januari</option>
+                <option value="2">Februari</option>
+                <option value="3">Maret</option>
+                <option value="4">April</option>
+                <option value="5">Mei</option>
+                <option value="6">Juni</option>
+                <option value="7">Juli</option>
+                <option value="8">Agustus</option>
+                <option value="9">September</option>
+                <option value="10">Oktober</option>
+                <option value="11">November</option>
+                <option value="12">Desember</option>
+              </select>
+            </div>
+
+            <!-- Pilih Tahun -->
+            <div style="display:flex; align-items:center; gap:8px;">
+              <label style="font-weight:600; font-size:0.9rem;">Tahun:</label>
+              <select id="indivYearSelect" class="input small" style="min-width:90px;">
+                <option value="2026">2026</option>
+                <option value="2025">2025</option>
+                <option value="2024">2024</option>
+              </select>
+            </div>
+
+            <!-- Button -->
+            <button onclick="renderIndividualReport()" class="btn primary small" style="margin-left:auto;">
+              🔍 Tampilkan
+            </button>
           </div>
         </div>
 
-        <!-- Chart 2: Tren Kedisiplinan -->
-        <div class="card">
-          <div class="card-title">Tren Kehadiran & Keterlambatan Harian</div>
-          <div style="position:relative; height:320px; width:100%;">
-            <canvas id="chartLateTrend"></canvas>
+        <!-- Individual Summary Stats Row -->
+        <div class="grid-4" style="margin-bottom:20px;">
+          <div class="card-solid stat-blue">
+            <div class="lbl">Tingkat Kehadiran</div>
+            <div class="val" id="indivTotalPresent">0%</div>
+          </div>
+          <div class="card-solid stat-orange">
+            <div class="lbl">Total Terlambat</div>
+            <div class="val" id="indivTotalLate">0 Kali</div>
+          </div>
+          <div class="card-solid stat-green">
+            <div class="lbl">Total Jam Lembur</div>
+            <div class="val" id="indivTotalOT">0 Jam</div>
+          </div>
+          <div class="card-solid stat-red">
+            <div class="lbl">Mangkir / Alpha</div>
+            <div class="val" id="indivTotalAbsent">0 Hari</div>
           </div>
         </div>
 
-        <!-- Chart 3: Kinerja Per Divisi -->
-        <div class="card">
-          <div class="card-title">Kinerja Kedisiplinan Per Perusahaan/Divisi</div>
-          <div style="position:relative; height:320px; width:100%;">
-            <canvas id="chartDivPerformance"></canvas>
-          </div>
-        </div>
+        <!-- Main Content Area: Calendar Grid vs Charts -->
+        <div style="display:grid; grid-template-columns: 1.3fr 1fr; gap:20px; align-items: start;">
 
-        <!-- Chart 4: Top 10 Sering Terlambat -->
-        <div class="card" style="border: 1px solid #fee2e2;">
-          <div class="card-title" style="color: #dc2626;">Top 10 Karyawan Sering Terlambat</div>
-          <div style="position:relative; height:320px; width:100%;">
-            <canvas id="chartTopLate"></canvas>
-          </div>
-        </div>
+          <!-- Calendar Grid Box -->
+          <div class="card" style="padding: 20px;">
+            <div class="card-title" style="margin-bottom:15px; display:flex; justify-content:space-between; align-items:center;">
+              <span>Kalender Riwayat Kehadiran</span>
+              <span id="indivCalendarTitle" style="font-size:0.9rem; font-weight:normal; color:var(--muted);"></span>
+            </div>
 
+            <!-- Calendar Days Header -->
+            <div class="calendar-days-header" style="display:grid; grid-template-columns:repeat(7, 1fr); text-align:center; font-weight:bold; font-size:0.85rem; color:var(--muted); margin-bottom:10px; border-bottom:1px solid var(--line); padding-bottom:5px;">
+              <div>Sen</div>
+              <div>Sel</div>
+              <div>Rab</div>
+              <div>Kam</div>
+              <div>Jum</div>
+              <div>Sab</div>
+              <div>Min</div>
+            </div>
+
+            <!-- Grid Container -->
+            <div id="indivCalendarGrid" class="calendar-grid"></div>
+
+            <!-- Calendar Legend -->
+            <div style="display:flex; flex-wrap:wrap; gap:12px; font-size:0.8rem; margin-top:20px; padding-top:10px; border-top:1px solid var(--line);">
+              <div style="display:flex; align-items:center; gap:5px;"><span style="width:12px; height:12px; background:#def7ec; border-radius:3px; display:inline-block; border:1px solid #c6f6d5;"></span> Tepat Waktu</div>
+              <div style="display:flex; align-items:center; gap:5px;"><span style="width:12px; height:12px; background:#fef08a; border-radius:3px; display:inline-block; border:1px solid #fef08a;"></span> Terlambat</div>
+              <div style="display:flex; align-items:center; gap:5px;"><span style="width:12px; height:12px; background:#fee2e2; border-radius:3px; display:inline-block; border:1px solid #fca5a5;"></span> Alpha / Mangkir</div>
+              <div style="display:flex; align-items:center; gap:5px;"><span style="width:12px; height:12px; background:#e0f2fe; border-radius:3px; display:inline-block; border:1px solid #bae6fd;"></span> Libur (OFF)</div>
+              <div style="display:flex; align-items:center; gap:5px;">⚡ Lembur (Overtime)</div>
+            </div>
+          </div>
+
+          <!-- Charts Side Panel -->
+          <div style="display:flex; flex-direction:column; gap:20px;">
+
+            <!-- Chart 1: Donut Chart Komposisi Kehadiran -->
+            <div class="card">
+              <div class="card-title">Komposisi Kehadiran</div>
+              <div style="position:relative; height:240px; width:100%; display:flex; justify-content:center; align-items:center;">
+                <canvas id="chartIndivComposition"></canvas>
+              </div>
+            </div>
+
+            <!-- Chart 2: Tren Waktu Kedatangan -->
+            <div class="card">
+              <div class="card-title">Tren Jam Masuk Kerja (Harian)</div>
+              <div style="position:relative; height:240px; width:100%;">
+                <canvas id="chartIndivTimeTrend"></canvas>
+              </div>
+            </div>
+
+          </div>
+
+        </div>
       </div>
     </section>
 
@@ -1342,7 +1494,7 @@
         <div class="table-wrap">
           <table class="table" id="tableAtt">
             <colgroup>
-              <col style="width: 1%;">
+              <col style="width: 40px;">
               <col>
               <col>
               <col>
@@ -1355,7 +1507,7 @@
             </colgroup>
             <thead>
               <tr>
-                <th style="width:1%; text-align: center; padding: 4px;"><input type="checkbox" id="cbSelectAllAtt"></th>
+                <th style="width: 40px; min-width: 40px; max-width: 40px; text-align: center; padding: 4px;"><input type="checkbox" id="cbSelectAllAtt"></th>
                 <th style="padding-left:8px">WAKTU</th>
                 <th>STATUS</th>
                 <th>NID</th>

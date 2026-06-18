@@ -247,6 +247,12 @@ const monthKey = d => {
 
 function effectiveShiftFor(emp, date) {
     if (!emp || !emp.shift) return null;
+    if (typeof date === 'number' || typeof date === 'string') {
+        date = new Date(date);
+    }
+    if (!(date instanceof Date) || isNaN(date.getTime())) {
+        date = new Date();
+    }
     let group = emp.shift;
     const groupAlias = NORMALIZE_GROUP[group.toLowerCase()];
     if (groupAlias) group = groupAlias;

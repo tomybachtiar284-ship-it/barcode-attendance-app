@@ -397,6 +397,10 @@
         // === 3. CHART ===
         if (elCanvas && window.Chart) {
             try {
+                var existing = Chart.getChart(elCanvas);
+                if (existing) {
+                    chartInstance = existing;
+                }
                 if (chartInstance) {
                     chartInstance.data.datasets[0].data = [cntOntime, cntLate];
                     chartInstance.update();

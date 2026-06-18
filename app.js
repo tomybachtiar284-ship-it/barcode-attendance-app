@@ -678,6 +678,12 @@ window.addEventListener('DOMContentLoaded', () => {
 
   function effectiveShiftFor(emp, date) {
     if (!emp || !emp.shift) return null;
+    if (typeof date === 'number' || typeof date === 'string') {
+      date = new Date(date);
+    }
+    if (!(date instanceof Date) || isNaN(date.getTime())) {
+      date = new Date();
+    }
 
     // 1. Normalize Group Name (emp.shift stores the GROUP code)
     let group = emp.shift;
@@ -3355,7 +3361,7 @@ function fs(btnSel, targetSel) {
         <button class="btn small" data-act="edit-att" title="Edit" style="padding:2px 8px; font-size:12px; margin-right:4px;">✏️</button>
         <button class="btn small danger" data-act="del-att" title="Hapus" style="padding:2px 8px; font-size:12px;">Hapus</button>`;
 
-      const checkboxTd = r.isGhost ? `<td style="width:1%; text-align: center; padding: 4px;"></td>` : `<td style="width:1%; text-align: center; padding: 4px;"><input type="checkbox" class="cb-att-row" data-ts="${r.ts}"></td>`;
+      const checkboxTd = r.isGhost ? `<td style="width:40px; min-width:40px; max-width:40px; text-align: center; padding: 4px;"></td>` : `<td style="width:40px; min-width:40px; max-width:40px; text-align: center; padding: 4px;"><input type="checkbox" class="cb-att-row" data-ts="${r.ts}"></td>`;
       
       // -- HIGHLIGHT LOGIC --
       const isActive = activeSet.has(r.nid);
@@ -5442,8 +5448,11 @@ function fs(btnSel, targetSel) {
         const sComp = empMaster?.company || r.company || '-';
         const sShift = empMaster?.shift || r.shift || '-';
 
+        const checkboxTd = r.isGhost ? `<td style="width:40px; min-width:40px; max-width:40px; text-align: center; padding: 4px;"></td>` : `<td style="width:40px; min-width:40px; max-width:40px; text-align: center; padding: 4px;"><input type="checkbox" class="cb-att-row" data-ts="${r.ts}"></td>`;
+
         return `
         <tr ${rowClass}>
+           ${checkboxTd}
            <td>${fmtTs(r.ts)}</td>
            <td>${statusBadge}</td>
            <td>${sNid}</td>
@@ -6475,6 +6484,10 @@ function fs(btnSel, targetSel) {
 
       // Render Chart
       if (window.Chart) {
+        const existingChart = Chart.getChart(cvs);
+        if (existingChart) {
+          try { existingChart.destroy(); } catch (e) { }
+        }
         if (window.mobChartInstance) {
           try { window.mobChartInstance.destroy(); } catch (e) { } // Destroy safely before re-render
         }
