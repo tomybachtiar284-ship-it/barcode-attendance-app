@@ -340,21 +340,38 @@ async function pullAll() {
         localStorage.setItem('SA_INVENTORY', JSON.stringify(window.inventoryData));
     }
 
-    // Shifts
-    const { data: sh } = await (window.sb || sb).from('settings').select('*').eq('key', 'shifts').single();
-    if (sh && sh.value) {
-        window.shifts = sh.value;
-        if (window.shifts.D) { delete window.shifts.D; pushShifts(); }
+    // Shifts - Fetch from dedicated table
+    const { data: shRows, error: shErr } = await (window.sb || sb).from('shifts').select('*');
+    if (shErr) {
+        console.error('Error fetching shifts:', shErr);
+    } else if (shRows && shRows.length > 0) {
+        const localSh = JSON.parse(localStorage.getItem('SA_SHIFTS')) || {
+            P: { start: '07:30', end: '15:30' },
+            S: { start: '15:30', end: '23:30' },
+            M: { start: '23:30', end: '07:30' },
+            DAYTIME: { start: '07:30', end: '16:00' }
+        };
+        const newShifts = { ...localSh };
+        // Migrate old DB keys (A/B/C/D) to new keys (P/S/M)
+        const DB_KEY_MIGRATE = { A: 'P', B: 'S', C: 'M', D: 'P' };
+        shRows.forEach(row => {
+            const migratedKey = DB_KEY_MIGRATE[row.code] || row.code;
+            newShifts[migratedKey] = { start: row.start_time, end: row.end_time };
+        });
+        // Remove old keys if still present
+        ['A', 'B', 'C', 'D'].forEach(k => delete newShifts[k]);
+        window.shifts = newShifts;
         localStorage.setItem('SA_SHIFTS', JSON.stringify(window.shifts));
+        console.log('✅ Shifts loaded from dedicated table in db.js:', Object.keys(window.shifts));
     }
 
     // Schedule (bulan ini)
     const m = typeof monthKey !== 'undefined' ? monthKey(new Date()) : (new Date().toISOString().substring(0, 7));
     const { data: sc } = await (window.sb || sb).from('shift_monthly').select('*').eq('month', m).single();
     if (sc && sc.data) {
-        if (window.sched) window.sched[m] = sc.data;
-        const schedData = window.sched || {};
-        localStorage.setItem('SA_SHIFT_MONTHLY', JSON.stringify(schedData));
+        window.sched = window.sched || {};
+        window.sched[m] = sc.data;
+        localStorage.setItem('SA_SHIFT_MONTHLY', JSON.stringify(window.sched));
     }
 
     // Dispatch event agar UI di-refresh

@@ -24,12 +24,27 @@ document.addEventListener('DOMContentLoaded', async () => {
             
             const attData = localStorage.getItem('SA_ATTENDANCE');
             if (attData) window.attendance = JSON.parse(attData);
+
+            const shiftData = localStorage.getItem('SA_SHIFTS');
+            if (shiftData) window.shifts = JSON.parse(shiftData);
+
+            const schedData = localStorage.getItem('SA_SHIFT_MONTHLY');
+            if (schedData) window.sched = JSON.parse(schedData);
         } catch (e) {
             console.warn('Gagal load local data', e);
         }
         
         if (!window.employees) window.employees = [];
         if (!window.attendance) window.attendance = [];
+        if (!window.shifts) {
+            window.shifts = {
+                P: { start: '07:30', end: '15:30' },
+                S: { start: '15:30', end: '23:30' },
+                M: { start: '23:30', end: '07:30' },
+                DAYTIME: { start: '07:30', end: '16:00' }
+            };
+        }
+        if (!window.sched) window.sched = {};
         
         refreshDashboard();
     }
