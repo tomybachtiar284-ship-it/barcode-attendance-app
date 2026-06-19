@@ -371,7 +371,15 @@
         todayDatang.forEach(function (r) {
             if (!seen[r.nid]) {
                 seen[r.nid] = true;
-                if (r.late) { cntLate++; lateNids.push(r.nid); }
+                var emp = emps.find(function(e) { return e.nid === r.nid; });
+                var eff = emp ? (window.effectiveShiftFor ? window.effectiveShiftFor(emp, new Date(r.ts)) : emp.shift) : r.shift;
+                var isLate = false;
+                if (window.calculateLateStatus) {
+                    isLate = window.calculateLateStatus(emp, r.ts, eff);
+                } else {
+                    isLate = !!r.late;
+                }
+                if (isLate) { cntLate++; lateNids.push(r.nid); }
                 else { cntOntime++; ontimeNids.push(r.nid); }
             }
         });

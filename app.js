@@ -310,6 +310,52 @@ window.addEventListener('DOMContentLoaded', () => {
 
 
 
+  async function repairAttendanceStats() {
+    let changed = false;
+    for (let i = 0; i < attendance.length; i++) {
+      const r = attendance[i];
+      if (r.status === 'datang') {
+        const emp = employees.find(e => e.nid === r.nid);
+        const eff = emp ? (effectiveShiftFor(emp, new Date(r.ts)) || emp.shift) : r.shift;
+        const calculatedLate = !!calculateLateStatus(emp, r.ts, eff);
+        const sWin = eff === 'OFF' ? null : shiftWindow(eff);
+        const calculatedOkShift = sWin ? isInWindow(minutesOf(new Date(r.ts)), sWin) : false;
+
+        if (r.late !== calculatedLate || r.okShift !== calculatedOkShift) {
+          console.log(`Auto-Repair: Found mismatched status for ${r.name} at ${new Date(r.ts).toLocaleString()}. Fixing: late ${r.late} -> ${calculatedLate}, okShift ${r.okShift} -> ${calculatedOkShift}`);
+          r.late = calculatedLate;
+          r.okShift = calculatedOkShift;
+          if (r.note === 'On-time' && calculatedLate) {
+            r.note = 'Terlambat';
+          } else if (r.note === 'Terlambat' && !calculatedLate) {
+            r.note = 'On-time';
+          }
+          changed = true;
+
+          // Push asynchronously if online
+          if (sb) {
+            sb.from('attendance').update({
+              late: r.late,
+              ok_shift: r.okShift,
+              note: r.note
+            }).eq('ts', r.ts).then(({ error }) => {
+              if (error) console.error('Error repairing record in Supabase:', error);
+              else console.log('Successfully repaired record in Supabase:', r.name, r.ts);
+            }).catch(err => {
+              console.error('Catch repairing record in Supabase:', err);
+            });
+          }
+        }
+      }
+    }
+    if (changed) {
+      save(LS_ATT, attendance);
+      syncGlobals();
+    }
+  }
+  window.repairAttendanceStats = repairAttendanceStats;
+
+
   window.pullAll = async function pullAll() {
     if (isSyncing) { console.warn('⚠️ pullAll ignored: Sync already in progress.'); return; }
     isSyncing = true;
@@ -418,6 +464,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
         attendance = [...filteredOld, ...newAtts, ...newBreaks].sort((a, b) => a.ts - b.ts);
         save(LS_ATT, attendance);
+        await repairAttendanceStats();
       }
 
       // News (Bi-directional Sync)
@@ -1014,10 +1061,20 @@ window.addEventListener('DOMContentLoaded', () => {
 
     } else if (type === 'ontime') {
       title = 'Karyawan Tepat Waktu (Hari Ini)';
-      list = attendance.filter(a => a.ts >= sod && a.status === 'datang' && !a.late).sort((a, b) => b.ts - a.ts);
+      list = attendance.filter(a => {
+        if (a.ts < sod || a.status !== 'datang') return false;
+        const emp = employees.find(e => e.nid === a.nid);
+        const eff = emp ? (effectiveShiftFor(emp, new Date(a.ts)) || emp.shift) : a.shift;
+        return !calculateLateStatus(emp, a.ts, eff);
+      }).sort((a, b) => b.ts - a.ts);
     } else if (type === 'late') {
       title = 'Karyawan Terlambat (Hari Ini)';
-      list = attendance.filter(a => a.ts >= sod && a.status === 'datang' && a.late).sort((a, b) => b.ts - a.ts);
+      list = attendance.filter(a => {
+        if (a.ts < sod || a.status !== 'datang') return false;
+        const emp = employees.find(e => e.nid === a.nid);
+        const eff = emp ? (effectiveShiftFor(emp, new Date(a.ts)) || emp.shift) : a.shift;
+        return calculateLateStatus(emp, a.ts, eff);
+      }).sort((a, b) => b.ts - a.ts);
     }
 
     if (list.length === 0) {
@@ -1420,8 +1477,15 @@ window.addEventListener('DOMContentLoaded', () => {
 
     const sod = new Date(todayISO() + 'T00:00:00').getTime();
     const today = attendance.filter(a => a.ts >= sod);
-    const ontime = today.filter(a => a.status === 'datang' && !a.late).length;
-    const late = today.filter(a => a.status === 'datang' && a.late).length;
+    let ontime = 0, late = 0;
+    today.forEach(a => {
+      if (a.status === 'datang') {
+        const emp = employees.find(e => e.nid === a.nid);
+        const eff = emp ? (effectiveShiftFor(emp, new Date(a.ts)) || emp.shift) : a.shift;
+        if (calculateLateStatus(emp, a.ts, eff)) late++;
+        else ontime++;
+      }
+    });
     setTextAndBump('#statOnTime', ontime);
     setTextAndBump('#statOnTimeScan', ontime);
     setTextAndBump('#statLate', late);
@@ -2096,6 +2160,7 @@ function fs(btnSel, targetSel) {
     // Tolerance 5 Minutes
     return ts >= (shiftStart.getTime() + 5 * 60 * 1000);
   }
+  window.calculateLateStatus = calculateLateStatus;
 
   // Double Scan Prevention Map (NID -> Timestamp)
   const lastScanMap = new Map();
@@ -3594,12 +3659,28 @@ function fs(btnSel, targetSel) {
 
     rec.ts = newTs;
     rec.status = newStatus;
-    rec.note = newNote;
     rec.shift = newShift;
     rec.nid = nid;
     rec.name = name;
     rec.title = $('#editAttTitle').value;
     rec.company = $('#editAttCompany').value;
+
+    const tempEmp = emp || { nid: nid, shift: newShift };
+    const effShift = effectiveShiftFor(tempEmp, newTs);
+    const isLate = (newStatus === 'datang') && calculateLateStatus(tempEmp, newTs, effShift);
+    rec.late = !!isLate;
+    const sWin = effShift === 'OFF' ? null : shiftWindow(effShift);
+    rec.okShift = sWin ? isInWindow(minutesOf(new Date(newTs)), sWin) : false;
+
+    if (newStatus === 'datang') {
+      if (!newNote || newNote === 'On-time' || newNote === 'Terlambat' || newNote.includes('di luar jam shift')) {
+        rec.note = (isLate ? 'Terlambat' : 'On-time') + (rec.okShift ? '' : ' • Di luar jam shift');
+      } else {
+        rec.note = newNote;
+      }
+    } else {
+      rec.note = newNote;
+    }
 
     const btn = $('#btnSaveEditAtt');
     const originalText = btn.innerHTML;
@@ -4244,6 +4325,7 @@ function fs(btnSel, targetSel) {
   window.addEventListener('storage', (e) => { if (e.key === LS_EDU) { renderEduTable(); renderHighlights(); } });
   window.addEventListener('education:changed', () => { renderEduTable(); renderHighlights(); });
 
+  repairAttendanceStats();
   if (navigator.onLine) pullAll();
 
   // ===== Global Tooltip (Free Floating) =====
@@ -6318,8 +6400,17 @@ function fs(btnSel, targetSel) {
         card.style.cursor = 'pointer';
         card.onclick = () => {
           const today = getTodayAtts();
-          const lates = today.filter(a => a.status === 'datang' && a.late);
-          const names = lates.map(a => `${a.name} (${a.shift})`);
+          const lates = today.filter(a => {
+            if (a.status !== 'datang') return false;
+            const emp = employees.find(e => e.nid === a.nid);
+            const eff = emp ? (effectiveShiftFor(emp, new Date(a.ts)) || emp.shift) : a.shift;
+            return calculateLateStatus(emp, a.ts, eff);
+          });
+          const names = lates.map(a => {
+            const emp = employees.find(e => e.nid === a.nid);
+            const groupLabel = emp ? ` (Grup ${emp.shift})` : '';
+            return `${a.name}${groupLabel}`;
+          });
           showMobileList(`📋 Terlambat (${lates.length})`, names);
         };
       }
@@ -6332,7 +6423,13 @@ function fs(btnSel, targetSel) {
         card.onclick = () => {
           const today = getTodayAtts();
           const presents = today.filter(a => a.status === 'datang');
-          const names = presents.map(a => `${a.name} (${a.late ? 'Terlambat' : 'On-time'})`);
+          const names = presents.map(a => {
+            const emp = employees.find(e => e.nid === a.nid);
+            const eff = emp ? (effectiveShiftFor(emp, new Date(a.ts)) || emp.shift) : a.shift;
+            const isLate = calculateLateStatus(emp, a.ts, eff);
+            const groupLabel = emp ? ` (Grup ${emp.shift})` : '';
+            return `${a.name} (${isLate ? 'Terlambat' : 'On-time'})${groupLabel}`;
+          });
           showMobileList(`📋 Hadir (${presents.length})`, names);
         };
       }

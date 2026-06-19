@@ -323,6 +323,7 @@ function calculateLateStatus(emp, ts, shiftCode) {
 
     return ts >= (shiftStart.getTime() + 5 * 60 * 1000);
 }
+window.calculateLateStatus = calculateLateStatus;
 
 function nextStatusFor(nid) {
     // Gunakan zona waktu lokal untuk mendapatkan awal hari
@@ -518,7 +519,9 @@ function refreshDashboard() {
     // Hitung Ontime & Late berdasarkan SEMUA record datang hari ini
     attToday.forEach(r => {
         if (r.status === 'datang') {
-            if (r.late) late++;
+            const emp = window.employees.find(e => e.nid === r.nid);
+            const eff = emp ? (effectiveShiftFor(emp, new Date(r.ts)) || emp.shift) : r.shift;
+            if (calculateLateStatus(emp, r.ts, eff)) late++;
             else ontime++;
         }
     });
