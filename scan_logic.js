@@ -151,6 +151,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (manualNid) manualNid.value = '';
             if (manualName) manualName.value = '';
             if (manualShift) manualShift.value = '';
+            const typeEl = document.getElementById('manualType');
+            if (typeEl) typeEl.value = 'absen';
         }
     };
 
@@ -340,6 +342,20 @@ function nextStatusFor(nid) {
     return last.status === 'datang' ? 'pulang' : 'datang';
 }
 
+function nextBreakStatusFor(nid) {
+    const now = new Date();
+    const sodDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const sodTs = sodDate.getTime();
+    
+    const todays = (window.attendance||[]).filter(a => a.nid === nid && a.ts >= sodTs && (a.status === 'break_out' || a.status === 'break_in'));
+
+    if (todays.length === 0) return 'break_out';
+
+    todays.sort((a, b) => b.ts - a.ts);
+    const last = todays[0];
+    return last.status === 'break_out' ? 'break_in' : 'break_out';
+}
+
 // Double Scan Prevention
 const lastScanMap = new Map();
 
@@ -384,29 +400,44 @@ async function processScan(nid, rawData = '', isManual = false) {
     let noteOverride = ''; 
     if (effShift === 'OFF') { noteOverride = 'Libur'; }
 
-    let status = nextStatusFor(emp.nid);
+    let status = 'datang';
+    let isIjin = false;
 
-    // === CONTEXT AWARE LOGIC: Night Shift Detection ===
-    const lastRec = window.attendance.slice().reverse().find(a => a.nid === emp.nid);
-    if (lastRec && lastRec.status === 'datang') {
-        const hoursSinceLast = (ts.getTime() - lastRec.ts) / (1000 * 60 * 60);
-        const isSameDay = new Date(lastRec.ts).getDate() === ts.getDate();
-        const wasNightShift = lastRec.shift === 'M' || new Date(lastRec.ts).getHours() >= 18;
+    if (isManual) {
+        const typeEl = document.getElementById('manualType');
+        if (typeEl && typeEl.value === 'ijin') {
+            isIjin = true;
+        }
+    }
 
-        if (ts.getHours() < 14 && hoursSinceLast < 20 && !isSameDay && wasNightShift) {
-            status = 'pulang';
-            effShift = 'M';
-            noteOverride = 'Pulang Shift Malam (Auto-Detected)';
-        } else if (!isSameDay && !wasNightShift) {
-            status = 'datang';
+    if (isIjin) {
+        status = nextBreakStatusFor(emp.nid);
+        noteOverride = status === 'break_out' ? 'Izin Keluar / Istirahat' : 'Kembali Masuk';
+    } else {
+        status = nextStatusFor(emp.nid);
+
+        // === CONTEXT AWARE LOGIC: Night Shift Detection ===
+        const lastRec = window.attendance.slice().reverse().find(a => a.nid === emp.nid);
+        if (lastRec && lastRec.status === 'datang') {
+            const hoursSinceLast = (ts.getTime() - lastRec.ts) / (1000 * 60 * 60);
+            const isSameDay = new Date(lastRec.ts).getDate() === ts.getDate();
+            const wasNightShift = lastRec.shift === 'M' || new Date(lastRec.ts).getHours() >= 18;
+
+            if (ts.getHours() < 14 && hoursSinceLast < 20 && !isSameDay && wasNightShift) {
+                status = 'pulang';
+                effShift = 'M';
+                noteOverride = 'Pulang Shift Malam (Auto-Detected)';
+            } else if (!isSameDay && !wasNightShift) {
+                status = 'datang';
+            }
         }
     }
 
     const sWin = effShift === 'OFF' ? null : shiftWindow(effShift);
-    const inWin = sWin ? isInWindow(minutesOf(ts), sWin) : false;
+    const inWin = isIjin ? true : (sWin ? isInWindow(minutesOf(ts), sWin) : false);
 
     let late = false;
-    if (effShift !== 'OFF' && status === 'datang' && sWin) {
+    if (!isIjin && effShift !== 'OFF' && status === 'datang' && sWin) {
         late = calculateLateStatus(emp, ts.getTime(), effShift);
     }
 
@@ -459,18 +490,29 @@ function showOverlay(emp, record) {
     img.src = emp.photo || 'assets/dummy-avatar.png';
     nameEl.textContent = emp.name.toUpperCase();
     
-    let statusText = (record.status === 'datang' || record.status === 'break_in') ? 'BERHASIL DATANG' : 'BERHASIL PULANG';
-    if ((record.status === 'datang' || record.status === 'break_in') && record.late) {
-        statusText += " - TERLAMBAT";
-        statusEl.style.color = "var(--danger)";
-        img.style.borderColor = "var(--danger)";
-    } else if (record.status === 'datang' || record.status === 'break_in') {
-        statusText += " - TEPAT WAKTU";
+    let statusText = '';
+    if (record.status === 'break_out') {
+        statusText = 'IZIN KELUAR / ISTIRAHAT';
+        statusEl.style.color = "var(--warning)";
+        img.style.borderColor = "var(--warning)";
+    } else if (record.status === 'break_in') {
+        statusText = 'KEMBALI MASUK KERJA';
         statusEl.style.color = "var(--success)";
         img.style.borderColor = "var(--success)";
     } else {
-        statusEl.style.color = "var(--warning)";
-        img.style.borderColor = "var(--warning)";
+        statusText = record.status === 'datang' ? 'BERHASIL DATANG' : 'BERHASIL PULANG';
+        if (record.status === 'datang' && record.late) {
+            statusText += " - TERLAMBAT";
+            statusEl.style.color = "var(--danger)";
+            img.style.borderColor = "var(--danger)";
+        } else if (record.status === 'datang') {
+            statusText += " - TEPAT WAKTU";
+            statusEl.style.color = "var(--success)";
+            img.style.borderColor = "var(--success)";
+        } else {
+            statusEl.style.color = "var(--warning)";
+            img.style.borderColor = "var(--warning)";
+        }
     }
     
     statusEl.textContent = statusText;
@@ -591,8 +633,10 @@ function renderTables(attToday) {
             const time = new Date(r.ts).toLocaleTimeString('id-ID', {hour:'2-digit', minute:'2-digit'});
             let badge = 'bg-gray-100 text-gray-800';
             let txt = r.status.toUpperCase();
-            if (r.status === 'datang' || r.status === 'break_in') { badge = 'masuk'; txt = 'DATANG'; }
-            else if (r.status === 'pulang' || r.status === 'break_out') { badge = 'keluar'; txt = 'PULANG'; }
+            if (r.status === 'datang') { badge = 'masuk'; txt = 'DATANG'; }
+            else if (r.status === 'break_in') { badge = 'masuk'; txt = 'KEMBALI'; }
+            else if (r.status === 'pulang') { badge = 'keluar'; txt = 'PULANG'; }
+            else if (r.status === 'break_out') { badge = 'keluar'; txt = 'IZIN KELUAR'; }
             return `
                 <tr>
                     <td>${time}</td>
