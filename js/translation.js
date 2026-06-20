@@ -31,6 +31,7 @@ const TRANSLATIONS = {
         dash_welcome_sub: "ANDA BERADA DI KAWASAN PLN NPS UNIT PLTU AMPANA DAN WAJIB MEMATUHI SEMUA ATURAN YANG BERLAKU",
         btn_fullscreen: "⛶ Layar Penuh",
         btn_exit_fullscreen: "⛶ Keluar Penuh",
+        btn_download_today: "📥 Unduh Hari Ini",
 
         // Stats
         stat_total_emp: "Total Karyawan",
@@ -160,6 +161,7 @@ const TRANSLATIONS = {
         dash_welcome_sub: "YOU ARE IN THE PLN NPS PLTU AMPANA AREA AND MUST COMPLY WITH ALL APPLICABLE REGULATIONS",
         btn_fullscreen: "⛶ Full Screen",
         btn_exit_fullscreen: "⛶ Exit Full Screen",
+        btn_download_today: "📥 Download Today",
 
         // Stats
         stat_total_emp: "Total Employees",
