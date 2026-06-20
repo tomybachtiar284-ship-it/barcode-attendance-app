@@ -1021,13 +1021,13 @@ dialog::backdrop {
 }
 
 .mob-hero-card {
-  background: url('assets/bg-city-overlay.png'), linear-gradient(110deg, #3b82f6, #0ea5e9);
+  background: url('assets/bg-city-overlay.png'), linear-gradient(110deg, var(--mob-grad-1), var(--mob-grad-2)) !important;
   background-size: cover;
   background-position: center;
   border-radius: 24px;
   padding: 20px;
   color: white;
-  box-shadow: 0 15px 35px rgba(14, 165, 233, 0.3);
+  box-shadow: 0 15px 35px rgba(0, 141, 191, 0.25) !important;
   border: 1px solid rgba(255, 255, 255, 0.2);
   position: relative;
   overflow: hidden;
@@ -2984,12 +2984,12 @@ h1.page-title {
   }
 
   .mob-hero-card {
-    background: linear-gradient(135deg, var(--primary-600), var(--primary-500));
+    background: linear-gradient(135deg, var(--mob-grad-1), var(--mob-grad-2)) !important;
     padding: 24px;
     border-radius: 24px;
     color: #fff;
     text-align: center;
-    box-shadow: 0 12px 24px rgba(0, 174, 239, 0.25);
+    box-shadow: 0 12px 24px rgba(0, 141, 191, 0.25) !important;
     /* Cyan Shadow */
     margin-bottom: 24px;
     position: relative;
@@ -5945,12 +5945,12 @@ h1.page-title {
   }
 
   .mob-hero-card {
-    background: linear-gradient(135deg, var(--primary-600), var(--primary-500));
+    background: linear-gradient(135deg, var(--mob-grad-1), var(--mob-grad-2)) !important;
     padding: 24px;
     border-radius: 24px;
     color: #fff;
     text-align: center;
-    box-shadow: 0 12px 24px rgba(0, 174, 239, 0.25);
+    box-shadow: 0 12px 24px rgba(0, 141, 191, 0.25) !important;
     /* Cyan Shadow */
     margin-bottom: 24px;
     position: relative;
