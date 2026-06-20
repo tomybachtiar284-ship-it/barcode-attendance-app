@@ -13,16 +13,16 @@ window.addEventListener('DOMContentLoaded', () => {
   const BLINK_ALL_COMPANY_CARDS = true;
 
 
-  let employees = load(LS_EMP, []),
-    attendance = load(LS_ATT, []),
-    shifts = load(LS_SHIFTS, {
+  let employees = window.employees || load(LS_EMP, []),
+    attendance = window.attendance || load(LS_ATT, []),
+    shifts = window.shifts || load(LS_SHIFTS, {
       P: { start: '07:30', end: '15:30' },
       S: { start: '15:30', end: '23:30' },
       M: { start: '23:30', end: '07:30' },
       DAYTIME: { start: '07:30', end: '16:00' }
     }),
-    news = load(LS_NEWS, []),
-    sched = load(LS_SCHED, {});
+    news = window.news || load(LS_NEWS, []),
+    sched = window.sched || load(LS_SCHED, {});
 
   // === MIGRATION: Convert old Group-based shift keys (A/B/C/D) to Shift keys (P/S/M) ===
   (function migrateOldShiftKeys() {
@@ -47,12 +47,36 @@ window.addEventListener('DOMContentLoaded', () => {
   // FIX: Declare isSyncing here to avoid ReferenceError in pullAll (TDZ)
   let isSyncing = false;
 
-  // expose ke window agar script lain dapat ikut pakai
+  // expose ke window menggunakan getters/setters agar script lain dapat membaca dan menulis secara realtime
   function syncGlobals() {
-    window.employees = employees;
-    window.attendance = attendance;
-    window.shifts = shifts;
-    window.sched = sched;
+    try {
+      Object.defineProperty(window, 'employees', {
+        get() { return employees; },
+        set(val) { employees = val; },
+        configurable: true
+      });
+      Object.defineProperty(window, 'attendance', {
+        get() { return attendance; },
+        set(val) { attendance = val; },
+        configurable: true
+      });
+      Object.defineProperty(window, 'shifts', {
+        get() { return shifts; },
+        set(val) { shifts = val; },
+        configurable: true
+      });
+      Object.defineProperty(window, 'sched', {
+        get() { return sched; },
+        set(val) { sched = val; },
+        configurable: true
+      });
+    } catch (e) {
+      console.warn("Failed to define property on window:", e);
+      window.employees = employees;
+      window.attendance = attendance;
+      window.shifts = shifts;
+      window.sched = sched;
+    }
   }
   syncGlobals();
 
@@ -420,6 +444,7 @@ window.addEventListener('DOMContentLoaded', () => {
       const parseSbTs = (v) => {
         if (typeof v === 'number') return v;
         if (typeof v === 'string') {
+          if (/^\d+$/.test(v)) return parseInt(v, 10);
           // If likely ISO but missing Z/Offset, append Z to treat as UTC
           if (v.includes('T') && !v.endsWith('Z') && !v.includes('+')) return new Date(v + 'Z').getTime();
           return new Date(v).getTime();
@@ -2417,37 +2442,80 @@ function fs(btnSel, targetSel) {
       const hm = (ts) => ts ? new Date(ts).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : '...';
       const dt = (ts) => ts ? new Date(ts).toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit' }) : '';
 
+      // Toggles extra breaks visibility
+      window.toggleExtraBreaks = function(nid, btn, count) {
+        const extras = document.querySelectorAll(`.extra-${nid}`);
+        if (extras.length === 0) return;
+        const isHidden = extras[0].style.display === 'none';
+        extras.forEach(el => el.style.display = isHidden ? 'inline-flex' : 'none');
+        if (isHidden) {
+          btn.innerHTML = `Sembunyikan`;
+          btn.style.background = '#f3f4f6';
+          btn.style.color = '#4b5563';
+          btn.style.borderColor = '#d1d5db';
+        } else {
+          btn.innerHTML = `+${count} Sesi Lainnya`;
+          btn.style.background = 'var(--primary-100)';
+          btn.style.color = 'var(--primary-700)';
+          btn.style.borderColor = 'var(--primary-200)';
+        }
+      };
+
       tbody.innerHTML = sorted.map((row, i) => {
         const rank = i + 1;
-        // Format sessions
-        const details = row.sessions.map(s => {
+        // Format sessions as premium chips
+        const sessionHtmls = row.sessions.map((s, idx) => {
           const tDate = dt(s.out);
           const tOut = hm(s.out);
           const tIn = hm(s.in);
+          const isPending = !s.in;
+
           let durHtml = '';
           if (s.out && s.in) {
             const mins = Math.round((s.in - s.out) / 60000);
             const isLong = mins > 60;
-            const durColor = isLong ? 'var(--danger)' : 'inherit';
-            const fontWeight = isLong ? '700' : 'normal';
-            durHtml = `<span style="color:${durColor}; font-weight:${fontWeight};">(${formatDuration(mins)})</span>`;
+            const durColor = isLong ? '#b91c1c' : '#4b5563';
+            const fontWeight = isLong ? '700' : '500';
+            durHtml = `<span style="color:${durColor}; font-weight:${fontWeight}; margin-left:4px; font-size:0.7rem;">(${formatDuration(mins)})</span>`;
           } else {
-            durHtml = `<span style="color:var(--danger); font-weight:700;">(Belum Kembali)</span>`;
+            durHtml = `<span style="color:#ef4444; font-weight:700; margin-left:4px; font-size:0.7rem;">(Belum Kembali)</span>`;
           }
 
-          return `<div class="chip-sm" style="margin-bottom:2px; font-size:0.75rem; display:inline-flex; align-items:center;">
-                 <span style="color:var(--primary-600); font-weight:600; margin-right:4px;">${tDate}:</span> ${tOut} - ${tIn} ${durHtml}
-                 <button onclick="deleteBreakSession(${s.out}, ${s.in || 'null'})" title="Hapus Sesi" style="background:none; border:none; color:var(--danger); cursor:pointer; margin-left:6px; font-size:1.1em; line-height:1;">&times;</button>
+          const chipBg = isPending ? '#fef2f2' : 'var(--primary-50)';
+          const chipBorder = isPending ? '1px solid #fecaca' : '1px solid var(--primary-200)';
+          const chipColor = isPending ? '#991b1b' : 'var(--primary-700)';
+          const dateColor = isPending ? '#b91c1c' : 'var(--primary-600)';
+
+          const displayStyle = idx < 3 ? 'inline-flex' : 'none';
+          const extraClass = idx >= 3 ? `extra-${row.nid}` : '';
+
+          return `<div class="${extraClass}" style="display: ${displayStyle}; align-items: center; background: ${chipBg}; border: ${chipBorder}; color: ${chipColor}; padding: 4px 10px; border-radius: 6px; font-size: 0.75rem; font-weight: 500; gap: 2px; transition: all 0.2s; box-shadow: 0 1px 2px rgba(0,0,0,0.02); height: 26px; box-sizing: border-box;">
+                 <span style="color:${dateColor}; font-weight:700; margin-right:4px;">${tDate}</span>
+                 <span>${tOut} - ${tIn}</span>
+                 ${durHtml}
+                 <button onclick="deleteBreakSession(${s.out}, ${s.in || 'null'})" title="Hapus Sesi" style="background:none; border:none; color:#ef4444; cursor:pointer; margin-left:6px; font-size:1.2em; line-height:1; display:inline-flex; align-items:center; justify-content:center; width:16px; height:16px; border-radius:50%; transition:all 0.2s; padding:0;" onmouseover="this.style.background='rgba(239,68,68,0.15)'; this.style.color='#b91c1c';" onmouseout="this.style.background='none'; this.style.color='#ef4444';">&times;</button>
             </div>`;
-        }).join('');
+        });
+
+        // Add toggle button if there are more than 3 sessions
+        let toggleBtnHtml = '';
+        if (row.sessions.length > 3) {
+          const extraCount = row.sessions.length - 3;
+          toggleBtnHtml = `<button onclick="toggleExtraBreaks('${row.nid}', this, ${extraCount})" style="background: var(--primary-100); border: 1px solid var(--primary-200); color: var(--primary-700); border-radius: 6px; padding: 4px 10px; font-size: 0.7rem; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; height: 26px; transition: all 0.2s; box-sizing: border-box;" onmouseover="this.style.background='var(--primary-200)'" onmouseout="this.style.background='var(--primary-100)'">+${extraCount} Sesi Lainnya</button>`;
+        }
+
+        const detailsContainer = `<div style="display:flex; flex-wrap:wrap; gap:6px; align-items:center;">
+          ${sessionHtmls.join('')}
+          ${toggleBtnHtml}
+        </div>`;
 
         return `<tr>
                   <td style="text-align:center; font-weight:bold;">${rank}</td>
-                  <td>${row.nid}</td>
-                  <td>${row.name}</td>
-                  <td>${row.company || '-'}</td>
-                  <td style="text-align:center; font-weight:bold; font-size:1.1rem; color:var(--orange-600)">${row.count}</td>
-                  <td>${details}</td>
+                  <td><code style="font-family: monospace; font-size: 0.9rem; font-weight: 600; color: #374151;">${row.nid}</code></td>
+                  <td style="font-weight: 600; color: #1f2937;">${row.name}</td>
+                  <td style="color: #4b5563;">${row.company || '-'}</td>
+                  <td style="text-align:center; font-weight:bold; font-size:1.15rem; color:var(--orange-600)">${row.count}</td>
+                  <td>${detailsContainer}</td>
               </tr>`;
       }).join('');
 
@@ -5282,7 +5350,7 @@ function fs(btnSel, targetSel) {
 
           if (atts) atts.forEach(x => {
             newItems.push({
-              ts: new Date(x.ts).getTime(), // Fix TZ
+              ts: Number(x.ts),
               status: x.status, nid: x.nid, name: x.name,
               title: x.title, company: x.company, shift: x.shift,
               note: x.note, late: x.late, okShift: x.ok_shift
@@ -5291,7 +5359,7 @@ function fs(btnSel, targetSel) {
 
           if (brks) brks.forEach(x => {
             newItems.push({
-              ts: new Date(x.ts).getTime(),
+              ts: Number(x.ts),
               status: x.status, nid: x.nid, name: x.name,
               title: '', company: x.company, shift: '',
               note: (x.status === 'break_out' ? 'Izin Keluar / Istirahat' : 'Kembali Masuk'),

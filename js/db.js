@@ -279,6 +279,7 @@ async function pullAll() {
     const parseSbTs = (v) => {
         if (typeof v === 'number') return v;
         if (typeof v === 'string') {
+            if (/^\d+$/.test(v)) return parseInt(v, 10);
             if (v.includes('T') && !v.endsWith('Z') && !v.includes('+')) return new Date(v + 'Z').getTime();
             return new Date(v).getTime();
         }

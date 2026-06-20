@@ -147,12 +147,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     const handleManualSubmit = async () => {
         const nid = manualNid ? manualNid.value.trim() : '';
         if(nid) {
-            await processScan(nid, '', true); // true = isManual
-            if (manualNid) manualNid.value = '';
-            if (manualName) manualName.value = '';
-            if (manualShift) manualShift.value = '';
-            const typeEl = document.getElementById('manualType');
-            if (typeEl) typeEl.value = 'absen';
+            const success = await processScan(nid, '', true); // true = isManual
+            if (success) {
+                if (manualNid) manualNid.value = '';
+                if (manualName) manualName.value = '';
+                if (manualShift) manualShift.value = '';
+                const typeEl = document.getElementById('manualType');
+                if (typeEl) typeEl.value = 'absen';
+            }
         }
     };
 
@@ -177,7 +179,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         manualNid.addEventListener('input', () => {
             const nid = manualNid.value.trim();
             if (nid && window.employees) {
-                const emp = window.employees.find(e => e.nid === nid);
+                const emp = window.employees.find(e => e.nid && String(e.nid).trim() === String(nid).trim());
                 if (emp) {
                     manualName.value = emp.name;
                     if (manualShift && emp.shift) {
@@ -189,9 +191,11 @@ document.addEventListener('DOMContentLoaded', async () => {
                     }
                 } else {
                     manualName.value = '';
+                    if (manualShift) manualShift.value = '';
                 }
             } else {
                 manualName.value = '';
+                if (manualShift) manualShift.value = '';
             }
         });
     }
@@ -360,10 +364,13 @@ function nextBreakStatusFor(nid) {
 const lastScanMap = new Map();
 
 async function processScan(nid, rawData = '', isManual = false) {
-    if (!window.employees || !window.attendance) return;
+    if (!window.employees || !window.attendance) return false;
 
     // Cari karyawan
-    const emp = window.employees.find(e => e.nid === nid || e.nid.toLowerCase() === nid.toLowerCase());
+    const emp = window.employees.find(e => {
+        if (!e.nid) return false;
+        return String(e.nid).trim().toLowerCase() === String(nid).trim().toLowerCase();
+    });
     
     if (!emp) {
         Swal.fire({
@@ -374,12 +381,12 @@ async function processScan(nid, rawData = '', isManual = false) {
             showConfirmButton: true,
             confirmButtonText: 'Tutup'
         });
-        return;
+        return false;
     }
 
     if (emp.status === 'Non-Aktif') {
         Swal.fire('Akses Ditolak', 'Karyawan berstatus Non-Aktif.', 'error');
-        return;
+        return false;
     }
 
     const ts = new Date();
@@ -392,7 +399,7 @@ async function processScan(nid, rawData = '', isManual = false) {
             title: `⏳ Tunggu 7 detik sebelum scan ${emp.name} lagi.`,
             showConfirmButton: false, timer: 3000
         });
-        return;
+        return false;
     }
     lastScanMap.set(emp.nid, ts.getTime());
 
@@ -479,6 +486,7 @@ async function processScan(nid, rawData = '', isManual = false) {
             console.error('Gagal push absensi', err);
         }
     }
+    return true;
 }
 
 function showOverlay(emp, record) {
@@ -561,7 +569,7 @@ function refreshDashboard() {
     // Hitung Ontime & Late berdasarkan SEMUA record datang hari ini
     attToday.forEach(r => {
         if (r.status === 'datang') {
-            const emp = window.employees.find(e => e.nid === r.nid);
+            const emp = window.employees.find(e => e.nid && String(e.nid).trim() === String(r.nid).trim());
             const eff = emp ? (effectiveShiftFor(emp, new Date(r.ts)) || emp.shift) : r.shift;
             if (calculateLateStatus(emp, r.ts, eff)) late++;
             else ontime++;
@@ -665,7 +673,16 @@ function renderTables(attToday) {
         const recent = [...attToday].sort((a,b) => b.ts - a.ts).slice(0, 10);
         let rowsHtmlAct = recent.map(r => {
             const time = new Date(r.ts).toLocaleTimeString('id-ID', {hour:'2-digit', minute:'2-digit'});
-            let note = r.late ? '<span class="badge telat">Terlambat</span>' : '-';
+            let note = '-';
+            if (r.late) {
+                note = '<span class="badge telat">Terlambat</span>';
+            } else if (r.status === 'break_out') {
+                note = '<span class="badge keluar">Izin Keluar</span>';
+            } else if (r.status === 'break_in') {
+                note = '<span class="badge masuk">Kembali</span>';
+            } else if (r.note && r.note !== '—') {
+                note = r.note;
+            }
             return `
                 <tr>
                     <td>${time}</td>
