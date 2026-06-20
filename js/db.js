@@ -214,7 +214,8 @@ async function pushInventory(inv) {
         const payload = {
             id: inv.id, carrier: inv.carrier, company: inv.company,
             item: inv.item, dest: inv.dest, officer: inv.officer, type: inv.type,
-            time_in: inv.timeIn, time_out: inv.timeOut
+            time_in: inv.timeIn, time_out: inv.timeOut,
+            photos: inv.photos || []
         };
         const { error } = await (window.sb || sb).from('inventory').upsert(payload, { onConflict: 'id' });
         if (error) throw error;
@@ -336,7 +337,8 @@ async function pullAll() {
         window.inventoryData = invs.map(x => ({
             id: x.id, carrier: x.carrier, company: x.company, item: x.item,
             dest: x.dest, officer: x.officer, type: x.type,
-            timeIn: x.time_in, timeOut: x.time_out
+            timeIn: x.time_in, timeOut: x.time_out,
+            photos: x.photos || []
         })).sort((a, b) => new Date(b.timeIn || 0) - new Date(a.timeIn || 0));
         localStorage.setItem('SA_INVENTORY', JSON.stringify(window.inventoryData));
     }
@@ -393,6 +395,8 @@ function subscribeToRealtime() {
             (payload) => handleRealtimeEvent(payload, 'attendance'))
         .on('postgres_changes', { event: '*', schema: 'public', table: 'breaks' },
             (payload) => handleRealtimeEvent(payload, 'breaks'))
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'inventory' },
+            (payload) => handleRealtimeEvent(payload, 'inventory'))
         .subscribe((status) => {
             console.log('Realtime Status:', status);
         });
@@ -423,12 +427,33 @@ function normalizeRecord(row, tableName) {
             note: (row.status === 'break_out' ? 'Izin Keluar / Istirahat' : 'Kembali Masuk'),
             late: false, okShift: true
         };
+    } else if (tableName === 'inventory') {
+        return {
+            id: row.id, carrier: row.carrier, company: row.company, item: row.item,
+            dest: row.dest, officer: row.officer, type: row.type,
+            timeIn: row.time_in, timeOut: row.time_out,
+            photos: row.photos || []
+        };
     }
     return null;
 }
 
 function handleRealtimeInsert(newRow, tableName) {
-    if (!newRow || !window.attendance) return;
+    if (!newRow) return;
+    if (tableName === 'inventory') {
+        if (!window.inventoryData) window.inventoryData = [];
+        const rec = normalizeRecord(newRow, tableName);
+        if (!rec) return;
+        const exists = window.inventoryData.some(a => a.id === rec.id);
+        if (exists) return;
+        window.inventoryData.push(rec);
+        window.inventoryData.sort((a, b) => new Date(b.timeIn || 0) - new Date(a.timeIn || 0));
+        localStorage.setItem('SA_INVENTORY', JSON.stringify(window.inventoryData));
+        window.dispatchEvent(new Event('data:synced'));
+        return;
+    }
+
+    if (!window.attendance) return;
     const rec = normalizeRecord(newRow, tableName);
     if (!rec) return;
     const exists = window.attendance.some(a => a.nid === rec.nid && Math.abs(a.ts - rec.ts) < 2000);
@@ -441,7 +466,24 @@ function handleRealtimeInsert(newRow, tableName) {
 }
 
 function handleRealtimeUpdate(newRow, tableName) {
-    if (!newRow || !window.attendance) return;
+    if (!newRow) return;
+    if (tableName === 'inventory') {
+        if (!window.inventoryData) window.inventoryData = [];
+        const rec = normalizeRecord(newRow, tableName);
+        if (!rec) return;
+        const index = window.inventoryData.findIndex(a => a.id === rec.id);
+        if (index !== -1) {
+            window.inventoryData[index] = rec;
+            window.inventoryData.sort((a, b) => new Date(b.timeIn || 0) - new Date(a.timeIn || 0));
+            localStorage.setItem('SA_INVENTORY', JSON.stringify(window.inventoryData));
+            window.dispatchEvent(new Event('data:synced'));
+        } else {
+            handleRealtimeInsert(newRow, tableName);
+        }
+        return;
+    }
+
+    if (!window.attendance) return;
     const rec = normalizeRecord(newRow, tableName);
     if (!rec) return;
     const index = window.attendance.findIndex(a => a.ts === rec.ts);
@@ -456,7 +498,19 @@ function handleRealtimeUpdate(newRow, tableName) {
 }
 
 function handleRealtimeDelete(oldRow, tableName) {
-    if (!oldRow || !window.attendance) return;
+    if (!oldRow) return;
+    if (tableName === 'inventory') {
+        if (!window.inventoryData) return;
+        const index = window.inventoryData.findIndex(a => a.id === oldRow.id);
+        if (index !== -1) {
+            window.inventoryData.splice(index, 1);
+            localStorage.setItem('SA_INVENTORY', JSON.stringify(window.inventoryData));
+            window.dispatchEvent(new Event('data:synced'));
+        }
+        return;
+    }
+
+    if (!window.attendance) return;
     const targetTs = typeof oldRow.ts === 'number' ? oldRow.ts : new Date(oldRow.ts).getTime();
     if (!targetTs) return;
     const index = window.attendance.findIndex(a => Math.abs(a.ts - targetTs) < 100);

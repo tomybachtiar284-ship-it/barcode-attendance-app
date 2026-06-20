@@ -151,12 +151,14 @@ window.addEventListener('DOMContentLoaded', () => {
         if (window.shifts) shifts = window.shifts;
         if (window.news) news = window.news;
         if (window.sched) sched = window.sched;
+        if (window.inventoryData) inventoryData = window.inventoryData;
 
         if (typeof renderDashboard === 'function') renderDashboard();
         if (typeof renderEmployees === 'function' && !document.getElementById('route-employees').classList.contains('hidden')) renderEmployees();
         if (typeof renderAttendance === 'function' && !document.getElementById('route-attendance').classList.contains('hidden')) renderAttendance();
         if (typeof renderLatest === 'function' && !document.getElementById('route-latest').classList.contains('hidden')) renderLatest();
         if (typeof renderMusterList === 'function' && !document.getElementById('route-emergency').classList.contains('hidden')) renderMusterList();
+        if (typeof renderInventory === 'function' && !document.getElementById('route-inventory').classList.contains('hidden')) renderInventory();
       });
 
       return sb;
