@@ -835,9 +835,14 @@
             </div>
 
             <!-- Button -->
-            <button onclick="renderIndividualReport()" class="btn primary small" style="margin-left:auto;">
-              🔍 Tampilkan
-            </button>
+            <div style="display:flex; gap:8px; margin-left:auto;">
+              <button onclick="renderIndividualReport()" class="btn primary small">
+                🔍 Tampilkan
+              </button>
+              <button id="btnDownloadIndivPDF" onclick="downloadIndividualReportPDF()" class="btn small" style="background-color: #008dbf; color: white; display: flex; align-items: center; gap: 4px; border: none; cursor: pointer;">
+                📥 Unduh PDF
+              </button>
+            </div>
           </div>
         </div>
 

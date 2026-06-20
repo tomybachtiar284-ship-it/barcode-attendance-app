@@ -882,5 +882,311 @@
         }
     }
 
+    // PDF Download for Individual Report
+    window.downloadIndividualReportPDF = async function() {
+        const input = document.getElementById('indivSearchInput');
+        if (!input) return;
+
+        let selectedNid = input.dataset.selectedNid;
+        if (!selectedNid && input.value.trim()) {
+            const rawVal = input.value.trim();
+            const matchParentheses = rawVal.match(/\(([^)]+)\)/);
+            if (matchParentheses) {
+                selectedNid = matchParentheses[1];
+            } else {
+                selectedNid = rawVal;
+            }
+        }
+
+        if (!selectedNid) {
+            alert('Silakan pilih karyawan terlebih dahulu dari daftar autocomplete.');
+            return;
+        }
+
+        const employees = window.employees || [];
+        const employee = employees.find(e => e.nid === selectedNid);
+        if (!employee) {
+            alert('Karyawan dengan NID tersebut tidak ditemukan.');
+            return;
+        }
+
+        const month = parseInt(document.getElementById('indivMonthSelect').value) || (new Date().getMonth() + 1);
+        const year = parseInt(document.getElementById('indivYearSelect').value) || new Date().getFullYear();
+
+        const startOfMonth = new Date(year, month - 1, 1);
+        const endOfMonth = new Date(year, month, 0, 23, 59, 59);
+        const startMs = startOfMonth.getTime();
+        const endMs = endOfMonth.getTime();
+
+        const allAtt = window.attendance || [];
+        const personalAtt = allAtt.filter(a => a.nid === selectedNid && a.ts >= startMs && a.ts <= endMs);
+
+        const { jsPDF } = window.jspdf || {};
+        if (!jsPDF) {
+            alert("Library jsPDF belum dimuat.");
+            return;
+        }
+
+        const doc = new jsPDF('p', 'mm', 'a4'); // Portrait, Millimeter, A4 Size
+        const monthNames = [
+            "Januari", "Februari", "Maret", "April", "Mei", "Juni", 
+            "Juli", "Agustus", "September", "Oktober", "November", "Desember"
+        ];
+        const monthName = monthNames[month - 1];
+
+        // LOGO / HEADER BAND
+        doc.setFillColor(0, 141, 191); // #008dbf Corporate Blue
+        doc.rect(0, 0, 210, 8, 'F'); // Header band
+
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(16);
+        doc.setTextColor(30, 41, 59); // #1e293b
+        doc.text("LAPORAN PERFORMA KEHADIRAN INDIVIDU", 14, 22);
+
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(9.5);
+        doc.setTextColor(100, 116, 139); // #64748b
+        doc.text(`Periode Laporan: ${monthName} ${year}`, 14, 28);
+        doc.text(`Dicetak pada: ${new Date().toLocaleString('id-ID')}`, 14, 33);
+
+        // Horizontal Line
+        doc.setDrawColor(226, 232, 240); // #e2e8f0
+        doc.setLineWidth(0.5);
+        doc.line(14, 37, 196, 37);
+
+        // EMPLOYEE PROFILE BOX
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(11);
+        doc.setTextColor(30, 41, 59);
+        doc.text("PROFIL KARYAWAN", 14, 45);
+
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(9.5);
+        doc.setTextColor(51, 65, 85); // #334155
+
+        // Left column
+        doc.text(`Nama Lengkap  :  ${employee.name}`, 14, 52);
+        doc.text(`NID           :  ${employee.nid}`, 14, 58);
+        doc.text(`Jabatan       :  ${employee.title || '-'}`, 14, 64);
+
+        // Right column
+        doc.text(`Perusahaan  :  ${employee.company || '-'}`, 110, 52);
+        const groupLabelMap = { A: 'Grup A', B: 'Grup B', C: 'Grup C', D: 'Grup D', DAYTIME: 'Grup Daytime' };
+        const grpName = groupLabelMap[employee.shift] || employee.shift || '-';
+        doc.text(`Grup/Shift  :  ${grpName}`, 110, 58);
+        doc.text(`Status      :  ${employee.status || 'Aktif'}`, 110, 64);
+
+        doc.line(14, 70, 196, 70);
+
+        // METRICS SUMMARY BOX
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(11);
+        doc.setTextColor(30, 41, 59);
+        doc.text("RINGKASAN METRIK BULANAN", 14, 78);
+
+        // Compute statistics (same as UI render)
+        const numDays = new Date(year, month, 0).getDate();
+        let daysPresent = 0;
+        let daysLate = 0;
+        let daysAbsent = 0;
+        let totalOvertimeHours = 0;
+        let daysOff = 0;
+
+        const tableBody = [];
+
+        for (let day = 1; day <= numDays; day++) {
+            const currentDate = new Date(year, month - 1, day);
+            const currentMsStart = currentDate.getTime();
+            const currentMsEnd = currentMsStart + (24 * 3600 * 1000) - 1;
+
+            let shiftCode = 'OFF';
+            if (window.effectiveShiftFor) {
+                shiftCode = window.effectiveShiftFor(employee, currentDate);
+            } else {
+                shiftCode = employee.shift || 'OFF';
+            }
+
+            const todayLogs = personalAtt.filter(a => a.ts >= currentMsStart && a.ts <= currentMsEnd);
+            const inLog = todayLogs.find(a => a.status === 'datang' || a.status === 'late');
+            const outLog = todayLogs.find(a => a.status === 'pulang');
+
+            const dayNames = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
+            const dayName = dayNames[currentDate.getDay()];
+            const dateStr = `${dayName}, ${day} ${monthName}`;
+
+            let shiftLabel = shiftCode;
+            const shiftDetail = (window.shifts || {})[shiftCode];
+            if (shiftDetail && shiftDetail.start && shiftDetail.end) {
+                shiftLabel = `${shiftCode} (${shiftDetail.start} - ${shiftDetail.end})`;
+            }
+
+            let statusText = '';
+            let inTimeStr = '-';
+            let outTimeStr = '-';
+            let otStr = '-';
+
+            if (shiftCode === 'OFF') {
+                daysOff++;
+                statusText = 'Libur (OFF)';
+            } else {
+                if (inLog) {
+                    daysPresent++;
+                    inTimeStr = new Date(inLog.ts).toLocaleTimeString('id-ID', {hour:'2-digit', minute:'2-digit'});
+                    if (outLog) {
+                        outTimeStr = new Date(outLog.ts).toLocaleTimeString('id-ID', {hour:'2-digit', minute:'2-digit'});
+                    }
+
+                    if (inLog.late) {
+                        daysLate++;
+                        statusText = 'Terlambat';
+                    } else {
+                        statusText = 'Tepat Waktu';
+                    }
+                } else {
+                    if (currentMsEnd > Date.now()) {
+                        statusText = 'Mendatang';
+                    } else {
+                        daysAbsent++;
+                        statusText = 'Mangkir / Alpha';
+                    }
+                }
+            }
+
+            let otHours = 0;
+            if (outLog && shiftCode !== 'OFF') {
+                if (shiftDetail && shiftDetail.end) {
+                    const [shH, shM] = shiftDetail.end.split(':').map(Number);
+                    const shiftEndToday = new Date(year, month - 1, day, shH, shM, 0);
+                    const actualOutTime = new Date(outLog.ts);
+                    if (actualOutTime.getTime() > shiftEndToday.getTime() + (30 * 60000)) { 
+                        otHours = (actualOutTime.getTime() - shiftEndToday.getTime()) / (3600000); 
+                        otHours = Math.round(otHours * 10) / 10; 
+                        totalOvertimeHours += otHours;
+                        otStr = `${otHours} Jam`;
+                    }
+                }
+            }
+
+            tableBody.push([
+                day,
+                dateStr,
+                shiftLabel,
+                inTimeStr,
+                outTimeStr,
+                statusText,
+                otStr
+            ]);
+        }
+
+        const totalScheduledDays = numDays - daysOff;
+        const presentRate = totalScheduledDays > 0 ? Math.round((daysPresent / totalScheduledDays) * 100) : 0;
+
+        // Draw colored metric boxes (like cards in UI)
+        doc.setFillColor(248, 250, 252); // #f8fafc
+        doc.rect(14, 83, 40, 20, 'F');
+        doc.rect(60, 83, 40, 20, 'F');
+        doc.rect(106, 83, 40, 20, 'F');
+        doc.rect(152, 84, 44, 20, 'F');
+
+        doc.setFontSize(8);
+        doc.setTextColor(100, 116, 139);
+        doc.text("Tingkat Kehadiran", 16, 88);
+        doc.text("Total Terlambat", 62, 88);
+        doc.text("Total Jam Lembur", 108, 88);
+        doc.text("Mangkir / Alpha", 154, 88);
+
+        doc.setFontSize(12);
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(0, 141, 191); // blue
+        doc.text(`${presentRate}%`, 16, 96);
+        doc.setTextColor(245, 158, 11); // orange
+        doc.text(`${daysLate} Kali`, 62, 96);
+        doc.setTextColor(16, 185, 129); // green
+        doc.text(`${totalOvertimeHours} Jam`, 108, 96);
+        doc.setTextColor(239, 68, 68); // red
+        doc.text(`${daysAbsent} Hari`, 154, 96);
+
+        // Space line
+        doc.setDrawColor(226, 232, 240);
+        doc.line(14, 109, 196, 109);
+
+        // TABLE DETAIL HARIAN TITLE
+        doc.setFontSize(11);
+        doc.setTextColor(30, 41, 59);
+        doc.setFont("helvetica", "bold");
+        doc.text("DETAIL KEHADIRAN HARIAN", 14, 116);
+
+        const tableHeaders = [["No", "Tanggal / Hari", "Shift / Jam Kerja", "Masuk", "Pulang", "Status", "Lembur"]];
+
+        doc.autoTable({
+            head: tableHeaders,
+            body: tableBody,
+            startY: 121,
+            theme: 'striped',
+            headStyles: {
+                fillColor: [0, 141, 191], // #008dbf primary blue
+                textColor: [255, 255, 255],
+                fontSize: 9,
+                fontStyle: 'bold',
+                halign: 'center'
+            },
+            styles: {
+                fontSize: 8.5,
+                cellPadding: 2
+            },
+            columnStyles: {
+                0: { halign: 'center', cellWidth: 8 },
+                1: { cellWidth: 32 },
+                2: { cellWidth: 42 },
+                3: { halign: 'center', cellWidth: 16 },
+                4: { halign: 'center', cellWidth: 16 },
+                5: { halign: 'center', cellWidth: 26 },
+                6: { halign: 'center', cellWidth: 16 }
+            },
+            didParseCell: function(data) {
+                // Style Status column values
+                if (data.column.index === 5 && data.cell.section === 'body') {
+                    const val = data.cell.raw;
+                    if (val === 'Tepat Waktu') {
+                        data.cell.styles.textColor = [22, 163, 74]; // #16a34a green
+                        data.cell.styles.fontStyle = 'bold';
+                    } else if (val === 'Terlambat') {
+                        data.cell.styles.textColor = [217, 119, 6]; // #d97706 orange
+                        data.cell.styles.fontStyle = 'bold';
+                    } else if (val === 'Mangkir / Alpha') {
+                        data.cell.styles.textColor = [220, 38, 38]; // #dc2626 red
+                        data.cell.styles.fontStyle = 'bold';
+                    } else if (val === 'Libur (OFF)') {
+                        data.cell.styles.textColor = [100, 116, 139]; // #64748b slate
+                    }
+                }
+                // Style overtime column values
+                if (data.column.index === 6 && data.cell.section === 'body' && data.cell.raw !== '-') {
+                    data.cell.styles.textColor = [16, 185, 129]; // green
+                    data.cell.styles.fontStyle = 'bold';
+                }
+            }
+        });
+
+        // Add Signatures Section at the end
+        let finalY = doc.lastAutoTable.finalY + 15;
+        if (finalY > 250) {
+            doc.addPage();
+            finalY = 20;
+        }
+
+        doc.setFontSize(9.5);
+        doc.setFont("helvetica", "normal");
+        doc.setTextColor(30, 41, 59);
+        
+        doc.text("Karyawan Bersangkutan,", 20, finalY);
+        doc.text("_______________________", 20, finalY + 22);
+        
+        doc.text("Mengetahui, Supervisor/HR,", 130, finalY);
+        doc.text("_______________________", 130, finalY + 22);
+
+        doc.save(`Laporan_Performa_Individu_${selectedNid}_${month}_${year}.pdf`);
+    };
+
 })();
 
