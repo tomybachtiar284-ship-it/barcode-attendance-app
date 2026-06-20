@@ -7059,7 +7059,11 @@ function fs(btnSel, targetSel) {
   // === FITUR BARU: DOWNLOAD REPORT ABSENSI HARI INI (UNTUK SECURITY) ===
   window.downloadTodayScanReport = function() {
     if (typeof XLSX === 'undefined') {
-      alert('Library Excel belum siap.');
+      if (typeof Swal !== 'undefined') {
+        Swal.fire({ title: 'Error', text: 'Library Excel belum siap.', icon: 'error' });
+      } else {
+        alert('Library Excel belum siap.');
+      }
       return;
     }
 
@@ -7067,18 +7071,41 @@ function fs(btnSel, targetSel) {
     const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
     const endOfToday = startOfToday + (24 * 3600 * 1000) - 1;
 
+    // 1. Ambil data absensi hari ini
     const allAtt = window.attendance || [];
     const todayLogs = allAtt.filter(a => a.ts >= startOfToday && a.ts <= endOfToday);
 
-    if (todayLogs.length === 0) {
-      alert('Tidak ada data absensi untuk hari ini.');
+    // 2. Ambil data keluar masuk barang hari ini
+    let allInv = window.inventoryData;
+    if (!allInv || allInv.length === 0) {
+      try {
+        const cachedInv = localStorage.getItem('SA_INVENTORY');
+        if (cachedInv) {
+          allInv = JSON.parse(cachedInv);
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    }
+    if (!allInv) allInv = [];
+
+    const todayInv = allInv.filter(x => {
+      const timeMs = x.timeIn ? new Date(x.timeIn).getTime() : 0;
+      return timeMs >= startOfToday && timeMs <= endOfToday;
+    });
+
+    if (todayLogs.length === 0 && todayInv.length === 0) {
+      if (typeof Swal !== 'undefined') {
+        Swal.fire({ title: 'Info', text: 'Tidak ada data absensi maupun keluar masuk barang untuk hari ini.', icon: 'info' });
+      } else {
+        alert('Tidak ada data absensi maupun keluar masuk barang untuk hari ini.');
+      }
       return;
     }
 
-    // Urutkan berdasarkan waktu terkecil (paling awal masuk)
+    // --- SHEET 1: DATA ABSENSI HARI INI ---
     const sortedLogs = [...todayLogs].sort((a, b) => a.ts - b.ts);
-
-    const rows = sortedLogs.map(a => {
+    const attRows = sortedLogs.map(a => {
       const timeStr = new Date(a.ts).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
       const dateStr = new Date(a.ts).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
 
@@ -7103,17 +7130,56 @@ function fs(btnSel, targetSel) {
       };
     });
 
-    const ws = XLSX.utils.json_to_sheet(rows);
+    // --- SHEET 2: KELUAR MASUK BARANG HARI INI ---
+    const sortedInv = [...todayInv].sort((a, b) => new Date(a.timeIn || 0) - new Date(b.timeIn || 0));
+    const invRows = sortedInv.map(x => {
+      const timeInStr = x.timeIn ? new Date(x.timeIn).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '-';
+      const timeOutStr = x.timeOut ? new Date(x.timeOut).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '-';
+      const dateStr = x.timeIn ? new Date(x.timeIn).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }) : '-';
 
-    // Auto-width columns
-    const wscols = [
+      return {
+        'Tanggal': dateStr,
+        'Tipe': x.type || '-',
+        'Waktu Masuk': timeInStr,
+        'Waktu Keluar': timeOutStr,
+        'Nama Pembawa': x.carrier || '-',
+        'Perusahaan / Ekspedisi': x.company || '-',
+        'Jenis & Jumlah Barang': x.item || '-',
+        'Tujuan / Penerima': x.dest || '-',
+        'Petugas Sekuriti': x.officer || '-'
+      };
+    });
+
+    // Buat Workbook & Append Sheet
+    const wb = XLSX.utils.book_new();
+
+    // Setup Sheet 1
+    const ws1 = XLSX.utils.json_to_sheet(attRows);
+    ws1['!cols'] = [
       { wch: 18 }, { wch: 12 }, { wch: 12 }, { wch: 25 }, { wch: 20 }, { wch: 25 }, { wch: 12 }, { wch: 25 }, { wch: 30 }
     ];
-    ws['!cols'] = wscols;
+    XLSX.utils.book_append_sheet(wb, ws1, "Absensi Hari Ini");
 
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Absensi Hari Ini");
+    // Setup Sheet 2
+    const ws2 = XLSX.utils.json_to_sheet(invRows);
+    ws2['!cols'] = [
+      { wch: 18 }, { wch: 10 }, { wch: 15 }, { wch: 15 }, { wch: 25 }, { wch: 25 }, { wch: 30 }, { wch: 25 }, { wch: 20 }
+    ];
+    XLSX.utils.book_append_sheet(wb, ws2, "Keluar Masuk Barang");
 
+    // Download berkas Excel
     const dateStr = today.toISOString().split('T')[0];
     XLSX.writeFile(wb, `Laporan_Absensi_Security_${dateStr}.xlsx`);
+
+    if (typeof Swal !== 'undefined') {
+      Swal.fire({
+        title: 'Sukses',
+        text: 'Laporan absensi dan logistik hari ini berhasil diunduh!',
+        icon: 'success',
+        timer: 2000,
+        showConfirmButton: false
+      });
+    } else {
+      toast('Laporan berhasil didownload!');
+    }
   };
