@@ -766,3 +766,80 @@ window.logoutScan = async function() {
     });
 };
 
+// === FITUR BARU: DOWNLOAD REPORT ABSENSI HARI INI (UNTUK SECURITY) ===
+window.downloadTodayScanReport = function() {
+    if (typeof XLSX === 'undefined') {
+        Swal.fire({
+            title: 'Error',
+            text: 'Library Excel belum siap.',
+            icon: 'error'
+        });
+        return;
+    }
+
+    const today = new Date();
+    const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
+    const endOfToday = startOfToday + (24 * 3600 * 1000) - 1;
+
+    const allAtt = window.attendance || [];
+    const todayLogs = allAtt.filter(a => a.ts >= startOfToday && a.ts <= endOfToday);
+
+    if (todayLogs.length === 0) {
+        Swal.fire({
+            title: 'Info',
+            text: 'Tidak ada data absensi untuk hari ini.',
+            icon: 'info'
+        });
+        return;
+    }
+
+    // Urutkan berdasarkan waktu terkecil (paling awal masuk)
+    const sortedLogs = [...todayLogs].sort((a, b) => a.ts - b.ts);
+
+    const rows = sortedLogs.map(a => {
+        const timeStr = new Date(a.ts).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        const dateStr = new Date(a.ts).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+
+        let statusText = '';
+        if (a.status === 'datang') statusText = 'Masuk (Tepat Waktu)';
+        else if (a.status === 'late') statusText = 'Masuk (Terlambat)';
+        else if (a.status === 'pulang') statusText = 'Pulang';
+        else if (a.status === 'break_out') statusText = 'Izin Keluar / Istirahat';
+        else if (a.status === 'break_in') statusText = 'Kembali Masuk';
+        else statusText = a.status;
+
+        return {
+            'Tanggal': dateStr,
+            'Jam': timeStr,
+            'NID': a.nid || '-',
+            'Nama': a.name || '-',
+            'Jabatan': a.title || '-',
+            'Perusahaan': a.company || '-',
+            'Shift': a.shift || '-',
+            'Status': statusText,
+            'Keterangan': a.note || '-'
+        };
+    });
+
+    const ws = XLSX.utils.json_to_sheet(rows);
+
+    // Auto-width columns
+    const wscols = [
+        { wch: 18 }, { wch: 12 }, { wch: 12 }, { wch: 25 }, { wch: 20 }, { wch: 25 }, { wch: 12 }, { wch: 25 }, { wch: 30 }
+    ];
+    ws['!cols'] = wscols;
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Absensi Hari Ini");
+
+    const dateStr = today.toISOString().split('T')[0];
+    XLSX.writeFile(wb, `Laporan_Absensi_Security_${dateStr}.xlsx`);
+    
+    Swal.fire({
+        title: 'Sukses',
+        text: 'Laporan hari ini berhasil diunduh!',
+        icon: 'success',
+        timer: 2000,
+        showConfirmButton: false
+    });
+};

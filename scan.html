@@ -13,6 +13,9 @@
   
   <!-- SweetAlert2 untuk notifikasi elegan -->
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  
+  <!-- SheetJS untuk ekspor Excel -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 </head>
 <body>
 
@@ -40,7 +43,15 @@
         <div class="live-badge">Live Update</div>
       </div>
 
-      <div class="header-right">
+      <div class="header-right" style="display: flex; align-items: center; gap: 15px;">
+        <button id="btnDownloadReport" class="btn-download" style="padding: 8px 16px; background: rgba(59, 130, 246, 0.15); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.4); border-radius: 8px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 8px; font-size: 0.9rem; transition: background 0.2s;" onclick="downloadTodayScanReport()" onmouseover="this.style.background='rgba(59, 130, 246, 0.3)'" onmouseout="this.style.background='rgba(59, 130, 246, 0.15)'">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 2px;">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+            <polyline points="7 10 12 15 17 10"></polyline>
+            <line x1="12" y1="15" x2="12" y2="3"></line>
+          </svg>
+          Unduh Laporan Hari Ini
+        </button>
         <div class="admin-profile" id="btnLogoutScan" style="cursor: pointer;" onclick="logoutScan()">
           <div class="admin-text">
             <div class="admin-name" style="color: #ffcccc;">Log Out</div>
