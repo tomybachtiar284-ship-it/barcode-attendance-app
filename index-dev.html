@@ -1606,39 +1606,7 @@
         <div class="card-title">Keluar Masuk Barang</div>
         <div class="toolbar" style="flex-wrap: wrap; gap: 10px;">
           <div class="left" style="display:flex; gap:10px; align-items:center;">
-            <script>
-              function forceOpenInv() {
-                try {
-                  var m = document.getElementById('invModal');
-                  if (!m) { alert('Modal tidak ditemukan!'); return; }
-                  var elId = document.getElementById('iId');
-                  if (elId) elId.value = '';
-                  var title = document.getElementById('invModalTitle');
-                  if (title) title.textContent = 'Input Barang Masuk / Keluar';
-                  
-                  // Reset fields
-                  ['iCarrier','iCompany','iItem','iDest'].forEach(id => {
-                    var el = document.getElementById(id);
-                    if(el) el.value = '';
-                  });
-                  var elOfficer = document.getElementById('iOfficer');
-                  if(elOfficer) elOfficer.value = 'Admin/Security';
-                  var t = document.getElementById('iType');
-                  if(t) t.value = 'IN';
-
-                  // Update time once
-                  var now = new Date();
-                  now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
-                  var elTime = document.getElementById('iTime');
-                  if (elTime) elTime.value = now.toISOString().slice(0, 16);
-
-                  m.showModal();
-                } catch(e) {
-                  alert("Error Buka: " + e.message);
-                }
-              }
-            </script>
-            <button id="btnOpenInv" class="btn primary" onclick="forceOpenInv()">＋ Buat Laporan</button>
+            <button id="btnOpenInv" class="btn primary" onclick="window.openInvModal()">＋ Buat Laporan</button>
             <div
               style="display:flex; align-items:center; gap:5px; margin-left:10px; padding-left:10px; border-left:1px solid #ddd;">
               <small>Periode:</small>
@@ -1693,6 +1661,7 @@
                 <th>Nama Pembawa</th>
                 <th>Perusahaan / Ekspedisi</th>
                 <th>Jenis Barang & Jumlah</th>
+                <th>Foto</th>
                 <th>Tujuan / Penerima</th>
                 <th>Petugas Sekuriti</th>
                 <th>Aksi</th>
@@ -1700,10 +1669,9 @@
             </thead>
             <tbody>
               <tr>
-                <td colspan="10" class="muted" style="text-align:center; padding: 20px;">Belum ada data log barang.</td>
+                <td colspan="11" class="muted" style="text-align:center; padding: 20px;">Belum ada data log barang.</td>
               </tr>
             </tbody>
-          </table>
           </table>
         </div>
       </div>
@@ -2184,6 +2152,7 @@
 
   <!-- MODAL: INVENTORY -->
   <dialog id="invModal" class="modal">
+    <button type="button" class="modal-close" onclick="document.getElementById('invModal').close()" aria-label="Tutup">×</button>
     <div class="modal-head">
       <h3 id="invModalTitle">Catat Barang</h3>
     </div>
@@ -2199,6 +2168,12 @@
         <label>Perusahaan / Ekspedisi <input type="text" id="iCompany" placeholder="PT... / JNE / Gojek"></label>
         <label style="grid-column:1 / -1">Jenis Barang & Jumlah <textarea id="iItem" rows="2"
             placeholder="Contoh: Laptop Dell (1 unit), Dokumen (1 bundle)"></textarea></label>
+        <label style="grid-column:1 / -1">
+          <span>Foto Barang (Maksimal 2)</span>
+          <input type="file" id="iPhotosInput" accept="image/*" multiple style="display:none" onchange="window.handleInventoryPhotosSelect(event)">
+          <button type="button" class="btn" onclick="document.getElementById('iPhotosInput').click()" style="width:auto; padding:8px 16px; margin:0 0 10px 0; display:flex; align-items:center; gap:6px;">📸 Pilih Foto</button>
+          <div id="iPhotosPreview" style="display:flex; gap:10px; flex-wrap:wrap; margin-top:8px;"></div>
+        </label>
         <label>Tujuan / Penerima <input type="text" id="iDest" placeholder="Divisi IT / Gudang"></label>
         <label>Petugas Sekuriti <input type="text" id="iOfficer"></label>
       </div>
@@ -2206,6 +2181,67 @@
     <div class="modal-actions">
       <button type="button" id="btnBackInv" class="btn ghost" onclick="document.getElementById('invModal').close()">Batal</button>
       <button type="button" id="btnSaveInv" class="btn primary" onclick="window.saveInventoryItem(event)">Simpan</button>
+    </div>
+  </dialog>
+
+  <!-- MODAL DETAIL FOTO: INVENTORY -->
+  <dialog id="invPhotoModal" class="modal" style="max-width: 500px; width: 90%;">
+    <button type="button" class="modal-close" onclick="document.getElementById('invPhotoModal').close()" aria-label="Tutup">×</button>
+    <div class="modal-head">
+      <h3>Detail Foto Barang</h3>
+    </div>
+    <div class="modal-body" style="text-align: center; display: flex; justify-content: center; align-items: center; padding: 10px 0;">
+      <img id="invPhotoLarge" src="" style="max-width: 100%; max-height: 70vh; object-fit: contain; border-radius: 8px; border: 1px solid #eee;" alt="Detail Foto Barang">
+    </div>
+    <div class="modal-actions" style="margin-top: 10px;">
+      <button type="button" class="btn primary" onclick="document.getElementById('invPhotoModal').close()" style="width: 100%;">Tutup</button>
+    </div>
+  </dialog>
+
+  <!-- MODAL DETAIL: INVENTORY -->
+  <dialog id="invDetailModal" class="modal" style="max-width: 600px; width: 90%;">
+    <button type="button" class="modal-close" onclick="document.getElementById('invDetailModal').close()" aria-label="Tutup">×</button>
+    <div class="modal-head">
+      <h3>Detail Logistik Barang</h3>
+    </div>
+    <div class="modal-body">
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px;">
+        <div>
+          <span style="font-size: 11px; text-transform: uppercase; color: var(--muted); font-weight: 600;">Status</span>
+          <div id="dInvType" style="margin-top: 4px;"></div>
+        </div>
+        <div>
+          <span style="font-size: 11px; text-transform: uppercase; color: var(--muted); font-weight: 600;">Waktu</span>
+          <div id="dInvTime" style="font-weight: 500; margin-top: 4px;"></div>
+        </div>
+        <div>
+          <span style="font-size: 11px; text-transform: uppercase; color: var(--muted); font-weight: 600;">Nama Pembawa</span>
+          <div id="dInvCarrier" style="font-weight: 500; margin-top: 4px;"></div>
+        </div>
+        <div>
+          <span style="font-size: 11px; text-transform: uppercase; color: var(--muted); font-weight: 600;">Perusahaan / Ekspedisi (Asal)</span>
+          <div id="dInvCompany" style="font-weight: 500; margin-top: 4px;"></div>
+        </div>
+        <div style="grid-column: 1 / -1;">
+          <span style="font-size: 11px; text-transform: uppercase; color: var(--muted); font-weight: 600;">Jenis Barang & Jumlah</span>
+          <div id="dInvItem" style="font-weight: 500; margin-top: 4px; white-space: pre-wrap; background: var(--surface-2); padding: 10px; border-radius: 8px; border: 1px solid var(--line);"></div>
+        </div>
+        <div>
+          <span style="font-size: 11px; text-transform: uppercase; color: var(--muted); font-weight: 600;">Tujuan / Penerima</span>
+          <div id="dInvDest" style="font-weight: 500; margin-top: 4px;"></div>
+        </div>
+        <div>
+          <span style="font-size: 11px; text-transform: uppercase; color: var(--muted); font-weight: 600;">Petugas Sekuriti</span>
+          <div id="dInvOfficer" style="font-weight: 500; margin-top: 4px; font-family: cursive; opacity: 0.8;"></div>
+        </div>
+        <div style="grid-column: 1 / -1;">
+          <span style="font-size: 11px; text-transform: uppercase; color: var(--muted); font-weight: 600; display: block; margin-bottom: 8px;">Foto Barang</span>
+          <div id="dInvPhotos" style="display: flex; gap: 12px; flex-wrap: wrap;"></div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button type="button" class="btn primary" onclick="document.getElementById('invDetailModal').close()" style="width: 100%;">Tutup</button>
     </div>
   </dialog>
   <!-- OLD NAV (Corrupt) -->

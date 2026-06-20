@@ -538,7 +538,8 @@ window.addEventListener('DOMContentLoaded', () => {
           localMap.set(x.id, {
             id: x.id, carrier: x.carrier, company: x.company, item: x.item,
             dest: x.dest, officer: x.officer, type: x.type,
-            timeIn: x.time_in, timeOut: x.time_out
+            timeIn: x.time_in, timeOut: x.time_out,
+            photos: x.photos || []
           });
         });
 
@@ -5670,6 +5671,154 @@ function fs(btnSel, targetSel) {
   // FIX: Changed let → var to avoid "Identifier already declared" SyntaxError
   // (var is re-declarable in the same scope, let is not)
   var inventoryData = getLocal('SA_INVENTORY', []);
+  var tempUploadedPhotos = [];
+
+  function compressImage(file, maxWidth = 800, maxHeight = 800, quality = 0.6) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = (e) => {
+        const img = new Image();
+        img.src = e.target.result;
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          let width = img.width;
+          let height = img.height;
+          if (width > height) {
+            if (width > maxWidth) {
+              height = Math.round((height * maxWidth) / width);
+              width = maxWidth;
+            }
+          } else {
+            if (height > maxHeight) {
+              width = Math.round((width * maxHeight) / height);
+              height = maxHeight;
+            }
+          }
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, width, height);
+          const dataUrl = canvas.toDataURL('image/jpeg', quality);
+          resolve(dataUrl);
+        };
+        img.onerror = (err) => reject(err);
+      };
+      reader.onerror = (err) => reject(err);
+    });
+  }
+
+  window.handleInventoryPhotosSelect = async function (event) {
+    const files = event.target.files;
+    if (!files || files.length === 0) return;
+
+    if (tempUploadedPhotos.length + files.length > 2) {
+      alert("Maksimal hanya diperbolehkan 2 foto.");
+      event.target.value = "";
+      return;
+    }
+
+    for (let i = 0; i < files.length; i++) {
+      try {
+        const compressed = await compressImage(files[i]);
+        tempUploadedPhotos.push(compressed);
+      } catch (err) {
+        console.error("Gagal mengompresi gambar:", err);
+        alert("Gagal memproses gambar: " + files[i].name);
+      }
+    }
+
+    renderTempPhotosPreview();
+    event.target.value = ""; // clear input
+  };
+
+  window.removeTempPhoto = function (index) {
+    tempUploadedPhotos.splice(index, 1);
+    renderTempPhotosPreview();
+  };
+
+  function renderTempPhotosPreview() {
+    const previewContainer = document.getElementById('iPhotosPreview');
+    if (!previewContainer) return;
+
+    previewContainer.innerHTML = tempUploadedPhotos.map((photo, idx) => {
+      return `
+        <div style="position:relative; width:80px; height:80px; border-radius:8px; overflow:hidden; border:1px solid #ddd;">
+          <img src="${photo}" style="width:100%; height:100%; object-fit:cover;">
+          <button type="button" onclick="window.removeTempPhoto(${idx})" style="position:absolute; top:2px; right:2px; background:rgba(239,68,68,0.8); color:white; border:none; border-radius:50%; width:18px; height:18px; display:flex; items-align:center; justify-content:center; font-size:10px; cursor:pointer; padding:0; line-height:16px;">×</button>
+        </div>
+      `;
+    }).join('');
+  }
+
+  window.showInventoryPhotoDetail = function (id, idx) {
+    const item = inventoryData.find(x => x.id === id);
+    if (!item || !item.photos || !item.photos[idx]) return;
+
+    const modal = document.getElementById('invPhotoModal');
+    const img = document.getElementById('invPhotoLarge');
+    if (!modal || !img) return;
+
+    img.src = item.photos[idx];
+    modal.showModal();
+  };
+
+  window.viewInventoryDetail = function (id) {
+    const item = inventoryData.find(x => x.id === id);
+    if (!item) return;
+
+    const modal = document.getElementById('invDetailModal');
+    if (!modal) return;
+
+    const fmt = (ts) => {
+      if (!ts) return '-';
+      return new Date(ts).toLocaleString('id-ID', { 
+        day: '2-digit', 
+        month: '2-digit', 
+        year: 'numeric', 
+        hour: '2-digit', 
+        minute: '2-digit' 
+      });
+    };
+
+    const elType = document.getElementById('dInvType');
+    const elTime = document.getElementById('dInvTime');
+    const elCarrier = document.getElementById('dInvCarrier');
+    const elCompany = document.getElementById('dInvCompany');
+    const elItem = document.getElementById('dInvItem');
+    const elDest = document.getElementById('dInvDest');
+    const elOfficer = document.getElementById('dInvOfficer');
+    const elPhotos = document.getElementById('dInvPhotos');
+
+    if (elType) {
+      if (item.type === 'IN') {
+        elType.innerHTML = '<span class="badge success" style="background:#e6fffa; color:#047857; padding:4px 10px; border-radius:12px; font-size:12px; font-weight:bold;">MASUK (IN)</span>';
+      } else {
+        elType.innerHTML = '<span class="badge danger" style="background:#fef2f2; color:#b91c1c; padding:4px 10px; border-radius:12px; font-size:12px; font-weight:bold;">KELUAR (OUT)</span>';
+      }
+    }
+
+    if (elTime) elTime.textContent = fmt(item.timeIn || item.time || item.timeOut);
+    if (elCarrier) elCarrier.textContent = item.carrier || '-';
+    if (elCompany) elCompany.textContent = item.company || '-';
+    if (elItem) elItem.textContent = item.item || '-';
+    if (elDest) elDest.textContent = item.dest || '-';
+    if (elOfficer) elOfficer.textContent = item.officer || 'Security';
+
+    if (elPhotos) {
+      if (item.photos && Array.isArray(item.photos) && item.photos.length > 0) {
+        elPhotos.innerHTML = item.photos.map((photo, idx) => `
+          <div style="position:relative; width:120px; height:120px; border-radius:8px; overflow:hidden; border:1px solid var(--line); cursor:pointer;" onclick="window.showInventoryPhotoDetail('${item.id}', ${idx})">
+            <img src="${photo}" style="width:100%; height:100%; object-fit:cover;" alt="Foto ${idx + 1}">
+          </div>
+        `).join('');
+      } else {
+        elPhotos.innerHTML = '<span class="muted" style="font-size:13px;">Tidak ada foto terlampir</span>';
+      }
+    }
+
+    modal.showModal();
+  };
 
   function getLocal(key, fallback) {
     try {
@@ -5758,8 +5907,8 @@ function fs(btnSel, targetSel) {
     const sorted = filtered.sort((a, b) => new Date(b.timeIn || b.time || 0) - new Date(a.timeIn || a.time || 0));
 
     if (sorted.length === 0) {
-      if (start || end || searchQ) tbody.innerHTML = '<tr><td colspan="10" class="muted" style="text-align:center; padding: 20px;">Data tidak ditemukan untuk filter ini.</td></tr>';
-      else tbody.innerHTML = '<tr><td colspan="10" class="muted" style="text-align:center; padding: 20px;">Belum ada data log barang.</td></tr>';
+      if (start || end || searchQ) tbody.innerHTML = '<tr><td colspan="11" class="muted" style="text-align:center; padding: 20px;">Data tidak ditemukan untuk filter ini.</td></tr>';
+      else tbody.innerHTML = '<tr><td colspan="11" class="muted" style="text-align:center; padding: 20px;">Belum ada data log barang.</td></tr>';
       return;
     }
 
@@ -5774,6 +5923,7 @@ function fs(btnSel, targetSel) {
       let timeOutStr = '-';
       let actionBtn = `
       <div style="display:flex; gap:4px; justify-content:center;">
+        <button class="btn small" onclick="viewInventoryDetail('${item.id}')" title="Lihat Detail" style="padding:2px 6px; font-size:12px; background:#3b82f6; border-color:#3b82f6; color:white;">👁️</button>
         <button class="btn small primary" onclick="checkoutInventory('${item.id}')" title="Barang Keluar" style="padding:2px 6px; font-size:12px;">📤</button>
         <button class="btn small" onclick="editInventory('${item.id}')" title="Edit Data" style="padding:2px 6px; font-size:12px; background:#f59e0b; border-color:#f59e0b; color:white;">✏️</button>
         <button class="btn small danger" onclick="deleteInventory('${item.id}')" title="Hapus Data" style="padding:2px 6px; font-size:12px;">🗑️</button>
@@ -5785,6 +5935,7 @@ function fs(btnSel, targetSel) {
         timeOutStr = dOut.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
         actionBtn = `
         <div style="display:flex; gap:4px; justify-content:center;">
+          <button class="btn small" onclick="viewInventoryDetail('${item.id}')" title="Lihat Detail" style="padding:2px 6px; font-size:12px; background:#3b82f6; border-color:#3b82f6; color:white;">👁️</button>
           <span class="badge success" style="background:#e6fffa; color:#047857; padding:2px 6px; border-radius:12px; font-size:11px; font-weight:bold;">Selesai</span>
           <button class="btn small" onclick="editInventory('${item.id}')" title="Edit Data" style="padding:2px 6px; font-size:12px; background:#f59e0b; border-color:#f59e0b; color:white;">✏️</button>
           <button class="btn small danger" onclick="deleteInventory('${item.id}')" title="Hapus Data" style="padding:2px 6px; font-size:12px;">🗑️</button>
@@ -5794,7 +5945,27 @@ function fs(btnSel, targetSel) {
       // Fallback for old data with type='OUT'
       else if (item.type === 'OUT') {
         timeOutStr = timeInStr;
-        actionBtn = `<span class="badge" style="opacity:0.6; font-size:11px;">Legacy Log</span>`;
+        actionBtn = `
+        <div style="display:flex; gap:4px; justify-content:center; align-items:center;">
+          <button class="btn small" onclick="viewInventoryDetail('${item.id}')" title="Lihat Detail" style="padding:2px 6px; font-size:12px; background:#3b82f6; border-color:#3b82f6; color:white;">👁️</button>
+          <span class="badge" style="opacity:0.6; font-size:11px;">Legacy Log</span>
+        </div>
+      `;
+      }
+
+      // Render Photo Thumbnails
+      let photosHtml = '<span class="muted">-</span>';
+      if (item.photos && Array.isArray(item.photos) && item.photos.length > 0) {
+        photosHtml = `
+          <div style="display:flex; gap:4px; justify-content:center;">
+            ${item.photos.map((photo, pIdx) => `
+              <img src="${photo}" onclick="window.showInventoryPhotoDetail('${item.id}', ${pIdx})" 
+                   style="width:32px; height:32px; object-fit:cover; border-radius:4px; cursor:pointer; border:1px solid #ddd; transition: transform 0.2s;"
+                   class="inv-thumb-hover"
+                   alt="Foto ${pIdx + 1}">
+            `).join('')}
+          </div>
+        `;
       }
 
       return `
@@ -5806,6 +5977,7 @@ function fs(btnSel, targetSel) {
             <td data-label="Pembawa">${item.carrier || '-'}</td>
             <td data-label="Perusahaan">${item.company || '-'}</td>
             <td data-label="Barang">${item.item || '-'}</td>
+            <td data-label="Foto">${photosHtml}</td>
             <td data-label="Tujuan">${item.dest || '-'}</td>
             <td data-label="Petugas" style="font-family:cursive; opacity:0.7">${item.officer || 'Security'}</td>
             <td data-label="Aksi" style="text-align:center">${actionBtn}</td>
@@ -5820,7 +5992,7 @@ function fs(btnSel, targetSel) {
     if (!item) return;
 
     // Open Modal
-    openInvModal();
+    window.openInvModal();
 
     // Populate Fields
     const elId = document.getElementById('iId');
@@ -5845,6 +6017,10 @@ function fs(btnSel, targetSel) {
     if (elItem) elItem.value = item.item || '';
     if (elDest) elDest.value = item.dest || '';
     if (elOfficer) elOfficer.value = item.officer || '';
+
+    // Restore photos
+    tempUploadedPhotos = [...(item.photos || [])];
+    renderTempPhotosPreview();
 
     // Update Title
     const title = document.getElementById('invModalTitle');
@@ -6140,7 +6316,8 @@ function fs(btnSel, targetSel) {
           const { error } = await window.sb.from('inventory').upsert({
             id: item.id, carrier: item.carrier, company: item.company,
             item: item.item, dest: item.dest, officer: item.officer, type: item.type,
-            time_in: tIn, time_out: tOut
+            time_in: tIn, time_out: tOut,
+            photos: item.photos || []
           }, { onConflict: 'id' });
 
           if (!error) success++;
@@ -6156,7 +6333,8 @@ function fs(btnSel, targetSel) {
             if (x.item === 'CONNECTION_TEST') return; // Skip test item if stuck
             localMap.set(x.id, {
               id: x.id, carrier: x.carrier, company: x.company, item: x.item,
-              dest: x.dest, officer: x.officer, type: x.type, timeIn: x.time_in, timeOut: x.time_out
+              dest: x.dest, officer: x.officer, type: x.type, timeIn: x.time_in, timeOut: x.time_out,
+              photos: x.photos || []
             });
           });
           inventoryData = Array.from(localMap.values()).sort((a, b) => new Date(b.timeIn || 0) - new Date(a.timeIn || 0));
@@ -6275,6 +6453,13 @@ function fs(btnSel, targetSel) {
         if (elDest) elDest.value = '';
         if (elOfficer) elOfficer.value = 'Admin/Security'; // Default but editable
 
+        // Reset photos
+        tempUploadedPhotos = [];
+        const previewContainer = document.getElementById('iPhotosPreview');
+        if (previewContainer) previewContainer.innerHTML = '';
+        const fileInput = document.getElementById('iPhotosInput');
+        if (fileInput) fileInput.value = '';
+
         // Reset Dropdown to IN
         const t = document.getElementById('iType');
         if (t) t.value = 'IN';
@@ -6327,6 +6512,7 @@ function fs(btnSel, targetSel) {
             rec.dest = dest;
             rec.officer = officer;
             rec.type = type;
+            rec.photos = tempUploadedPhotos; // Save photos
 
             // Update Time logic
             if (type === 'IN') {
@@ -6342,7 +6528,8 @@ function fs(btnSel, targetSel) {
         else {
           rec = {
             id: Date.now().toString(36),
-            carrier, company, item, dest, officer, type
+            carrier, company, item, dest, officer, type,
+            photos: tempUploadedPhotos // Save photos
           };
           if (type === 'IN') {
             rec.timeIn = timeVal;
