@@ -905,10 +905,10 @@ dialog::backdrop {
    GEN 2 MOBILE UI REDESIGN
    ========================= */
 :root {
-  --mob-grad-1: #2563eb;
-  /* Royal Blue */
-  --mob-grad-2: #06b6d4;
-  /* Cyan */
+  --mob-grad-1: #008dbf;
+  /* Corporate Blue */
+  --mob-grad-2: #00a2b9;
+  /* Corporate Teal */
   --mob-bg-body: #f8fafc;
 }
 

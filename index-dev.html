@@ -21,35 +21,27 @@
   <!-- Premium Web Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link
-    href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Outfit:wght@400;600;700;800&display=swap"
-    rel="stylesheet">
-
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet">
+  
   <link rel="stylesheet" href="styles.css?v=muster_print_v2" />
-
+  
   <!-- Swiper JS & CSS -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.css" />
   <script src="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.js"></script>
   <style>
     /* Fullscreen Slider Adjustments */
     .mob-dash-swiper {
-      height: calc(100vh - 100px);
-      /* 1 layar penuh dikurangi tinggi header HP */
+      height: calc(100vh - 100px); /* 1 layar penuh dikurangi tinggi header HP */
     }
-
     .desk-dash-swiper {
-      height: calc(100vh - 140px);
-      /* 1 layar penuh dikurangi tinggi header Desktop */
+      height: calc(100vh - 140px); /* 1 layar penuh dikurangi tinggi header Desktop */
     }
-
     .swiper-slide {
       height: 100%;
-      overflow-y: auto;
-      /* Memungkinkan scroll internal jika isi lebih panjang dari layar */
+      overflow-y: auto; /* Memungkinkan scroll internal jika isi lebih panjang dari layar */
       overflow-x: hidden;
       padding-bottom: 20px;
     }
-
     /* Perluasan Dash Trio untuk mengisi ruang kosong */
     /* Perluasan Dash Trio untuk mengisi ruang kosong */
     .desk-dash-swiper .swiper-slide {
@@ -58,10 +50,8 @@
       height: 100% !important;
       box-sizing: border-box !important;
     }
-
     .desk-dash-swiper .dash-trio {
-      height: 100% !important;
-      /* Mengisi seluruh tinggi layar */
+      height: 100% !important; /* Mengisi seluruh tinggi layar */
       flex: 1 !important;
       display: grid !important;
       /* Kolom 1 (Kalender): 1 bagian, Kolom 2 (Info): 1 bagian, Kolom 3 (Edu+Aktivitas): 2 bagian (lebih lebar) */
@@ -70,7 +60,6 @@
       min-height: 0 !important;
       align-items: stretch !important;
     }
-
     .desk-dash-swiper .dash-trio .card {
       display: flex !important;
       flex-direction: column !important;
@@ -78,16 +67,13 @@
       margin: 0 !important;
       min-height: 0 !important;
     }
-
     .desk-dash-swiper .dash-trio .recent-flex {
       flex: 1;
       display: flex;
-      flex-direction: row;
-      /* Kembali ke side-by-side */
+      flex-direction: row; /* Kembali ke side-by-side */
       gap: 16px;
       min-height: 0;
     }
-
     .desk-dash-swiper .dash-trio .recent-edu,
     .desk-dash-swiper .dash-trio .recent-table {
       flex: 1;
@@ -95,7 +81,6 @@
       flex-direction: column;
       min-height: 0;
     }
-
     /* Buat list di dalamnya bisa di-scroll internal */
     .desk-dash-swiper .dash-trio .news-grid,
     .desk-dash-swiper .dash-trio .edu-list,
@@ -105,7 +90,6 @@
       overflow-y: auto;
       min-height: 0;
     }
-
     .desk-dash-swiper .dash-trio .table-wrap {
       margin-top: 8px;
     }
@@ -117,25 +101,19 @@
       width: 4px;
       height: 4px;
     }
-
     .table-wrap::-webkit-scrollbar {
       width: 8px;
-      height: 10px;
-      /* Lebih tebal untuk scroll horizontal agar mudah digeser */
+      height: 10px; /* Lebih tebal untuk scroll horizontal agar mudah digeser */
     }
-
     .swiper-slide::-webkit-scrollbar-thumb,
     .news-grid::-webkit-scrollbar-thumb,
     .edu-list::-webkit-scrollbar-thumb,
     .table-wrap::-webkit-scrollbar-thumb {
-      background: rgba(100, 116, 139, 0.45);
-      /* Sedikit lebih kontras agar terlihat */
+      background: rgba(100, 116, 139, 0.45); /* Sedikit lebih kontras agar terlihat */
       border-radius: 4px;
     }
-
     .table-wrap::-webkit-scrollbar-thumb:hover {
-      background: rgba(100, 116, 139, 0.7);
-      /* Lebih gelap saat kursor diarahkan agar interaktif */
+      background: rgba(100, 116, 139, 0.7); /* Lebih gelap saat kursor diarahkan agar interaktif */
     }
   </style>
 
@@ -181,8 +159,8 @@
   <!-- Helper style kecil (tidak bentrok) -->
 
   <script>
-    if (localStorage.getItem('sidebar_minimized') === 'true') {
-      document.documentElement.classList.add('sidebar-mini');
+    if(localStorage.getItem('sidebar_minimized') === 'true') {
+        document.documentElement.classList.add('sidebar-mini');
     }
   </script>
 </head>
@@ -203,11 +181,8 @@
 
   <!-- SIDEBAR -->
   <aside class="sidebar">
-    <button id="btnMinimizeSidebar" class="sidebar-toggle-btn" title="Toggle Sidebar">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-        stroke-linejoin="round">
-        <polyline points="15 18 9 12 15 6"></polyline>
-      </svg>
+  <button id="btnMinimizeSidebar" class="sidebar-toggle-btn" title="Toggle Sidebar">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
     </button>
     <div class="brand">
       <img src="assets/AMAN-S-Logo.jpg" alt="AMAN-S Logo" style="height: 44px; width: auto; border-radius: 8px;">
@@ -230,8 +205,7 @@
 
     <nav class="nav">
       <button class="navlink active" data-route="dashboard">📊 <span data-i18n="nav_dashboard">Dasbor</span></button>
-      <button class="navlink" onclick="window.location.href='scan.html'">🔎 <span data-i18n="nav_scan">Scan
-          Barcode</span></button>
+      <button class="navlink" onclick="window.location.href='scan.html'">🔎 <span data-i18n="nav_scan">Scan Barcode</span></button>
       <button class="navlink" data-route="employees">👥 <span data-i18n="nav_employees">Database
           Karyawan</span></button>
       <button class="navlink" data-route="shifts">🕘 <span data-i18n="nav_shifts">Shift Setting</span></button>
@@ -245,6 +219,9 @@
           Izin</span></button>
       <button class="navlink" data-route="emergency" onclick="renderMusterList()"
         style="color:var(--danger); font-weight:700;">🚨 <span>Emergency Muster</span></button>
+
+      <button class="navlink" data-route="grafana-dashboard">📊 <span>Grafana Dashboard</span></button>
+      <button class="navlink" data-route="n8n-agent">🤖 <span>AI Agent n8n</span></button>
 
       <hr style="border:0; border-top:1px solid var(--line); margin:8px 0;">
 
@@ -263,7 +240,7 @@
 
       <!-- MOBILE DASHBOARD (Visible ONLY on Mobile) -->
       <div class="mob-dash-container mob-modern-wrapper mobile-only">
-
+        
         <!-- Toast Container for Realtime Notifications -->
         <div id="mobToastContainer"></div>
 
@@ -288,16 +265,16 @@
             <p id="mobGreetingText" style="opacity:0.8; font-size:0.85rem; margin-bottom:4px;">Selamat Siang,</p>
             <h1><span id="mobUserGreetName">Tomy</span> 👋</h1>
             <script>
-              (function () {
+              (function(){
                 function updateGreeting() {
                   var hr = new Date().getHours();
                   var text = "Selamat Malam,";
                   if (hr >= 4 && hr < 11) text = "Selamat Pagi,";
                   else if (hr >= 11 && hr < 15) text = "Selamat Siang,";
                   else if (hr >= 15 && hr < 18) text = "Selamat Sore,";
-
+                  
                   var el = document.getElementById("mobGreetingText");
-                  if (el) el.textContent = text;
+                  if(el) el.textContent = text;
                 }
                 updateGreeting();
                 setInterval(updateGreeting, 60000); // Check every minute
@@ -486,181 +463,175 @@
         </script>
 
         <!-- DESKTOP SWIPER -->
-        <div class="swiper desk-dash-swiper"
-          style="width: 100%; padding-bottom: 50px; --swiper-pagination-color: var(--primary-600); --swiper-pagination-bullet-inactive-color: #94a3b8; --swiper-pagination-bullet-inactive-opacity: 0.5;">
+        <div class="swiper desk-dash-swiper" style="width: 100%; padding-bottom: 50px; --swiper-pagination-color: var(--primary-600); --swiper-pagination-bullet-inactive-color: #94a3b8; --swiper-pagination-bullet-inactive-opacity: 0.5;">
           <div class="swiper-wrapper">
 
             <!-- SLIDE 1: Stats & Active Shifts -->
             <div class="swiper-slide" style="display:flex; flex-direction:column; align-content: flex-start;">
-              <!-- Kartu statistik -->
-              <!-- Kartu statistik (V2 Solid Color) -->
-              <div class="grid-4">
-                <!-- Blue: Total Karyawan -->
-                <div class="card-solid stat-blue" data-hover-card="interactive"
-                  data-tooltip="Total semua karyawan yang terdaftar dalam database."
-                  onclick="$('.navlink[data-route=\'employees\']').click()">
-                  <div class="pills">
-                    <span class="pill" data-i18n="pill_today">Today</span>
-                    <span class="pill" data-i18n="pill_active">Active</span>
-                  </div>
-                  <div class="lbl" data-i18n="stat_total_emp">Total Karyawan</div>
-                  <div class="val" id="statTotalEmp">0</div>
-                </div>
+        <!-- Kartu statistik -->
+        <!-- Kartu statistik (V2 Solid Color) -->
+        <div class="grid-4">
+          <!-- Blue: Total Karyawan -->
+          <div class="card-solid stat-blue" data-hover-card="interactive"
+            data-tooltip="Total semua karyawan yang terdaftar dalam database."
+            onclick="$('.navlink[data-route=\'employees\']').click()">
+            <div class="pills">
+              <span class="pill" data-i18n="pill_today">Today</span>
+              <span class="pill" data-i18n="pill_active">Active</span>
+            </div>
+            <div class="lbl" data-i18n="stat_total_emp">Total Karyawan</div>
+            <div class="val" id="statTotalEmp">0</div>
+          </div>
 
-                <!-- Orange: Active On-Site (Revised) -->
-                <div class="card-solid stat-orange" data-hover-card="interactive"
-                  data-tooltip="Estimasi jumlah karyawan yang saat ini berada di lokasi (Masuk - Pulang)."
-                  onclick="showStatDetail('active_site')">
-                  <div class="pills">
-                    <span class="pill" data-i18n="pill_live">Live</span>
-                  </div>
-                  <div class="lbl">Active On-Site</div>
-                  <div class="val" id="statScan24h">0</div>
-                </div>
+          <!-- Orange: Active On-Site (Revised) -->
+          <div class="card-solid stat-orange" data-hover-card="interactive"
+            data-tooltip="Estimasi jumlah karyawan yang saat ini berada di lokasi (Masuk - Pulang)."
+            onclick="showStatDetail('active_site')">
+            <div class="pills">
+              <span class="pill" data-i18n="pill_live">Live</span>
+            </div>
+            <div class="lbl">Active On-Site</div>
+            <div class="val" id="statScan24h">0</div>
+          </div>
 
-                <!-- Cyan: On-time -->
-                <div class="card-solid stat-cyan" data-hover-card="interactive"
-                  data-tooltip="Karyawan yang melakukan scan MASUK tepat waktu hari ini."
-                  onclick="showStatDetail('ontime')">
-                  <div class="pills">
-                    <span class="pill">Daily</span>
-                  </div>
-                  <div class="lbl" data-i18n="stat_ontime">On-time</div>
-                  <div class="val" id="statOnTime">0</div>
-                </div>
+          <!-- Cyan: On-time -->
+          <div class="card-solid stat-cyan" data-hover-card="interactive"
+            data-tooltip="Karyawan yang melakukan scan MASUK tepat waktu hari ini." onclick="showStatDetail('ontime')">
+            <div class="pills">
+              <span class="pill">Daily</span>
+            </div>
+            <div class="lbl" data-i18n="stat_ontime">On-time</div>
+            <div class="val" id="statOnTime">0</div>
+          </div>
 
-                <!-- Green: Terlambat -->
-                <div class="card-solid stat-green" data-hover-card="interactive"
-                  data-tooltip="Karyawan yang terlambat melakukan scan MASUK hari ini."
-                  onclick="showStatDetail('late')">
-                  <div class="pills">
-                    <span class="pill">Alert</span>
-                  </div>
-                  <div class="lbl" data-i18n="stat_late">Terlambat</div>
-                  <div class="val" id="statLate">0</div>
-                </div>
-              </div>
+          <!-- Green: Terlambat -->
+          <div class="card-solid stat-green" data-hover-card="interactive"
+            data-tooltip="Karyawan yang terlambat melakukan scan MASUK hari ini." onclick="showStatDetail('late')">
+            <div class="pills">
+              <span class="pill">Alert</span>
+            </div>
+            <div class="lbl" data-i18n="stat_late">Terlambat</div>
+            <div class="val" id="statLate">0</div>
+          </div>
+        </div>
 
-              <!-- Hide Old Stats (Backup) -->
-              <div class="grid-3 hidden">
-                <div class="card stat">
-                  <div class="stat-sub"><span id="statShiftBreakdown">—</span></div>
-                </div>
-                <div class="card stat">
-                  <div class="stat-sub"><span data-i18n="stat_in">Datang</span>: <b id="statIn24h">0</b> • <span
-                      data-i18n="stat_out">Pulang</span>: <b id="statOut24h">0</b></div>
-                </div>
-              </div>
+        <!-- Hide Old Stats (Backup) -->
+        <div class="grid-3 hidden">
+          <div class="card stat">
+            <div class="stat-sub"><span id="statShiftBreakdown">—</span></div>
+          </div>
+          <div class="card stat">
+            <div class="stat-sub"><span data-i18n="stat_in">Datang</span>: <b id="statIn24h">0</b> • <span
+                data-i18n="stat_out">Pulang</span>: <b id="statOut24h">0</b></div>
+          </div>
+        </div>
 
-              <!-- Active Shift, Chart, & Overtime Row -->
-              <div style="display:flex; gap:16px; margin-bottom:20px; align-items:stretch;">
+        <!-- Active Shift, Chart, & Overtime Row -->
+        <div style="display:flex; gap:16px; margin-bottom:20px; align-items:stretch;">
 
-                <!-- Active Shift Panel -->
-                <div class="card" style="flex:1; border-left:4px solid var(--primary-500); max-width: 450px;">
-                  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px">
-                    <h3 style="margin:0; font-size:1.1rem">🕒 Shift Yang Sedang Bertugas</h3>
-                  </div>
-                  <div id="activeShiftsContainer" style="display:flex; flex-wrap:wrap; gap:8px;">
-                    <!-- Shift content rendered by JS -->
-                  </div>
-                </div>
+          <!-- Active Shift Panel -->
+          <div class="card" style="flex:1; border-left:4px solid var(--primary-500); max-width: 450px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px">
+              <h3 style="margin:0; font-size:1.1rem">🕒 Shift Yang Sedang Bertugas</h3>
+            </div>
+            <div id="activeShiftsContainer" style="display:flex; flex-wrap:wrap; gap:8px;">
+              <!-- Shift content rendered by JS -->
+            </div>
+          </div>
 
-                <!-- NEW: Top 10 Late Dashboard Chart -->
-                <div class="card"
-                  style="flex:1.5; border-left:4px solid #dc2626; display:flex; flex-direction:column; padding:12px 16px;">
-                  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px">
-                    <h3 style="margin:0; font-size:1.1rem; color:#dc2626;">📈 Top 10 Karyawan Sering Terlambat (Bulan
-                      Ini)</h3>
-                  </div>
-                  <div style="position:relative; flex:1; width:100%; min-height:180px;">
-                    <canvas id="chartDashTopLate"></canvas>
-                  </div>
-                </div>
+          <!-- NEW: Top 10 Late Dashboard Chart -->
+          <div class="card" style="flex:1.5; border-left:4px solid #dc2626; display:flex; flex-direction:column; padding:12px 16px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px">
+              <h3 style="margin:0; font-size:1.1rem; color:#dc2626;">📈 Top 10 Karyawan Sering Terlambat (Bulan Ini)</h3>
+            </div>
+            <div style="position:relative; flex:1; width:100%; min-height:180px;">
+              <canvas id="chartDashTopLate"></canvas>
+            </div>
+          </div>
 
-                <!-- Overtime Panel (Dashboard) -->
-                <div id="overtimePanelDash_Fixed" class="card" onclick="showOvertimeList()"
-                  title="Klik untuk melihat detail"
-                  style="display:none; width: auto; min-width: 200px; border-left:4px solid var(--danger); background: var(--surface-solid); cursor:pointer; align-items:center; justify-content:space-between; gap:16px;">
+          <!-- Overtime Panel (Dashboard) -->
+          <div id="overtimePanelDash_Fixed" class="card" onclick="showOvertimeList()" title="Klik untuk melihat detail"
+            style="display:none; width: auto; min-width: 200px; border-left:4px solid var(--danger); background: var(--surface-solid); cursor:pointer; align-items:center; justify-content:space-between; gap:16px;">
+            <div>
+              <h3 style="margin:0; font-size:1.1rem; color:var(--danger)">Overtime</h3>
+              <div class="muted" style="font-size:0.85rem">Melewati jam pulang</div>
+            </div>
+            <div id="overtimeCountDash_Fixed" style="font-size:2rem; font-weight:800; color:var(--danger)">0</div>
+          </div>
+
+        </div>
+
+        <!-- ===== DASH TRIO (Digabung ke Slide 1) ===== -->
+        <div class="dash-trio">
+          <div class="card" id="monthCalendarCard" data-hover-card>
+            <div class="card-title" data-i18n="card_monthly_calendar">Kalender Bulan Ini</div>
+            <div id="monthCalendar"></div>
+          </div>
+
+          <div class="card" id="newsCardDash">
+            <div class="card-title" data-i18n="card_latest_info">Informasi Terbaru⚠️📢</div>
+            <div class="news-grid" id="newsGridDash"></div>
+          </div>
+
+          <!-- GABUNG: Aktivitas Terbaru + Education (fleksibel) -->
+          <div class="card" id="recentCard" data-has-edu="0">
+            <div class="recent-flex">
+              <!-- Education (Highlights) -->
+              <aside class="recent-edu" id="recentEduPane">
+                <div class="subhead">Education (Highlights)</div>
+                <div id="eduListRecent" class="edu-list compact"></div>
+              </aside>
+
+              <!-- Tabel Aktivitas -->
+              <div class="recent-table">
+                <div class="subhead" style="display:flex; justify-content:space-between; align-items:center;">
                   <div>
-                    <h3 style="margin:0; font-size:1.1rem; color:var(--danger)">Overtime</h3>
-                    <div class="muted" style="font-size:0.85rem">Melewati jam pulang</div>
+                    <span data-i18n="card_recent_activity">Aktivitas Terbaru</span>
+                    <small id="recentCount" class="muted">(3 terakhir hari ini)</small>
                   </div>
-                  <div id="overtimeCountDash_Fixed" style="font-size:2rem; font-weight:800; color:var(--danger)">0</div>
+                  <button onclick="exportExcel()" class="btn-export"
+                    style="background:var(--success); color:white; border:none; padding:6px 12px; border-radius:12px; cursor:pointer; font-size:0.85rem; font-weight: 600; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2); transition: transform 0.2s;">
+                    📊 Export Excel
+                  </button>
                 </div>
-
+                <div class="table-wrap">
+                  <table class="table" id="tableRecent">
+                    <thead>
+                      <tr>
+                        <th data-i18n="table_time">Waktu</th>
+                        <th data-i18n="table_status">Status</th>
+                        <th data-i18n="table_nid">NID</th>
+                        <th data-i18n="table_name">Nama</th>
+                        <th data-i18n="table_shift">Shift</th>
+                      </tr>
+                    </thead>
+                    <tbody></tbody>
+                  </table>
+                </div>
               </div>
-
-              <!-- ===== DASH TRIO (Digabung ke Slide 1) ===== -->
-              <div class="dash-trio">
-                <div class="card" id="monthCalendarCard" data-hover-card>
-                  <div class="card-title" data-i18n="card_monthly_calendar">Kalender Bulan Ini</div>
-                  <div id="monthCalendar"></div>
-                </div>
-
-                <div class="card" id="newsCardDash">
-                  <div class="card-title" data-i18n="card_latest_info">Informasi Terbaru⚠️📢</div>
-                  <div class="news-grid" id="newsGridDash"></div>
-                </div>
-
-                <!-- GABUNG: Aktivitas Terbaru + Education (fleksibel) -->
-                <div class="card" id="recentCard" data-has-edu="0">
-                  <div class="recent-flex">
-                    <!-- Education (Highlights) -->
-                    <aside class="recent-edu" id="recentEduPane">
-                      <div class="subhead">Education (Highlights)</div>
-                      <div id="eduListRecent" class="edu-list compact"></div>
-                    </aside>
-
-                    <!-- Tabel Aktivitas -->
-                    <div class="recent-table">
-                      <div class="subhead" style="display:flex; justify-content:space-between; align-items:center;">
-                        <div>
-                          <span data-i18n="card_recent_activity">Aktivitas Terbaru</span>
-                          <small id="recentCount" class="muted">(3 terakhir hari ini)</small>
-                        </div>
-                        <button onclick="exportExcel()" class="btn-export"
-                          style="background:var(--success); color:white; border:none; padding:6px 12px; border-radius:12px; cursor:pointer; font-size:0.85rem; font-weight: 600; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2); transition: transform 0.2s;">
-                          📊 Export Excel
-                        </button>
-                      </div>
-                      <div class="table-wrap">
-                        <table class="table" id="tableRecent">
-                          <thead>
-                            <tr>
-                              <th data-i18n="table_time">Waktu</th>
-                              <th data-i18n="table_status">Status</th>
-                              <th data-i18n="table_nid">NID</th>
-                              <th data-i18n="table_name">Nama</th>
-                              <th data-i18n="table_shift">Shift</th>
-                            </tr>
-                          </thead>
-                          <tbody></tbody>
-                        </table>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                <!-- /GABUNG -->
-              </div>
+            </div>
+          </div>
+          <!-- /GABUNG -->
+        </div>
 
             </div><!-- /SLIDE 1 -->
 
             <!-- SLIDE 2: Company Presence -->
             <div class="swiper-slide" style="display:flex; flex-direction:column; align-content: flex-start;">
-              <!-- Company Presence -->
-              <div class="card" id="companyPresenceCard">
-                <div class="card-title" data-i18n="company_attendance_title">Company Attendance (today)</div>
-                <div class="live-row" style="margin:2px 0 10px">
-                  <b data-i18n="company_live_stats">STATISTIK KEHADIRAN LANGSUNG</b>
-                  <span class="muted" id="companyLiveTime">--:--:--</span>
-                </div>
-                <div id="companyPresenceGrid" class="company-grid"></div>
-              </div>
+        <!-- Company Presence -->
+        <div class="card" id="companyPresenceCard">
+          <div class="card-title" data-i18n="company_attendance_title">Company Attendance (today)</div>
+          <div class="live-row" style="margin:2px 0 10px">
+            <b data-i18n="company_live_stats">STATISTIK KEHADIRAN LANGSUNG</b>
+            <span class="muted" id="companyLiveTime">--:--:--</span>
+          </div>
+          <div id="companyPresenceGrid" class="company-grid"></div>
+        </div>
 
             </div><!-- /SLIDE 2 -->
-
+            
           </div><!-- /swiper-wrapper -->
-
+          
           <!-- Pagination & Navigation Desktop -->
           <div class="swiper-pagination"></div>
           <div class="swiper-button-prev" style="color: var(--primary-600); left: 0px;"></div>
@@ -669,7 +640,7 @@
 
         <!-- Inisialisasi Swiper Dashboard Desktop -->
         <script>
-          document.addEventListener('DOMContentLoaded', function () {
+          document.addEventListener('DOMContentLoaded', function() {
             if (typeof Swiper !== 'undefined') {
               new Swiper('.desk-dash-swiper', {
                 slidesPerView: 1,
@@ -704,20 +675,16 @@
       <div class="header-modern" style="margin-bottom:20px;">
         <div class="header-content" style="margin:0;">
           <h1 class="header-title" style="text-align:left;">Laporan & Analisis Kedisiplinan</h1>
-          <div class="header-subtitle" style="text-align:left;">Ringkasan metrik utama kehadiran dan kinerja karyawan.
-          </div>
+          <div class="header-subtitle" style="text-align:left;">Ringkasan metrik utama kehadiran dan kinerja karyawan.</div>
         </div>
       </div>
 
       <!-- Sub-Tab Navigation for Reports -->
-      <div class="report-tabs"
-        style="display:flex; gap:16px; margin-bottom:20px; border-bottom:1px solid var(--line); padding-bottom:4px;">
-        <button class="report-tab-btn active" onclick="window.switchReportTab('general')"
-          style="background:none; border:none; padding:8px 16px; font-weight:600; font-size:0.95rem; cursor:pointer; color:var(--primary); border-bottom:3px solid var(--primary); transition:all 0.2s;">
+      <div class="report-tabs" style="display:flex; gap:16px; margin-bottom:20px; border-bottom:1px solid var(--line); padding-bottom:4px;">
+        <button class="report-tab-btn active" onclick="window.switchReportTab('general')" style="background:none; border:none; padding:8px 16px; font-weight:600; font-size:0.95rem; cursor:pointer; color:var(--primary); border-bottom:3px solid var(--primary); transition:all 0.2s;">
           📊 Ringkasan Umum
         </button>
-        <button class="report-tab-btn" onclick="window.switchReportTab('individual')"
-          style="background:none; border:none; padding:8px 16px; font-weight:600; font-size:0.95rem; cursor:pointer; color:var(--muted); border-bottom:3px solid transparent; transition:all 0.2s;">
+        <button class="report-tab-btn" onclick="window.switchReportTab('individual')" style="background:none; border:none; padding:8px 16px; font-weight:600; font-size:0.95rem; cursor:pointer; color:var(--muted); border-bottom:3px solid transparent; transition:all 0.2s;">
           👤 Performa Individu
         </button>
       </div>
@@ -833,8 +800,7 @@
             <div style="display:flex; align-items:center; gap:8px; position:relative; flex-grow:1; max-width:400px;">
               <label style="font-weight:600; font-size:0.9rem; white-space:nowrap;">Karyawan:</label>
               <div style="position:relative; width:100%;">
-                <input type="text" id="indivSearchInput" class="input small" placeholder="Ketik nama atau NID..."
-                  style="width:100%;" autocomplete="off">
+                <input type="text" id="indivSearchInput" class="input small" placeholder="Ketik nama atau NID..." style="width:100%;" autocomplete="off">
                 <div id="indivAutocompleteList" class="autocomplete-dropdown" style="display:none;"></div>
               </div>
             </div>
@@ -900,15 +866,13 @@
 
           <!-- Calendar Grid Box -->
           <div class="card" style="padding: 20px;">
-            <div class="card-title"
-              style="margin-bottom:15px; display:flex; justify-content:space-between; align-items:center;">
+            <div class="card-title" style="margin-bottom:15px; display:flex; justify-content:space-between; align-items:center;">
               <span>Kalender Riwayat Kehadiran</span>
               <span id="indivCalendarTitle" style="font-size:0.9rem; font-weight:normal; color:var(--muted);"></span>
             </div>
 
             <!-- Calendar Days Header -->
-            <div class="calendar-days-header"
-              style="display:grid; grid-template-columns:repeat(7, 1fr); text-align:center; font-weight:bold; font-size:0.85rem; color:var(--muted); margin-bottom:10px; border-bottom:1px solid var(--line); padding-bottom:5px;">
+            <div class="calendar-days-header" style="display:grid; grid-template-columns:repeat(7, 1fr); text-align:center; font-weight:bold; font-size:0.85rem; color:var(--muted); margin-bottom:10px; border-bottom:1px solid var(--line); padding-bottom:5px;">
               <div>Sen</div>
               <div>Sel</div>
               <div>Rab</div>
@@ -922,20 +886,11 @@
             <div id="indivCalendarGrid" class="calendar-grid"></div>
 
             <!-- Calendar Legend -->
-            <div
-              style="display:flex; flex-wrap:wrap; gap:12px; font-size:0.8rem; margin-top:20px; padding-top:10px; border-top:1px solid var(--line);">
-              <div style="display:flex; align-items:center; gap:5px;"><span
-                  style="width:12px; height:12px; background:#def7ec; border-radius:3px; display:inline-block; border:1px solid #c6f6d5;"></span>
-                Tepat Waktu</div>
-              <div style="display:flex; align-items:center; gap:5px;"><span
-                  style="width:12px; height:12px; background:#fef08a; border-radius:3px; display:inline-block; border:1px solid #fef08a;"></span>
-                Terlambat</div>
-              <div style="display:flex; align-items:center; gap:5px;"><span
-                  style="width:12px; height:12px; background:#fee2e2; border-radius:3px; display:inline-block; border:1px solid #fca5a5;"></span>
-                Alpha / Mangkir</div>
-              <div style="display:flex; align-items:center; gap:5px;"><span
-                  style="width:12px; height:12px; background:#e0f2fe; border-radius:3px; display:inline-block; border:1px solid #bae6fd;"></span>
-                Libur (OFF)</div>
+            <div style="display:flex; flex-wrap:wrap; gap:12px; font-size:0.8rem; margin-top:20px; padding-top:10px; border-top:1px solid var(--line);">
+              <div style="display:flex; align-items:center; gap:5px;"><span style="width:12px; height:12px; background:#def7ec; border-radius:3px; display:inline-block; border:1px solid #c6f6d5;"></span> Tepat Waktu</div>
+              <div style="display:flex; align-items:center; gap:5px;"><span style="width:12px; height:12px; background:#fef08a; border-radius:3px; display:inline-block; border:1px solid #fef08a;"></span> Terlambat</div>
+              <div style="display:flex; align-items:center; gap:5px;"><span style="width:12px; height:12px; background:#fee2e2; border-radius:3px; display:inline-block; border:1px solid #fca5a5;"></span> Alpha / Mangkir</div>
+              <div style="display:flex; align-items:center; gap:5px;"><span style="width:12px; height:12px; background:#e0f2fe; border-radius:3px; display:inline-block; border:1px solid #bae6fd;"></span> Libur (OFF)</div>
               <div style="display:flex; align-items:center; gap:5px;">⚡ Lembur (Overtime)</div>
             </div>
           </div>
@@ -946,8 +901,7 @@
             <!-- Chart 1: Donut Chart Komposisi Kehadiran -->
             <div class="card">
               <div class="card-title">Komposisi Kehadiran</div>
-              <div
-                style="position:relative; height:240px; width:100%; display:flex; justify-content:center; align-items:center;">
+              <div style="position:relative; height:240px; width:100%; display:flex; justify-content:center; align-items:center;">
                 <canvas id="chartIndivComposition"></canvas>
               </div>
             </div>
@@ -1517,8 +1471,7 @@
             </colgroup>
             <thead>
               <tr>
-                <th style="width: 40px; min-width: 40px; max-width: 40px; text-align: center; padding: 4px;"><input
-                    type="checkbox" id="cbSelectAllAtt"></th>
+                <th style="width: 40px; min-width: 40px; max-width: 40px; text-align: center; padding: 4px;"><input type="checkbox" id="cbSelectAllAtt"></th>
                 <th style="padding-left:8px">WAKTU</th>
                 <th>STATUS</th>
                 <th>NID</th>
@@ -1657,16 +1610,16 @@
                   if (elId) elId.value = '';
                   var title = document.getElementById('invModalTitle');
                   if (title) title.textContent = 'Input Barang Masuk / Keluar';
-
+                  
                   // Reset fields
-                  ['iCarrier', 'iCompany', 'iItem', 'iDest'].forEach(id => {
+                  ['iCarrier','iCompany','iItem','iDest'].forEach(id => {
                     var el = document.getElementById(id);
-                    if (el) el.value = '';
+                    if(el) el.value = '';
                   });
                   var elOfficer = document.getElementById('iOfficer');
-                  if (elOfficer) elOfficer.value = 'Admin/Security';
+                  if(elOfficer) elOfficer.value = 'Admin/Security';
                   var t = document.getElementById('iType');
-                  if (t) t.value = 'IN';
+                  if(t) t.value = 'IN';
 
                   // Update time once
                   var now = new Date();
@@ -1675,7 +1628,7 @@
                   if (elTime) elTime.value = now.toISOString().slice(0, 16);
 
                   m.showModal();
-                } catch (e) {
+                } catch(e) {
                   alert("Error Buka: " + e.message);
                 }
               }
@@ -1826,8 +1779,7 @@
           <h3 id="musterDate" style="margin:0; color:#333;">-</h3>
         </div>
         <div class="right">
-          <button onclick="toast('Memperbarui data...'); window.pullAll()" class="btn" style="border:1px solid #ccc;">🔄
-            Refresh</button>
+          <button onclick="toast('Memperbarui data...'); window.pullAll()" class="btn" style="border:1px solid #ccc;">🔄 Refresh</button>
           <button onclick="printMusterList()" class="btn primary" style="background:#ef4444; border-color:#ef4444;">🖨️
             CETAK DAFTAR (PRINT)</button>
         </div>
@@ -1852,31 +1804,32 @@
         </div>
       </div>
     </section>
+
+    <!-- GRAFANA DASHBOARD IFRAME -->
+    <section class="route hidden" id="route-grafana-dashboard">
+      <div style="width: 100%; height: calc(100vh - 140px); overflow: hidden; border-radius: 8px;">
+        <iframe src="https://grafana-domain-kamu.com" style="width: 100%; height: 100%; border: none;"></iframe>
+      </div>
+    </section>
+
+    <!-- N8N AGENT IFRAME -->
+    <section class="route hidden" id="route-n8n-agent">
+      <div style="width: 100%; height: calc(100vh - 140px); overflow: hidden; border-radius: 8px;">
+        <iframe src="https://n8n-domain-kamu.com" style="width: 100%; height: 100%; border: none;"></iframe>
+      </div>
+    </section>
   </main>
 
   <!-- MODAL: STATISTIK AKTIF / DAFTAR HADIR -->
-  <dialog id="activePersonnelModal"
-    style="border: none; border-radius: 16px; padding: 20px; max-width: 500px; width: 95%; background: #ffffff; box-shadow: 0 20px 50px rgba(0,0,0,0.3);">
+  <dialog id="activePersonnelModal" style="border: none; border-radius: 16px; padding: 20px; max-width: 500px; width: 95%; background: #ffffff; box-shadow: 0 20px 50px rgba(0,0,0,0.3);">
     <style>
-      #activePersonnelModal::backdrop {
-        background: rgba(15, 23, 42, 0.6);
-        backdrop-filter: blur(5px);
-      }
-
-      #activePersonnelList::-webkit-scrollbar {
-        width: 6px;
-      }
-
-      #activePersonnelList::-webkit-scrollbar-thumb {
-        background: #cbd5e1;
-        border-radius: 4px;
-      }
+      #activePersonnelModal::backdrop { background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(5px); }
+      #activePersonnelList::-webkit-scrollbar { width: 6px; }
+      #activePersonnelList::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
     </style>
-    <h3
-      style="margin-top: 0; margin-bottom: 15px; font-size: 1.1rem; color: #0f172a; font-weight: 800; display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #f8fafc; padding-bottom: 12px; font-family: 'Outfit', sans-serif;">
-      Personil Aktif
-      <button onclick="document.getElementById('activePersonnelModal').close()"
-        style="background: none; border: none; font-size: 1.5rem; color: #94a3b8; cursor: pointer; transition: 0.2s;">&times;</button>
+    <h3 style="margin-top: 0; margin-bottom: 15px; font-size: 1.1rem; color: #0f172a; font-weight: 800; display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #f8fafc; padding-bottom: 12px; font-family: 'Outfit', sans-serif;">
+      Personil Aktif 
+      <button onclick="document.getElementById('activePersonnelModal').close()" style="background: none; border: none; font-size: 1.5rem; color: #94a3b8; cursor: pointer; transition: 0.2s;">&times;</button>
     </h3>
     <div id="activePersonnelList" style="max-height: 65vh; overflow-y: auto; padding-right: 8px;">
       <!-- List injected by JS -->
@@ -1886,15 +1839,14 @@
   <!-- MODAL: EDIT ATTENDANCE -->
   <dialog id="modalEditAtt">
     <form method="dialog" class="modal">
-      <button type="button" class="modal-close" aria-label="Tutup"
-        onclick="document.getElementById('modalEditAtt').close()">×</button>
+      <button type="button" class="modal-close" aria-label="Tutup" onclick="document.getElementById('modalEditAtt').close()">×</button>
       <h3>Edit Data Kehadiran</h3>
       <input type="hidden" id="editAttOriginalTs">
-
+      
       <div class="grid-2">
         <label><span>Tanggal</span> <input type="date" id="editAttDate" required></label>
         <label><span>Jam</span> <input type="time" id="editAttTime" required></label>
-
+        
         <label><span>Status</span>
           <select id="editAttStatus">
             <option value="datang">Masuk</option>
@@ -1905,13 +1857,13 @@
           </select>
         </label>
         <label><span>Keterangan / Note</span> <input id="editAttNote" placeholder="Catatan tambahan..."></label>
-
+        
         <label><span>Nama</span> <select id="editAttName"></select></label>
         <label><span>NID</span> <input id="editAttNid" readonly style="background:#f1f5f9; cursor:not-allowed;"></label>
-
+        
         <label><span>Jabatan</span> <select id="editAttTitle"></select></label>
         <label><span>Perusahaan</span> <select id="editAttCompany"></select></label>
-
+        
         <label><span>Grup / Shift</span>
           <select id="editAttShift">
             <option value="A">Group A</option>
@@ -1924,8 +1876,7 @@
       </div>
 
       <div style="margin-top: 20px; text-align: right;">
-        <button type="button" class="btn" onclick="document.getElementById('modalEditAtt').close()"
-          style="background:#e2e8f0; color:#334155; margin-right:8px; border:none;">Batal</button>
+        <button type="button" class="btn" onclick="document.getElementById('modalEditAtt').close()" style="background:#e2e8f0; color:#334155; margin-right:8px; border:none;">Batal</button>
         <button type="button" class="btn primary" id="btnSaveEditAtt">Simpan Perubahan</button>
       </div>
     </form>
@@ -2248,10 +2199,8 @@
       </div>
     </div>
     <div class="modal-actions">
-      <button type="button" id="btnBackInv" class="btn ghost"
-        onclick="document.getElementById('invModal').close()">Batal</button>
-      <button type="button" id="btnSaveInv" class="btn primary"
-        onclick="window.saveInventoryItem(event)">Simpan</button>
+      <button type="button" id="btnBackInv" class="btn ghost" onclick="document.getElementById('invModal').close()">Batal</button>
+      <button type="button" id="btnSaveInv" class="btn primary" onclick="window.saveInventoryItem(event)">Simpan</button>
     </div>
   </dialog>
   <!-- OLD NAV (Corrupt) -->
@@ -2298,3 +2247,9 @@
 </body>
 
 </html>
+
+
+
+
+
+
