@@ -56,11 +56,18 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     }
+
+    // Sync language switcher UI with stored language on load
+    const savedLang = localStorage.getItem('SA_LANG') || 'id';
+    window.changeLang(savedLang);
 });
 
 // Fungsi untuk ubah bahasa sederhana (jika diperlukan oleh UI login)
 window.changeLang = function(lang) {
     console.log("Bahasa diubah ke:", lang);
+    if (window.translationManager) {
+        window.translationManager.setLanguage(lang);
+    }
     const flag = document.getElementById('currFlag');
     const txt = document.getElementById('currLang');
     if (lang === 'id') {

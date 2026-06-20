@@ -128,14 +128,14 @@
             <div>
                 <label for="username" class="block text-sm font-semibold text-white mb-1 drop-shadow-md"
                     data-i18n="label_username">Username / Email</label>
-                <input type="text" id="username" placeholder="Enter your username"
+                <input type="text" id="username" data-i18n="placeholder_username" placeholder="Enter your username"
                     class="w-full p-3 rounded-xl input-glass transition">
             </div>
 
             <div>
                 <label for="password" class="block text-sm font-semibold text-white mb-1 drop-shadow-md"
                     data-i18n="label_password">Password</label>
-                <input type="password" id="password" placeholder="••••••••"
+                <input type="password" id="password" data-i18n="placeholder_password" placeholder="••••••••"
                     class="w-full p-3 rounded-xl input-glass transition">
             </div>
 
@@ -186,6 +186,7 @@
     <!-- Script Import -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="config.local.js?v=2"></script>
+    <script src="js/translation.js"></script>
     <script>
         const params = new URLSearchParams(window.location.search);
         if (params.has('redirect')) {

@@ -8329,3 +8329,19 @@ input[type="radio"] {
 }
 
 
+
+/* ============================================================================
+   AREA 17: FIX FULLSCREEN MODAL Z-INDEX
+   ========================================================================== */
+
+#route-scan:fullscreen > #scanSuccessModal,
+#route-scan:-webkit-full-screen > #scanSuccessModal {
+  position: fixed !important;
+  z-index: 99999 !important;
+}
+
+#scanSuccessModal {
+  position: fixed !important;
+  z-index: 99999 !important;
+}
+

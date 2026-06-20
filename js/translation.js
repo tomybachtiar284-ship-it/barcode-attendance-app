@@ -121,7 +121,17 @@ const TRANSLATIONS = {
         login_btn: "Masuk",
         login_forgot: "Lupa kata sandi?",
         login_footer_title: "SmartAttend",
-        login_footer_sub: "PLTU AMPANA"
+        login_footer_sub: "PLTU AMPANA",
+        login_title: "Masuk",
+        login_subtitle: "Selamat datang kembali! Silakan masukkan detail Anda.",
+        label_username: "Username / Email",
+        label_password: "Password",
+        label_remember: "Ingat saya",
+        label_forgot: "Lupa password?",
+        btn_signin: "Masuk",
+        text_or: "atau masuk dengan",
+        placeholder_username: "Masukkan username Anda",
+        placeholder_password: "••••••••"
     },
     en: {
         // Sidebar
@@ -240,7 +250,17 @@ const TRANSLATIONS = {
         login_btn: "Sign In",
         login_forgot: "Forgot password?",
         login_footer_title: "SmartAttend",
-        login_footer_sub: "PLTU AMPANA"
+        login_footer_sub: "PLTU AMPANA",
+        login_title: "Login",
+        login_subtitle: "Welcome back! Please enter your details.",
+        label_username: "Username / Email",
+        label_password: "Password",
+        label_remember: "Remember me",
+        label_forgot: "Forgot password?",
+        btn_signin: "Sign In",
+        text_or: "or continue with",
+        placeholder_username: "Enter your username",
+        placeholder_password: "••••••••"
     }
 };
 
@@ -291,6 +311,7 @@ class TranslationManager {
     }
 
     renderSelector() {
+        if (window.location.pathname.includes('login.html')) return;
         const container = document.createElement('div');
         container.className = 'lang-selector';
         container.innerHTML = `

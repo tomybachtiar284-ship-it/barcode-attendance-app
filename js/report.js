@@ -45,7 +45,7 @@
                         const newItems = [];
                         if (atts) atts.forEach(x => {
                             newItems.push({
-                                ts: new Date(x.ts).getTime(),
+                                ts: Number(x.ts),
                                 status: x.status, nid: x.nid, name: x.name,
                                 title: x.title, company: x.company, shift: x.shift,
                                 note: x.note, late: x.late, okShift: x.ok_shift
@@ -53,7 +53,7 @@
                         });
                         if (brks) brks.forEach(x => {
                             newItems.push({
-                                ts: new Date(x.ts).getTime(),
+                                ts: Number(x.ts),
                                 status: x.status, nid: x.nid, name: x.name,
                                 title: '', company: x.company, shift: '',
                                 note: (x.status === 'break_out' ? 'Izin Keluar / Istirahat' : 'Kembali Masuk'),
@@ -584,7 +584,7 @@
                 const attList = window.attendance || [];
                 if (atts) {
                     atts.forEach(x => {
-                        const ts = new Date(x.ts).getTime();
+                        const ts = Number(x.ts);
                         if (!attList.some(a => a.ts === ts && a.nid === x.nid)) {
                             attList.push({
                                 ts, status: x.status, nid: x.nid, name: x.name,
@@ -598,7 +598,7 @@
                 const brkList = window.breaks || [];
                 if (brks) {
                     brks.forEach(x => {
-                        const ts = new Date(x.ts).getTime();
+                        const ts = Number(x.ts);
                         if (!brkList.some(b => b.ts === ts && b.nid === x.nid)) {
                             brkList.push({
                                 ts, nid: x.nid, name: x.name, status: x.status
