@@ -154,6 +154,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                 if (manualShift) manualShift.value = '';
                 const typeEl = document.getElementById('manualType');
                 if (typeEl) typeEl.value = 'absen';
+                const infoEl = document.getElementById('manualTypeInfo');
+                if (infoEl) infoEl.remove();
             }
         }
     };
@@ -189,13 +191,60 @@ document.addEventListener('DOMContentLoaded', async () => {
                         }
                         manualShift.value = emp.shift;
                     }
+
+                    // --- DETEKSI STATUS TERAKHIR UNTUK OTOMATISASI DROPDOWN ---
+                    const now = new Date();
+                    const sodDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+                    const sodTs = sodDate.getTime();
+                    
+                    // Cari transaksi terakhir karyawan tersebut hari ini dari array window.attendance
+                    const todays = (window.attendance||[]).filter(a => a.nid === emp.nid && a.ts >= sodTs);
+                    
+                    // Hapus info/warning lama jika ada
+                    let infoEl = document.getElementById('manualTypeInfo');
+                    if (infoEl) infoEl.remove();
+
+                    if (todays.length > 0) {
+                        // Urutkan dari yang terbaru
+                        todays.sort((a, b) => b.ts - a.ts);
+                        const lastRec = todays[0];
+                        
+                        const typeEl = document.getElementById('manualType');
+                        if (typeEl) {
+                            if (lastRec.status === 'break_out') {
+                                // Jika terakhir izin keluar, arahkan dropdown ke tipe 'ijin'
+                                typeEl.value = 'ijin';
+                                
+                                // Tampilkan notifikasi info di bawah dropdown
+                                const infoHtml = `<div id="manualTypeInfo" style="color: var(--warning); font-size: 0.8rem; font-weight: bold; margin-top: 4px;">
+                                    ⚠️ Karyawan sedang Izin Keluar. Status berikutnya: Kembali Masuk.
+                                </div>`;
+                                typeEl.insertAdjacentHTML('afterend', infoHtml);
+                            } else {
+                                // Default kembali ke absen biasa jika terakhir masuk/kembali/pulang
+                                typeEl.value = 'absen';
+                            }
+                        }
+                    } else {
+                        // Jika belum ada record hari ini, default ke 'absen'
+                        const typeEl = document.getElementById('manualType');
+                        if (typeEl) typeEl.value = 'absen';
+                    }
                 } else {
                     manualName.value = '';
                     if (manualShift) manualShift.value = '';
+                    const typeEl = document.getElementById('manualType');
+                    if (typeEl) typeEl.value = 'absen';
+                    let infoEl = document.getElementById('manualTypeInfo');
+                    if (infoEl) infoEl.remove();
                 }
             } else {
                 manualName.value = '';
                 if (manualShift) manualShift.value = '';
+                const typeEl = document.getElementById('manualType');
+                if (typeEl) typeEl.value = 'absen';
+                let infoEl = document.getElementById('manualTypeInfo');
+                if (infoEl) infoEl.remove();
             }
         });
     }

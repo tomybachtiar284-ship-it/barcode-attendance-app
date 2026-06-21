@@ -8192,6 +8192,7 @@ input[type="radio"] {
 
   #route-emergency .table-wrap {
     overflow: visible !important;
+    max-height: none !important; /* Coret batas tinggi pada saat print */
     margin: 0 !important;
     padding: 0 !important;
   }
@@ -8218,6 +8219,7 @@ input[type="radio"] {
     font-weight: bold !important;
     text-transform: uppercase !important;
     font-size: 8.5pt !important;
+    position: static !important; /* Matikan sticky header saat print */
   }
 
   /* Desain baris tabel data */

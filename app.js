@@ -2379,6 +2379,10 @@ function fs(btnSel, targetSel) {
     const originalContent = tbody.innerHTML;
     tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:20px;">Mengambil data...</td></tr>';
 
+    // Hide summary cards during loading
+    const elCards = document.getElementById('analysisSummaryCards');
+    if (elCards) elCards.style.display = 'none';
+
     try {
       const start = new Date(m + '-01T00:00:00').getTime();
       const year = parseInt(m.split('-')[0]), month = parseInt(m.split('-')[1]);
@@ -2439,8 +2443,38 @@ function fs(btnSel, targetSel) {
       // Render
       if (sorted.length === 0) {
         tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding:20px;">Tidak ada data izin keluar pada bulan ${m} ${c ? 'untuk ' + c : ''}.</td></tr>`;
+        if (elCards) elCards.style.display = 'none';
         return;
       }
+
+      // Hitung ringkasan statistik
+      let totalSessionsCount = 0;
+      let totalDurationMins = 0;
+      let completedSessionsCount = 0;
+
+      sorted.forEach(row => {
+        totalSessionsCount += row.sessions.length;
+        row.sessions.forEach(s => {
+          if (s.out && s.in) {
+            const mins = Math.round((s.in - s.out) / 60000);
+            totalDurationMins += mins;
+            completedSessionsCount++;
+          }
+        });
+      });
+
+      const avgDurationMins = completedSessionsCount > 0 ? Math.round(totalDurationMins / completedSessionsCount) : 0;
+      const formattedAvg = avgDurationMins > 0 ? formatDuration(avgDurationMins) : '—';
+
+      const elTotalEmp = document.getElementById('analysisSummaryTotalEmp');
+      const elTotalFreq = document.getElementById('analysisSummaryTotalFreq');
+      const elAvgDuration = document.getElementById('analysisSummaryAvgDuration');
+
+      if (elTotalEmp) elTotalEmp.textContent = sorted.length;
+      if (elTotalFreq) elTotalFreq.textContent = totalSessionsCount;
+      if (elAvgDuration) elAvgDuration.textContent = formattedAvg;
+
+      if (elCards) elCards.style.display = 'grid';
 
       const hm = (ts) => ts ? new Date(ts).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : '...';
       const dt = (ts) => ts ? new Date(ts).toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit' }) : '';
@@ -5907,6 +5941,24 @@ function fs(btnSel, targetSel) {
 
     // Sort by timeIn desc
     const sorted = filtered.sort((a, b) => new Date(b.timeIn || b.time || 0) - new Date(a.timeIn || a.time || 0));
+
+    // Hitung ringkasan (summary) data barang masuk/keluar
+    let totalIn = 0;
+    let totalOut = 0;
+    sorted.forEach(item => {
+      if (item.type === 'IN') {
+        totalIn++;
+      } else if (item.type === 'OUT') {
+        totalOut++;
+      }
+    });
+
+    const elIn = document.getElementById('invSummaryIn');
+    const elOut = document.getElementById('invSummaryOut');
+    const elTotal = document.getElementById('invSummaryTotal');
+    if (elIn) elIn.textContent = totalIn;
+    if (elOut) elOut.textContent = totalOut;
+    if (elTotal) elTotal.textContent = sorted.length;
 
     if (sorted.length === 0) {
       if (start || end || searchQ) tbody.innerHTML = '<tr><td colspan="11" class="muted" style="text-align:center; padding: 20px;">Data tidak ditemukan untuk filter ini.</td></tr>';

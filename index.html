@@ -1570,13 +1570,13 @@
 
       <!-- Summary Cards -->
       <div class="grid-3" style="margin-bottom: 20px;">
-        <div class="card stat">
-          <div class="stat-sub">Total Karyawan Lembur</div>
-          <div class="stat-val" id="otRepTotalEmp">0</div>
+        <div class="card stat" style="border-left: 4px solid var(--primary-500); padding: 14px 18px;">
+          <div style="font-size: 0.8rem; color: var(--muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">Total Karyawan Lembur</div>
+          <div class="stat-value" id="otRepTotalEmp" style="font-size: 2rem; font-weight: 800; color: var(--primary-700); margin-top: 6px; line-height: 1;">0</div>
         </div>
-        <div class="card stat">
-          <div class="stat-sub">Total Jam Lembur</div>
-          <div class="stat-val" id="otRepTotalHours">0</div>
+        <div class="card stat" style="border-left: 4px solid var(--orange-500); padding: 14px 18px;">
+          <div style="font-size: 0.8rem; color: var(--muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">Total Jam Lembur</div>
+          <div class="stat-value" id="otRepTotalHours" style="font-size: 2rem; font-weight: 800; color: var(--orange-600); margin-top: 6px; line-height: 1;">0</div>
         </div>
       </div>
 
@@ -1698,6 +1698,21 @@
             <input type="text" id="invSearch" class="search" placeholder="Cari barang...">
           </div>
         </div>
+        <!-- Summary Cards Keluar Masuk Barang -->
+        <div class="grid-3" style="margin-bottom: 20px;">
+          <div class="card stat" style="border-left: 4px solid var(--success); padding: 14px 18px;">
+            <div style="font-size: 0.8rem; color: var(--muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">Barang Masuk (IN)</div>
+            <div class="stat-value" id="invSummaryIn" style="font-size: 2rem; font-weight: 800; color: var(--success); margin-top: 6px; line-height: 1;">0</div>
+          </div>
+          <div class="card stat" style="border-left: 4px solid var(--danger); padding: 14px 18px;">
+            <div style="font-size: 0.8rem; color: var(--muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">Barang Keluar (OUT)</div>
+            <div class="stat-value" id="invSummaryOut" style="font-size: 2rem; font-weight: 800; color: var(--danger); margin-top: 6px; line-height: 1;">0</div>
+          </div>
+          <div class="card stat" style="border-left: 4px solid var(--primary-500); padding: 14px 18px;">
+            <div style="font-size: 0.8rem; color: var(--muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">Total Transaksi</div>
+            <div class="stat-value" id="invSummaryTotal" style="font-size: 2rem; font-weight: 800; color: var(--primary-700); margin-top: 6px; line-height: 1;">0</div>
+          </div>
+        </div>
         <div class="table-wrap">
           <table class="table">
             <thead>
@@ -1750,6 +1765,22 @@
           <button onclick="renderBreakAnalysis()" class="btn primary" style="height:38px;">🔍 Tampilkan</button>
           <button onclick="exportBreakAnalysisPDF()" class="btn" style="height:38px; border:1px solid #ccc;">📄 Download
             PDF</button>
+        </div>
+      </div>
+
+      <!-- Summary Cards Analisis Izin & Istirahat -->
+      <div class="grid-3" id="analysisSummaryCards" style="margin-bottom: 20px; display: none;">
+        <div class="card stat" style="border-left: 4px solid var(--primary-500); padding: 14px 18px;">
+          <div style="font-size: 0.8rem; color: var(--muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">Total Karyawan Izin</div>
+          <div class="stat-value" id="analysisSummaryTotalEmp" style="font-size: 2rem; font-weight: 800; color: var(--primary-700); margin-top: 6px; line-height: 1;">0</div>
+        </div>
+        <div class="card stat" style="border-left: 4px solid var(--orange-500); padding: 14px 18px;">
+          <div style="font-size: 0.8rem; color: var(--muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">Total Frekuensi Izin</div>
+          <div class="stat-value" id="analysisSummaryTotalFreq" style="font-size: 2rem; font-weight: 800; color: var(--orange-600); margin-top: 6px; line-height: 1;">0</div>
+        </div>
+        <div class="card stat" style="border-left: 4px solid var(--success); padding: 14px 18px;">
+          <div style="font-size: 0.8rem; color: var(--muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">Rata-rata Durasi Izin</div>
+          <div class="stat-value" id="analysisSummaryAvgDuration" style="font-size: 2rem; font-weight: 800; color: var(--success); margin-top: 6px; line-height: 1;">—</div>
         </div>
       </div>
 
