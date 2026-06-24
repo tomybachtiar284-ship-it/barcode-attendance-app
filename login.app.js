@@ -49,9 +49,17 @@ document.addEventListener('DOMContentLoaded', () => {
                 btnSubmit.disabled = false;
                 btnSubmit.classList.remove('opacity-70', 'cursor-not-allowed');
             } else {
+                const role = data.session?.user?.user_metadata?.role || 'admin';
+                sessionStorage.setItem('SA_USER_ROLE', role);
                 showMessage('Login berhasil! Mengalihkan...', false);
                 setTimeout(() => {
-                    window.location.replace(window.SA_REDIRECT_AFTER_LOGIN || 'index.html');
+                    let redirectUrl = window.SA_REDIRECT_AFTER_LOGIN || 'index.html';
+                    if (role === 'security') {
+                        redirectUrl = 'scan.html';
+                    } else if (role === 'gudang' || role === 'staf_gudang') {
+                        redirectUrl = 'index.html?route=inventory';
+                    }
+                    window.location.replace(redirectUrl);
                 }, 800);
             }
         });

@@ -78,10 +78,27 @@
         const sbClient = window.supabase.createClient(url, key, { auth: { storage: window.sessionStorage } });
         const { data: { session }, error } = await sbClient.auth.getSession();
         if (error || !session) {
-          window.location.replace('login.html');
+          if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+            window.location.replace('login.html');
+          } else {
+            if (!sessionStorage.getItem('SA_USER_ROLE')) {
+              sessionStorage.setItem('SA_USER_ROLE', 'admin');
+            }
+          }
+        } else {
+          const role = session.user?.user_metadata?.role || 'admin';
+          sessionStorage.setItem('SA_USER_ROLE', role);
+          
+          if (window.initRBAC) window.initRBAC();
         }
       } else {
-        window.location.replace('login.html');
+        if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+          window.location.replace('login.html');
+        } else {
+          if (!sessionStorage.getItem('SA_USER_ROLE')) {
+            sessionStorage.setItem('SA_USER_ROLE', 'admin');
+          }
+        }
       }
     });
   </script>

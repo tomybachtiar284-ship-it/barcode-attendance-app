@@ -7,6 +7,100 @@
 // - Hapus satu baris attendance saja (bukan semua)
 //
 window.addEventListener('DOMContentLoaded', () => {
+  // ===== RBAC Configuration =====
+  const ROLE_PERMISSIONS = {
+    admin: ['dashboard', 'scan', 'employees', 'shifts', 'attendance', 'overtime-report', 'general-report', 'latest', 'education', 'inventory', 'analysis', 'emergency'],
+    security: ['shifts', 'inventory', 'scan'],
+    gudang: ['inventory'],
+    staf_gudang: ['inventory']
+  };
+
+  window.getUserRole = function() {
+    return sessionStorage.getItem('SA_USER_ROLE') || 'admin';
+  };
+
+  window.isRouteAllowed = function(route) {
+    const role = window.getUserRole();
+    const allowed = ROLE_PERMISSIONS[role] || ROLE_PERMISSIONS['admin'];
+    return allowed.includes(route);
+  };
+
+  window.initRBAC = function() {
+    const role = window.getUserRole();
+    const allowed = ROLE_PERMISSIONS[role] || ROLE_PERMISSIONS['admin'];
+    
+    // Lock sidebar navlinks visually
+    document.querySelectorAll('.navlink').forEach(btn => {
+      const route = btn.dataset.route;
+      if (route && !allowed.includes(route)) {
+        btn.classList.add('locked');
+        btn.style.opacity = '0.5';
+        // Add lock icon if not already added
+        if (!btn.querySelector('.lock-icon')) {
+          const lockSpan = document.createElement('span');
+          lockSpan.className = 'lock-icon';
+          lockSpan.textContent = ' 🔒';
+          btn.appendChild(lockSpan);
+        }
+      } else {
+        // Unlock (clean up if role changed)
+        btn.classList.remove('locked');
+        btn.style.opacity = '';
+        const lockSpan = btn.querySelector('.lock-icon');
+        if (lockSpan) lockSpan.remove();
+      }
+    });
+
+    // Lock bottom mobile nav items visually
+    document.querySelectorAll('.mb-item').forEach(btn => {
+      const route = btn.dataset.route;
+      if (route && !allowed.includes(route)) {
+        btn.classList.add('locked');
+        btn.style.opacity = '0.5';
+        // Add lock icon if not already added
+        if (!btn.querySelector('.lock-icon')) {
+          const lockSpan = document.createElement('span');
+          lockSpan.className = 'lock-icon';
+          lockSpan.style.fontSize = '0.7rem';
+          lockSpan.textContent = ' 🔒';
+          btn.appendChild(lockSpan);
+        }
+      } else {
+        // Unlock (clean up if role changed)
+        btn.classList.remove('locked');
+        btn.style.opacity = '';
+        const lockSpan = btn.querySelector('.lock-icon');
+        if (lockSpan) lockSpan.remove();
+      }
+    });
+  };
+
+  // Intercept locked menu clicks (including inline onclicks by using capturing phase)
+  document.addEventListener('click', (e) => {
+    const btn = e.target.closest('.navlink.locked, .mb-item.locked');
+    if (btn) {
+      e.preventDefault();
+      e.stopPropagation();
+      
+      const role = window.getUserRole();
+      const roleText = role === 'security' ? 'Security' : (role === 'gudang' || role === 'staf_gudang' ? 'Staf Gudang' : role);
+      
+      if (window.toast) {
+        window.toast(`Akses Terkunci: Role ${roleText} tidak diizinkan mengakses menu ini.`, true);
+      } else if (window.Swal) {
+        window.Swal.fire({
+          icon: 'warning',
+          title: 'Akses Terkunci',
+          text: `Role ${roleText} tidak memiliki izin untuk membuka menu ini.`,
+          timer: 3000,
+          showConfirmButton: false
+        });
+      } else {
+        alert(`Akses Terkunci: Akun Anda (${roleText}) tidak memiliki izin untuk membuka menu ini.`);
+      }
+    }
+  }, true); // capturing phase to intercept onclick redirects
+
   const LS_EMP = 'SA_EMPLOYEES', LS_ATT = 'SA_ATTENDANCE', LS_SHIFTS = 'SA_SHIFTS',
     LS_NEWS = 'SA_NEWS', LS_SCHED = 'SA_SHIFT_MONTHLY', LS_EDU = 'SA_EDUCATION';
 
@@ -618,6 +712,16 @@ window.addEventListener('DOMContentLoaded', () => {
 
   // Router
   window.appRoute = function (route) {
+    // Enforce role permission check
+    if (!window.isRouteAllowed(route)) {
+      const role = window.getUserRole();
+      const allowed = ROLE_PERMISSIONS[role] || ROLE_PERMISSIONS['admin'];
+      const fallback = allowed[0] || 'dashboard';
+      console.warn(`Denied route "${route}" for role "${role}". Redirecting to fallback: "${fallback}"`);
+      window.appRoute(fallback);
+      return;
+    }
+
     // 1. Update Sidebar Active
     $$('.navlink').forEach(b => b.classList.toggle('active', b.dataset.route === route));
 
@@ -676,17 +780,40 @@ window.addEventListener('DOMContentLoaded', () => {
     }
   }));
 
-  // NEW: Restore Last Route (Page Persistence)
-  // NEW: Restore Last Route (Page Persistence)
+  // NEW: Restore Last Route (Page Persistence) & Enforce RBAC
   setTimeout(() => {
+    // Check if query param route is present
+    const urlParams = new URLSearchParams(window.location.search);
+    const urlRoute = urlParams.get('route');
+    if (urlRoute) {
+      localStorage.setItem('SA_CURRENT_ROUTE', urlRoute);
+      // Clean query parameter from URL bar without reloading
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+
     const lastRoute = localStorage.getItem('SA_CURRENT_ROUTE');
-    // Force Dashboard on Mobile (User Request)
+    const role = window.getUserRole();
+    const allowed = ROLE_PERMISSIONS[role] || ROLE_PERMISSIONS['admin'];
+    
+    // Enforce initial RBAC rendering
+    window.initRBAC();
+
+    let targetRoute = lastRoute;
+    if (!targetRoute || !allowed.includes(targetRoute)) {
+      targetRoute = allowed[0] || 'dashboard';
+    }
+
+    // Force Dashboard on Mobile (User Request) if allowed, otherwise first allowed
     if (window.innerWidth <= 768) {
-      window.appRoute('dashboard');
+      if (allowed.includes('dashboard')) {
+        window.appRoute('dashboard');
+      } else {
+        window.appRoute(allowed[0] || 'dashboard');
+      }
     }
     // Otherwise restore last session
-    else if (lastRoute) {
-      window.appRoute(lastRoute);
+    else {
+      window.appRoute(targetRoute);
     }
   }, 50); // Small delay to ensure DOM fully ready
 
