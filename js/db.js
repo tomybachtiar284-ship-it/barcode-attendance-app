@@ -264,12 +264,19 @@ async function pullAll() {
 
     // Employees
     const { data: emps } = await (window.sb || sb).from('employees').select('*');
-    if (emps) {
+    if (emps && emps.length > 0) {
         window.employees = emps.map(x => ({
             nid: x.nid, name: x.name, title: x.title, company: x.company,
             shift: x.shift, photo: x.photo || '', status: x.status || 'Aktif'
         }));
         localStorage.setItem('SA_EMPLOYEES', JSON.stringify(window.employees));
+    } else if (emps && emps.length === 0) {
+        console.warn('pullAll: Data karyawan dari server kosong atau terfilter RLS.');
+        const localEmps = JSON.parse(localStorage.getItem('SA_EMPLOYEES') || '[]');
+        if (localEmps.length === 0) {
+            window.employees = [];
+            localStorage.setItem('SA_EMPLOYEES', JSON.stringify([]));
+        }
     }
 
     // Attendance (3 hari terakhir) - SERVER adalah sumber kebenaran
