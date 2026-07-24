@@ -756,10 +756,11 @@
 
         const totalScheduledDays = numDays - daysOff;
         const presentRate = totalScheduledDays > 0 ? Math.round((daysPresent / totalScheduledDays) * 100) : 0;
+        const roundedOT = Math.round(totalOvertimeHours * 10) / 10;
         
         document.getElementById('indivTotalPresent').textContent = `${presentRate}%`;
         document.getElementById('indivTotalLate').textContent = `${daysLate} Kali`;
-        document.getElementById('indivTotalOT').textContent = `${totalOvertimeHours} Jam`;
+        document.getElementById('indivTotalOT').textContent = `${roundedOT} Jam`;
         document.getElementById('indivTotalAbsent').textContent = `${daysAbsent} Hari`;
 
         initIndividualCharts(dateStatusArray, personalAtt, startMs, endMs);
@@ -1080,6 +1081,7 @@
 
         const totalScheduledDays = numDays - daysOff;
         const presentRate = totalScheduledDays > 0 ? Math.round((daysPresent / totalScheduledDays) * 100) : 0;
+        const roundedOT = Math.round(totalOvertimeHours * 10) / 10;
 
         // Draw colored metric boxes (like cards in UI)
         doc.setFillColor(248, 250, 252); // #f8fafc
@@ -1102,7 +1104,7 @@
         doc.setTextColor(245, 158, 11); // orange
         doc.text(`${daysLate} Kali`, 62, 96);
         doc.setTextColor(16, 185, 129); // green
-        doc.text(`${totalOvertimeHours} Jam`, 108, 96);
+        doc.text(`${roundedOT} Jam`, 108, 96);
         doc.setTextColor(239, 68, 68); // red
         doc.text(`${daysAbsent} Hari`, 154, 96);
 
