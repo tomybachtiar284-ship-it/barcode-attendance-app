@@ -1,0 +1,1435 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <base target="_top">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Portal Karyawan</title>
+    
+    <!-- FontAwesome untuk Icon Kategori Data -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Library html2pdf.js untuk Mengunduh PDF secara Client-Side -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
+    <!-- Library html2canvas untuk Mengunduh Gambar secara Client-Side -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+    <!-- ==================================================
+         CREXTIO NAVY & TOSCA STYLESHEET (DARK MODE)
+    ================================================== -->
+    <style>
+        /*==================================================
+          GOOGLE FONT & VARIABLES (PREMIUM NAVY & TOSCA THEME)
+        ==================================================*/
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap');
+
+        :root {
+            --navy-dark: #1A2750;        /* Latar Belakang Utama */
+            --navy-card: #223160;        /* Latar Belakang Kartu / Box */
+            --navy-light: #2D3E75;       /* Warna hover / border / highlight sekunder */
+            --tosca: #249BA6;            /* Aksen Utama / Turquoise */
+            --tosca-light: #34b3c0;      /* Turquoise Terang (hover) */
+            --tosca-bg: rgba(36, 155, 166, 0.15); /* Latar belakang tosca transparan */
+            
+            --bg-main: var(--navy-dark);
+            --bg-card: var(--navy-card);
+            
+            --text-main: #f8fafc;        /* Teks Utama (Putih Terang) */
+            --text-muted: #94a3b8;       /* Teks Redup (Abu-abu kebiruan) */
+            --border-color: rgba(255, 255, 255, 0.08); /* Border Transparan Lembut */
+            --shadow-premium: 0 15px 35px rgba(0, 0, 0, 0.25);
+            --radius-lg: 20px;
+            --radius-md: 16px;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        /* Perbaikan fokus ketik di iPhone / iOS Safari */
+        input, textarea, select {
+            -webkit-user-select: text !important;
+            -moz-user-select: text !important;
+            -ms-user-select: text !important;
+            user-select: text !important;
+        }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            background-color: var(--bg-main);
+            color: var(--text-main);
+            min-height: 100vh;
+            padding: 24px;
+            line-height: 1.5;
+        }
+
+        /*==================================================
+          CONTAINER UTAMA
+        ==================================================*/
+        .container {
+            max-width: 1250px;
+            margin: 0 auto;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+
+        /*==================================================
+          NAVBAR (Header Atas)
+        ==================================================*/
+        .navbar {
+            background: rgba(34, 49, 96, 0.85); /* Semi-transparan Navy Card */
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 15px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: var(--shadow-premium);
+        }
+
+        .navbar-brand {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .logo-mkp {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(255, 255, 255, 0.9); /* Sedikit latar belakang putih agar logo MKP tetap jelas */
+            padding: 4px 10px;
+            border-radius: 8px;
+        }
+
+        .logo-mkp img {
+            height: 40px;
+            width: auto;
+            object-fit: contain;
+        }
+
+        .company h1 {
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--text-main);
+            letter-spacing: 0.5px;
+            line-height: 1.2;
+        }
+
+        .company p {
+            font-size: 11px;
+            color: var(--text-muted);
+            font-weight: 400;
+        }
+
+        .navbar-right {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+        }
+
+        .nav-item {
+            font-size: 13.5px;
+            font-weight: 600;
+            color: var(--text-muted);
+            cursor: pointer;
+            transition: color 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            text-decoration: none;
+        }
+
+        .nav-item.active, .nav-item:hover {
+            color: var(--tosca);
+        }
+
+        /*==================================================
+          WELCOME TEXT
+        ==================================================*/
+        .welcome-section {
+            margin-top: 5px;
+        }
+
+        .welcome-section h2 {
+            font-size: 26px;
+            font-weight: 700;
+            color: #ffffff;
+        }
+
+        .welcome-section p {
+            font-size: 13.5px;
+            color: var(--text-muted);
+        }
+
+        /*==================================================
+          SEARCH SECTION
+        ==================================================*/
+        .search-section {
+            background: var(--bg-card);
+            border-radius: 16px;
+            padding: 16px 24px;
+            box-shadow: var(--shadow-premium);
+            border: 1px solid var(--border-color);
+        }
+
+        .search-box {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            background: rgba(26, 39, 80, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 12px;
+            padding: 6px 12px 6px 20px;
+            transition: all 0.3s;
+        }
+
+        .search-box:focus-within {
+            border-color: var(--tosca);
+            background-color: rgba(26, 39, 80, 0.7);
+            box-shadow: 0 0 0 4px rgba(36, 155, 166, 0.25);
+        }
+
+        .search-icon {
+            color: var(--text-muted);
+            font-size: 15px;
+        }
+
+        .search-box input {
+            flex: 1;
+            border: none;
+            background: transparent;
+            outline: none;
+            font-family: inherit;
+            font-size: 14.5px;
+            padding: 10px 0;
+            color: var(--text-main);
+        }
+
+        .search-box input::placeholder {
+            color: rgba(255, 255, 255, 0.4);
+        }
+
+        .search-box button {
+            background: var(--tosca);
+            color: white;
+            border: none;
+            padding: 10px 28px;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            font-family: inherit;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+
+        .search-box button:hover {
+            background: var(--tosca-light);
+        }
+
+        /*==================================================
+          PROFILE AREA (Dashboard Grid Layout)
+        ==================================================*/
+        #profileArea {
+            position: relative; 
+            overflow: hidden;   
+        }
+
+        #profileArea[style*="display: block"],
+        #profileArea[style*="display:block"] {
+            display: grid !important;
+            grid-template-columns: 300px 1fr;
+            gap: 24px;
+            align-items: start;
+        }
+
+        /* WATERMARK BACKGROUND */
+        .watermark {
+            position: absolute;
+            left: 0;
+            width: 100%;
+            height: 380px;                    
+            background-image: url("https://lh3.googleusercontent.com/d/10bTHjcZSSkyAGpDkBvsdVSUv8vOjahxp");
+            background-repeat: no-repeat;
+            background-position: center center;
+            background-size: 550px auto;       
+            opacity: 0.05;                     
+            transform: rotate(-20deg);         
+            transform-origin: center center;   
+            pointer-events: none;              
+            z-index: 99;                       
+        }
+
+        .watermark-1 {
+            top: 50px;
+        }
+        .watermark-2 {
+            top: 450px;
+        }
+        .watermark-3 {
+            top: 850px;
+        }
+
+        .profile-sidebar {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            position: relative;
+            z-index: 2; 
+        }
+
+        .profile-card {
+            background: linear-gradient(135deg, var(--navy-card) 0%, var(--navy-light) 100%);
+            border-radius: 20px;
+            border: 1px solid var(--border-color);
+            padding: 35px 24px;
+            box-shadow: var(--shadow-premium);
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            color: white;
+        }
+
+        .photo-area {
+            margin-bottom: 20px;
+            position: relative;
+        }
+
+        .photo-area img {
+            width: 130px;
+            height: 130px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 5px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+            background: var(--navy-dark);
+        }
+
+        .profile-info h2 {
+            font-size: 18px;
+            font-weight: 700;
+            color: white;
+            margin-bottom: 4px;
+        }
+
+        .profile-info p#profileNid {
+            font-size: 13px;
+            color: var(--text-muted);
+            font-weight: 600;
+            margin-bottom: 6px;
+        }
+
+        .profile-info p#jabatan {
+            font-size: 12.5px;
+            color: var(--text-main);
+            font-weight: 500;
+            margin-bottom: 12px;
+        }
+
+        .profile-info span {
+            display: inline-block;
+            background: var(--tosca);
+            color: white;
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 700;
+            border: none;
+        }
+
+        /* TOMBOL AKSI CETAK & SALIN */
+        .profile-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+            width: 100%;
+        }
+
+        .btn-action {
+            flex: 1;
+            padding: 10px 12px;
+            border-radius: 10px;
+            font-size: 11.5px;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            transition: all 0.2s;
+            font-family: inherit;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+        }
+
+        .btn-copy {
+            background: rgba(255, 255, 255, 0.08);
+            color: white;
+        }
+
+        .btn-copy:hover {
+            background: rgba(255, 255, 255, 0.18);
+        }
+
+        .btn-print {
+            background: var(--tosca);
+            color: white;
+            border: none;
+        }
+
+        .btn-print:hover {
+            background: var(--tosca-light);
+        }
+
+        .btn-print:disabled {
+            background: #cbd5e1;
+            color: #94a3b8;
+            cursor: not-allowed;
+        }
+
+        /*==================================================
+          BIRTHDAY ALERT BANNER
+        ==================================================*/
+        .birthday-banner {
+            grid-column: span 2;
+            background: linear-gradient(135deg, rgba(251, 191, 20, 0.15) 0%, rgba(217, 119, 6, 0.15) 100%);
+            border: 1px solid rgba(251, 191, 20, 0.3);
+            border-radius: 16px;
+            padding: 16px 24px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            box-shadow: 0 4px 15px rgba(251, 191, 20, 0.08);
+            margin-bottom: 20px;
+            animation: bounceIn 0.6s ease;
+        }
+
+        .birthday-icon {
+            font-size: 26px;
+            color: #fbbf24;
+            animation: pulse 1.5s infinite;
+        }
+
+        .birthday-text h4 {
+            font-size: 14.5px;
+            font-weight: 700;
+            color: #fbbf24;
+        }
+
+        .birthday-text p {
+            font-size: 12.5px;
+            color: #fcd34d;
+        }
+
+        @keyframes bounceIn {
+            0% { transform: scale(0.95); opacity: 0; }
+            70% { transform: scale(1.03); }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.15); }
+            100% { transform: scale(1); }
+        }
+
+        /*==================================================
+          CARDS & TABLES
+        ==================================================*/
+        .dashboard-content {
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+            position: relative;
+            z-index: 2; 
+        }
+
+        .cards-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 24px;
+        }
+
+        .card {
+            background: var(--bg-card); 
+            border-radius: 20px;
+            border: 1px solid var(--border-color);
+            border-top: 4px solid var(--tosca);
+            box-shadow: var(--shadow-premium);
+            padding: 24px 28px;
+            overflow: hidden;
+        }
+
+        .card-full-width {
+            grid-column: span 2;
+        }
+
+        .card-title {
+            font-size: 14.5px;
+            font-weight: 700;
+            color: var(--tosca);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+            padding-bottom: 12px;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .card-title i {
+            color: var(--tosca);
+            font-size: 15px;
+        }
+
+        .table-container {
+            width: 100%;
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        tr {
+            border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+            transition: background-color 0.2s;
+        }
+
+        tr:hover {
+            background-color: rgba(255, 255, 255, 0.02);
+        }
+
+        tr:last-child {
+            border-bottom: none;
+        }
+
+        td, th {
+            padding: 10px 14px;
+            font-size: 13px;
+            color: var(--text-main);
+            vertical-align: middle;
+        }
+
+        td:first-child {
+            width: 45%;
+            font-weight: 600;
+            color: var(--tosca);
+            background-color: rgba(255, 255, 255, 0.02); 
+            border-right: 1px solid rgba(255, 255, 255, 0.04);
+        }
+
+        td:last-child {
+            font-weight: 600;
+            color: var(--text-main);
+            text-align: right;
+            padding-left: 15px;
+        }
+
+        th {
+            background-color: rgba(36, 155, 166, 0.12);
+            border-bottom: 2px solid rgba(36, 155, 166, 0.20);
+            color: var(--tosca);
+            font-weight: 700;
+        }
+
+        /*==================================================
+          STATUS PILL BADGES
+        ==================================================*/
+        .pill-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .badge-green {
+            background-color: rgba(22, 163, 74, 0.2);
+            color: #4ade80;
+        }
+
+        .badge-blue {
+            background-color: rgba(36, 155, 166, 0.2);
+            color: #4cd1e0;
+        }
+
+        .badge-red {
+            background-color: rgba(220, 38, 38, 0.25);
+            color: #fca5a5;
+        }
+
+        .badge-gray {
+            background-color: rgba(255, 255, 255, 0.08);
+            color: var(--text-muted);
+        }
+
+        /*==================================================
+          PROGRESS BAR SISA CUTI
+        ==================================================*/
+        .cuti-container {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 6px;
+            width: 100%;
+        }
+
+        .cuti-text {
+            font-weight: 700;
+            color: var(--text-main);
+            font-size: 13px;
+        }
+
+        .progress-bar-bg {
+            width: 120px;
+            height: 8px;
+            background-color: rgba(255, 255, 255, 0.1);
+            border-radius: 100px;
+            overflow: hidden;
+        }
+
+        .progress-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--tosca), var(--tosca-light));
+            border-radius: 100px;
+        }
+
+        /*==================================================
+          PENGECUALIAN CSS KHUSUS LEMBAR SURAT (PENTING AGAR TIDAK BLANK)
+        ==================================================*/
+        #lembarSurat,
+        #lembarSurat table, 
+        #lembarSurat tr,
+        #lembarSurat td, 
+        #lembarSurat p, 
+        #lembarSurat h2, 
+        #lembarSurat h3 {
+            color: #000000 !important; /* Paksa warna tulisan hitam */
+            background-color: transparent !important; /* Hilangkan background gelap */
+            border-color: rgba(0, 0, 0, 0.15) !important;
+        }
+
+        /*==================================================
+          MODAL PENGAJUAN CUTI & IZIN
+        ==================================================*/
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(10, 15, 30, 0.8);
+            backdrop-filter: blur(8px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            animation: fadeIn 0.25s ease;
+        }
+
+        .modal-content {
+            background: var(--navy-card);
+            border-radius: 20px;
+            width: 90%;
+            max-width: 520px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            border: 1px solid var(--border-color);
+            overflow: hidden;
+            animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            max-height: 90vh; 
+            display: flex;
+            flex-direction: column;
+        }
+
+        .modal-header {
+            background: linear-gradient(135deg, var(--navy-dark) 0%, var(--navy-light) 100%);
+            color: white;
+            padding: 18px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .modal-header h3 {
+            font-size: 16px;
+            font-weight: 700;
+            margin: 0;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: var(--text-main);
+        }
+
+        .close-btn {
+            background: transparent;
+            border: none;
+            color: white;
+            font-size: 24px;
+            cursor: pointer;
+            line-height: 1;
+            opacity: 0.8;
+            transition: opacity 0.2s;
+        }
+
+        .close-btn:hover {
+            opacity: 1;
+        }
+
+        .modal-body {
+            padding: 24px;
+            overflow-y: auto;
+            flex: 1;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--tosca);
+            margin-bottom: 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .form-group input, 
+        .form-group select, 
+        .form-group textarea {
+            width: 100%;
+            padding: 10px 14px;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            background: var(--navy-dark);
+            border-radius: 10px;
+            font-family: inherit;
+            font-size: 13.5px;
+            color: var(--text-main);
+            outline: none;
+            transition: all 0.2s;
+        }
+
+        .form-group input:focus, 
+        .form-group select:focus, 
+        .form-group textarea:focus {
+            border-color: var(--tosca);
+            box-shadow: 0 0 0 3px rgba(36, 155, 166, 0.25);
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+
+        .btn-submit-form {
+            width: 100%;
+            background: var(--tosca);
+            color: white;
+            border: none;
+            padding: 12px;
+            border-radius: 10px;
+            font-family: inherit;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: 0 4px 12px rgba(36, 155, 166, 0.3);
+            margin-top: 8px;
+        }
+
+        .btn-submit-form:hover {
+            background: var(--tosca-light);
+        }
+
+        /*==================================================
+          GAYA OVERRIDE CETAK PDF
+        ==================================================*/
+        body.pdf-generating {
+            background-color: white !important;
+            color: #0f172a !important;
+            padding: 0 !important;
+        }
+
+        body.pdf-generating .navbar,
+        body.pdf-generating .search-section,
+        body.pdf-generating .welcome-section,
+        body.pdf-generating .profile-actions,
+        body.pdf-generating .loading,
+        body.pdf-generating #hasil,
+        body.pdf-generating .birthday-banner,
+        body.pdf-generating #cardRiwayatCuti, 
+        body.pdf-generating .modal-overlay {  
+            display: none !important;
+        }
+
+        body.pdf-generating #profileArea {
+            display: flex !important;
+            flex-direction: column !important;
+            gap: 10px !important;
+            width: 750px !important; 
+            max-width: 750px !important;
+            margin: 0 auto !important;
+            padding: 0 !important;
+            background: white !important;
+        }
+
+        body.pdf-generating .watermark {
+            height: 280px !important;
+            background-size: 450px auto !important;
+            opacity: 0.12 !important; 
+            transform: rotate(-20deg) !important;
+            z-index: 99 !important;    
+        }
+
+        body.pdf-generating .watermark-1 { top: 25px !important; }
+        body.pdf-generating .watermark-2 { top: 310px !important; }
+        body.pdf-generating .watermark-3 { top: 590px !important; }
+
+        body.pdf-generating .profile-sidebar {
+            width: 100% !important;
+        }
+
+        body.pdf-generating .profile-card {
+            flex-direction: row !important;
+            justify-content: flex-start !important;
+            align-items: center !important;
+            text-align: left !important;
+            padding: 10px 24px !important;
+            background: linear-gradient(135deg, #1A2750 0%, #249BA6 100%) !important;
+            border-radius: 12px !important;
+            gap: 20px !important;
+            width: 100% !important;
+            box-shadow: none !important;
+            border: none !important;
+        }
+
+        body.pdf-generating .photo-area { margin-bottom: 0 !important; }
+        body.pdf-generating .photo-area img {
+            width: 65px !important;
+            height: 65px !important;
+            border: 2px solid rgba(255, 255, 255, 0.3) !important;
+        }
+
+        body.pdf-generating .profile-info {
+            display: flex !important;
+            flex-direction: column !important;
+            align-items: flex-start !important;
+            gap: 2px !important;
+        }
+
+        body.pdf-generating .profile-info h2 {
+            font-size: 15px !important;
+            margin-bottom: 0 !important;
+            color: white !important;
+        }
+
+        body.pdf-generating .profile-info p#profileNid {
+            font-size: 11px !important;
+            margin-bottom: 0 !important;
+            color: #cbd5e1 !important;
+        }
+
+        body.pdf-generating .profile-info p#jabatan {
+            font-size: 11px !important;
+            margin-bottom: 0 !important;
+            color: #e0f2fe !important;
+        }
+
+        body.pdf-generating .profile-info span {
+            background-color: white !important;
+            color: #1A2750 !important;
+            padding: 3px 8px !important;
+            font-size: 9px !important;
+            margin-top: 2px !important;
+        }
+
+        body.pdf-generating .dashboard-content { width: 100% !important; }
+        body.pdf-generating .cards-grid {
+            display: grid !important;
+            grid-template-columns: repeat(2, 1fr) !important; 
+            gap: 10px !important;
+            width: 100% !important;
+        }
+
+        body.pdf-generating .card-full-width { grid-column: span 1 !important; }
+        body.pdf-generating .card {
+            background: white !important; 
+            padding: 10px 14px !important;
+            border-radius: 10px !important;
+            border: 1px solid #cbd5e1 !important;
+            box-shadow: none !important;
+            color: #0f172a !important;
+        }
+
+        body.pdf-generating .card-title {
+            font-size: 11.5px !important;
+            margin-bottom: 6px !important;
+            padding-bottom: 4px !important;
+            color: #1A2750 !important;
+            border-bottom: 1px solid #cbd5e1 !important;
+        }
+
+        body.pdf-generating td {
+            padding: 3px 6px !important;
+            font-size: 9.5px !important;
+            line-height: 1.2 !important;
+            color: #0f172a !important;
+        }
+
+        body.pdf-generating td:first-child {
+            width: 42% !important;
+            background-color: #f1f5f9 !important;
+            color: #1A2750 !important;
+            border-right: 1px solid #cbd5e1 !important;
+        }
+
+        body.pdf-generating td:last-child {
+            width: 58% !important;
+            text-align: right !important;
+            color: #0f172a !important;
+        }
+        
+        body.pdf-generating .cuti-container { gap: 2px !important; }
+        body.pdf-generating .progress-bar-bg {
+            width: 80px !important;
+            height: 6px !important;
+            background-color: #cbd5e1 !important;
+        }
+        body.pdf-generating .progress-bar-fill { background: #249BA6 !important; }
+
+        /*==================================================
+          LOADING STATE SPINNER
+        ==================================================*/
+        .loading {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(26, 39, 80, 0.9);
+            backdrop-filter: blur(4px);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            gap: 15px;
+        }
+
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 5px solid rgba(255, 255, 255, 0.1);
+            border-top: 5px solid var(--tosca);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /*==================================================
+          MEDIA QUERY: RESPONSIVE LAYOUT
+        ==================================================*/
+        @media (max-width: 768px) {
+            body { padding: 12px; }
+            .container { gap: 16px; }
+
+            .navbar {
+                flex-direction: column;
+                padding: 15px 20px;
+                gap: 15px;
+                align-items: center;
+            }
+
+            .navbar-brand {
+                flex-direction: column;
+                gap: 6px;
+                text-align: center;
+            }
+
+            .navbar-right {
+                width: 100%;
+                justify-content: center;
+                flex-wrap: wrap;
+                gap: 12px;
+            }
+
+            .nav-item { font-size: 12.5px; }
+            .welcome-section h2 { font-size: 20px; text-align: center; }
+            .welcome-section p { font-size: 12px; text-align: center; }
+
+            /* 3. Search Box Mobile (Dibuat Horizontal agar pas & stabil di Safari iPhone) */
+            .search-box {
+                flex-direction: row !important;
+                align-items: center;
+                padding: 6px 10px 6px 15px;
+                gap: 10px;
+            }
+
+            .search-box input {
+                padding: 8px 0;
+                text-align: left;
+            }
+
+            .search-box button {
+                width: auto;
+                padding: 8px 18px;
+            }
+
+            #profileArea[style*="display: block"],
+            #profileArea[style*="display:block"] {
+                grid-template-columns: 1fr !important;
+                gap: 16px;
+            }
+
+            .profile-sidebar { width: 100%; }
+            .profile-card { padding: 24px 16px; }
+            .profile-actions { flex-direction: column; gap: 8px; }
+
+            .cards-grid {
+                grid-template-columns: 1fr !important;
+                gap: 16px;
+            }
+
+            .card { padding: 16px 20px; }
+            .card-full-width { grid-column: span 1 !important; }
+
+            .birthday-banner {
+                grid-column: span 1 !important;
+                flex-direction: column;
+                text-align: center;
+                gap: 10px;
+                padding: 16px;
+            }
+
+            .form-row { grid-template-columns: 1fr; gap: 12px; }
+            .table-container { -webkit-overflow-scrolling: touch; }
+            td, th { padding: 8px 10px; font-size: 12px; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+
+    <!-- NAVBAR / HEADER -->
+    <nav class="navbar">
+        <div class="navbar-brand">
+            <div class="logo-mkp">
+                <img src="https://lh3.googleusercontent.com/d/1VDAsKYqdAZwlUfP8aZcHN47Zqunr-lfn" alt="Logo Perusahaan">
+            </div>
+            <div class="company">
+                <h1>E-CENTER</h1>
+                <p>PT Mitra Mitra Prima</p>
+            </div>
+        </div>
+        <div class="navbar-right">
+            <!-- Menambahkan event resetDashboard() agar bisa di-reset manual -->
+            <div class="nav-item active" onclick="resetDashboard()"><i class="fa-solid fa-house"></i> Dashboard</div>
+            <a href="https://script.google.com/macros/s/AKfycbzL3rsJ-QMWwFw_A8_dImg-icICmuBrAu1KC8lgywGe3-IPj4Ybp3HGCYUbUTFziEIy/exec" target="_blank" class="nav-item">
+                <i class="fa-solid fa-plane-departure"></i> SPPD Check
+            </a>
+            <div class="nav-item" onclick="bukaModalCuti()">
+                <i class="fa-solid fa-calendar-plus"></i> Ajukan Cuti
+            </div>
+        </div>
+    </nav>
+
+    <!-- WELCOME TEXT -->
+    <div class="welcome-section">
+        <h2>Welcome to E- Center</h2>
+        <p>Silakan masukkan NID Karyawan Anda pada kolom di bawah ini untuk melihat portofolio lengkap.</p>
+    </div>
+
+    <!-- SEARCH BAR -->
+    <section class="search-section">
+        <div class="search-box">
+            <i class="fa-solid fa-magnifying-glass search-icon"></i>
+            <input
+                type="text"
+                id="nid"
+                placeholder="Masukkan NID Karyawan (contoh: 9420030XXNX)">
+            <button onclick="cariData()">Cari</button>
+        </div>
+    </section>
+
+    <!-- RESULT MESSAGES -->
+    <div id="hasil"></div>
+
+    <!-- PROFILE AREA -->
+    <section id="profileArea" style="display:none;">
+
+        <!-- Watermark Backgrounds Segmen -->
+        <div class="watermark watermark-1"></div>
+        <div class="watermark watermark-2"></div>
+        <div class="watermark watermark-3"></div>
+
+        <!-- Kolom Kiri: Profile Sidebar -->
+        <div class="profile-sidebar">
+            <div class="profile-card">
+                <div class="photo-area">
+                    <img
+                        id="fotoProfil"
+                        src="https://cdn-icons-png.flaticon.com/512/847/847969.png">
+                </div>
+                <div class="profile-info">
+                    <h2 id="namaKaryawan">-</h2>
+                    <p id="profileNid">NID: -</p>
+                    <p id="jabatan">-</p>
+                    <span id="unitKerja">-</span>
+                </div>
+                
+                <!-- TOMBOL AKSI -->
+                <div class="profile-actions">
+                    <button onclick="salinRingkasan()" class="btn-action btn-copy" title="Salin Ringkasan Data">
+                        <i class="fa-solid fa-copy"></i> Salin Data
+                    </button>
+                    <button onclick="downloadPDF()" class="btn-action btn-print" title="Unduh PDF Portofolio">
+                        <i class="fa-solid fa-download"></i> Download PDF
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Kolom Kanan: Detail Grid -->
+        <div class="dashboard-content">
+            
+            <!-- Birthday Banner -->
+            <div id="birthdayBanner" class="birthday-banner" style="display: none;">
+                <i class="fa-solid fa-cake-candles birthday-icon"></i>
+                <div class="birthday-text">
+                    <h4 id="birthdayGreeting">Selamat Ulang Tahun! 🎉</h4>
+                    <p id="birthdaySub">Hari ini adalah hari istimewa Anda. Semoga sehat dan sukses selalu!</p>
+                </div>
+            </div>
+
+            <div class="cards-grid">
+                
+                <!-- Identitas -->
+                <div class="card">
+                    <div class="card-title">
+                        <i class="fa-regular fa-id-card"></i> Identitas
+                    </div>
+                    <div class="table-container">
+                        <table id="tblIdentitas"></table>
+                    </div>
+                </div>
+
+                <!-- Kepegawaian -->
+                <div class="card">
+                    <div class="card-title">
+                        <i class="fa-solid fa-briefcase"></i> Data Kepegawaian
+                    </div>
+                    <div class="table-container">
+                        <table id="tblPegawai"></table>
+                    </div>
+                </div>
+
+                <!-- BPJS -->
+                <div class="card">
+                    <div class="card-title">
+                        <i class="fa-solid fa-credit-card"></i> BPJS & Rekening
+                    </div>
+                    <div class="table-container">
+                        <table id="tblBpjs"></table>
+                    </div>
+                </div>
+
+                <!-- Sertifikasi -->
+                <div class="card">
+                    <div class="card-title">
+                        <i class="fa-solid fa-award"></i> Sertifikasi
+                    </div>
+                    <div class="table-container">
+                        <table id="tblSertifikasi"></table>
+                    </div>
+                </div>
+
+                <!-- Pendidikan -->
+                <div class="card card-full-width">
+                    <div class="card-title">
+                        <i class="fa-solid fa-graduation-cap"></i> Pendidikan
+                    </div>
+                    <div class="table-container">
+                        <table id="tblPendidikan"></table>
+                    </div>
+                </div>
+
+                <!-- Lainnya -->
+                <div class="card card-full-width">
+                    <div class="card-title">
+                        <i class="fa-solid fa-circle-info"></i> Data Lainnya
+                    </div>
+                    <div class="table-container">
+                        <table id="tblLainnya"></table>
+                    </div>
+                </div>
+
+                <!-- Riwayat Cuti & Izin Karyawan -->
+                <div class="card card-full-width" id="cardRiwayatCuti" style="display: none;">
+                    <div class="card-title">
+                        <i class="fa-solid fa-clock-rotate-left"></i> Riwayat Cuti & Izin Karyawan
+                    </div>
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th style="text-align: left; width: 18%;">Waktu Pengajuan</th>
+                                    <th style="text-align: left; width: 15%;">Jenis Form</th>
+                                    <th style="text-align: left; width: 20%;">Tanggal</th>
+                                    <th style="text-align: center; width: 10%;">Durasi</th>
+                                    <th style="text-align: left; width: 15%;">Alasan / Ket</th>
+                                    <th style="text-align: center; width: 12%;">Status</th>
+                                    <th style="text-align: right; width: 10%;">Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody id="bodyRiwayatCuti"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+    </section>
+
+    <!-- MODAL PENGAJUAN CUTI & IZIN -->
+    <div id="modalCuti" class="modal-overlay" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fa-solid fa-file-signature"></i> Form Cuti & Izin Karyawan</h3>
+                <button class="close-btn" onclick="tutupModalCuti()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="formCuti" onsubmit="kirimFormCuti(event)">
+                    <input type="hidden" id="cutiNid">
+                    
+                    <div class="form-group">
+                        <label>Nama Karyawan</label>
+                        <input type="text" id="cutiNama" readonly style="background: rgba(255,255,255,0.05); color: var(--text-muted); font-weight: 500;">
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Jenis Pengajuan</label>
+                            <select id="cutiJenis" required onchange="cekKuotaForm()">
+                                <option value="Cuti Tahunan">Cuti Tahunan</option>
+                                <option value="Sakit">Sakit</option>
+                                <option value="Ijin">Ijin</option>
+                                <option value="Dinas Luar">Dinas Luar</option>
+                                <option value="Ijin Masuk Terlambat">Ijin Masuk Terlambat</option>
+                            </select>
+                        </div>
+                        <div class="form-group" id="groupSisaCuti">
+                            <label>Jatah Sisa Cuti (Hari)</label>
+                            <input type="text" id="cutiSisa" readonly style="background: rgba(255,255,255,0.05); color: var(--text-main); font-weight: 700; text-align: center;">
+                        </div>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Tanggal Mulai</label>
+                            <input type="date" id="cutiMulai" required onchange="hitungHariCuti()">
+                        </div>
+                        <div class="form-group">
+                            <label>Tanggal Selesai</label>
+                            <input type="date" id="cutiSelesai" required onchange="hitungHariCuti()">
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Durasi Pengajuan (Hari)</label>
+                        <input type="number" id="cutiDurasi" required readonly style="background: rgba(255,255,255,0.05); color: var(--text-main); font-weight: 700; text-align: center;">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Alasan Pengajuan</label>
+                        <textarea id="cutiAlasan" rows="3" required placeholder="Tuliskan keterangan detail alasan Anda mengajukan izin/cuti ini..."></textarea>
+                    </div>
+                    
+                    <button type="submit" id="btnSubmitCuti" class="btn-submit-form">Simpan Pengajuan</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL PREVIEW SURAT CUTI & SHARE -->
+    <div id="modalPreviewSurat" class="modal-overlay" style="display: none;">
+        <div class="modal-content" style="max-width: 650px;">
+            <div class="modal-header">
+                <h3><i class="fa-solid fa-file-image"></i> Preview Surat Cuti & Izin</h3>
+                <button class="close-btn" onclick="tutupModalPreviewSurat()">&times;</button>
+            </div>
+            <div class="modal-body" style="background-color: #f8fafc; padding: 20px; max-height: 80vh; overflow: auto;">
+                
+                <div style="margin-bottom: 20px; display: flex; flex-direction: column; gap: 12px; background: rgba(26, 39, 80, 0.05); padding: 15px; border-radius: 12px; border: 1px solid rgba(26, 39, 80, 0.15);">
+                    
+                    <div style="display: flex; flex-direction: column; gap: 8px;">
+                        <div style="font-size: 11px; font-weight: bold; color: var(--tosca); text-transform: uppercase;">Langkah 1: Kirim ke Atasan Langsung (TL / SPV)</div>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                            <a id="btnKirimWaAl" href="#" target="_blank" class="btn-submit-form" style="background-color: #16a34a; box-shadow: none; text-decoration: none; text-align: center; display: flex; align-items: center; justify-content: center; gap: 8px; margin: 0; padding: 10px;">
+                                <i class="fa-brands fa-whatsapp"></i> Kirim WA
+                            </a>
+                            <a id="btnKirimEmailAl" href="#" class="btn-submit-form" style="background-color: #0284c7; box-shadow: none; text-decoration: none; text-align: center; display: flex; align-items: center; justify-content: center; gap: 8px; margin: 0; padding: 10px;">
+                                <i class="fa-solid fa-envelope"></i> Kirim Email
+                            </a>
+                        </div>
+                        <button type="button" onclick="salinPesanAl()" class="btn-submit-form" style="background-color: #1A2750; border: none; color: #ffffff; box-shadow: none; margin: 0; padding: 10px; display: flex; align-items: center; justify-content: center; gap: 8px; font-weight: 600; cursor: pointer;">
+                            <i class="fa-solid fa-copy"></i> Salin Link & Pesan TL
+                        </button>
+                        
+                        <div style="font-size: 11px; font-weight: bold; color: var(--tosca); text-transform: uppercase; margin-top: 8px;">Langkah 2: Kirim ke Atasan Tidak Langsung (Manager / Asman)</div>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                            <a id="btnKirimWaAtl" href="#" target="_blank" class="btn-submit-form" style="background-color: #16a34a; box-shadow: none; text-decoration: none; text-align: center; display: flex; align-items: center; justify-content: center; gap: 8px; margin: 0; padding: 10px;">
+                                <i class="fa-brands fa-whatsapp"></i> Kirim WA
+                            </a>
+                            <a id="btnKirimEmailAtl" href="#" class="btn-submit-form" style="background-color: #0284c7; box-shadow: none; text-decoration: none; text-align: center; display: flex; align-items: center; justify-content: center; gap: 8px; margin: 0; padding: 10px;">
+                                <i class="fa-solid fa-envelope"></i> Kirim Email
+                            </a>
+                        </div>
+                        <button type="button" onclick="salinPesanAtl()" class="btn-submit-form" style="background-color: #1A2750; border: none; color: #ffffff; box-shadow: none; margin: 0; padding: 10px; display: flex; align-items: center; justify-content: center; gap: 8px; font-weight: 600; cursor: pointer;">
+                            <i class="fa-solid fa-copy"></i> Salin Link & Pesan Manager
+                        </button>
+                    </div>
+
+                    <hr style="border: none; border-top: 1px solid rgba(26, 39, 80, 0.15); margin: 5px 0;">
+
+                    <!-- Tombol Download Gambar Utama (Bawah) -->
+                    <a id="btnDownloadSurat" onclick="downloadPDFSuratCuti()" class="btn-primary" style="margin-top: 15px; width: 100%; display: block; text-align: center; text-decoration: none; background: #1e293b; color: white; padding: 12px; border-radius: 10px; font-weight: 600; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
+                        <i class="fa-solid fa-file-image"></i> Download Berkas Gambar (PNG)
+                    </a>
+                </div>
+
+                <!-- Lembar Surat Resmi -->
+                <div id="lembarSurat" style="background: white; padding: 30px; border: 1px solid #e2e8f0; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); font-family: 'Times New Roman', Times, serif; color: black; line-height: 1.5; font-size: 14px;">
+                    
+                    <!-- KOP SURAT -->
+                    <div style="display: flex; align-items: center; border-bottom: 2px solid black; padding-bottom: 15px; margin-bottom: 20px;">
+                        <img src="https://lh3.googleusercontent.com/d/1VDAsKYqdAZwlUfP8aZcHN47Zqunr-lfn" style="height: 50px; width: auto; margin-right: 15px;">
+                        <div style="text-align: left;">
+                            <h2 style="margin: 0; font-size: 18px; font-weight: bold; font-family: sans-serif; color: #1A2750;">PT MITRA MITRA PRIMA</h2>
+                            <p style="margin: 2px 0 0 0; font-size: 11px; font-family: sans-serif; color: #64748b;">Portal E-Center - Layanan Kepegawaian Mandiri</p>
+                        </div>
+                    </div>
+                    
+                    <!-- JUDUL SURAT -->
+                    <div style="text-align: center; margin-bottom: 25px;">
+                        <h3 style="margin: 0; font-size: 16px; font-weight: bold; text-decoration: underline;">SURAT PERMOHONAN IZIN / CUTI</h3>
+                        <p style="margin: 5px 0 0 0; font-size: 12px; font-family: monospace;" id="pdfNoSurat">Nomor: CUTI-XXXXXX</p>
+                    </div>
+                    
+                    <!-- ISI SURAT -->
+                    <p style="margin-bottom: 15px;">Yang bertanda tangan di bawah ini menerangkan pengajuan izin/cuti karyawan PT Mitra Mitra Prima dengan rincian berikut:</p>
+                    
+                    <table style="width: 100%; margin-bottom: 20px; font-size: 14px; border: none;">
+                        <tr>
+                            <td style="width: 35%; font-weight: bold; padding: 4px 0; border: none; color: black; background: transparent;">NID</td>
+                            <td style="width: 5%; padding: 4px 0; border: none; color: black; background: transparent;">:</td>
+                            <td style="width: 60%; padding: 4px 0; border: none; color: black; background: transparent;" id="pdfNid">-</td>
+                        </tr>
+                        <tr>
+                            <td style="font-weight: bold; padding: 4px 0; border: none; color: black; background: transparent;">Nama Karyawan</td>
+                            <td style="padding: 4px 0; border: none; color: black; background: transparent;">:</td>
+                            <td style="padding: 4px 0; border: none; color: black; background: transparent;" id="pdfNama">-</td>
+                        </tr>
+                        <tr>
+                            <td style="font-weight: bold; padding: 4px 0; border: none; color: black; background: transparent;">Jabatan / Posisi</td>
+                            <td style="padding: 4px 0; border: none; color: black; background: transparent;">:</td>
+                            <td style="padding: 4px 0; border: none; color: black; background: transparent;" id="pdfJabatan">-</td>
+                        </tr>
+                        <tr>
+                            <td style="font-weight: bold; padding: 4px 0; border: none; color: black; background: transparent;">Unit Kerja</td>
+                            <td style="padding: 4px 0; border: none; color: black; background: transparent;">:</td>
+                            <td style="padding: 4px 0; border: none; color: black; background: transparent;" id="pdfUnit">-</td>
+                        </tr>
+                        <tr>
+                            <td style="font-weight: bold; padding: 4px 0; border: none; color: black; background: transparent;">Jenis Pengajuan</td>
+                            <td style="padding: 4px 0; border: none; color: black; background: transparent;">:</td>
+                            <td style="padding: 4px 0; border: none; color: black; background: transparent;" id="pdfJenis">-</td>
+                        </tr>
+                        <tr>
+                            <td style="font-weight: bold; padding: 4px 0; border: none; color: black; background: transparent;">Tanggal Cuti</td>
+                            <td style="padding: 4px 0; border: none; color: black; background: transparent;">:</td>
+                            <td style="padding: 4px 0; border: none; color: black; background: transparent;" id="pdfTanggal">-</td>
+                        </tr>
+                        <tr>
+                            <td style="font-weight: bold; padding: 4px 0; border: none; color: black; background: transparent;">Durasi Pengajuan</td>
+                            <td style="padding: 4px 0; border: none; color: black; background: transparent;">:</td>
+                            <td style="padding: 4px 0; border: none; color: black; background: transparent;"><span id="pdfDurasi">-</span> Hari</td>
+                        </tr>
+                        <tr>
+                            <td style="font-weight: bold; padding: 4px 0; border: none; color: black; background: transparent; vertical-align: top;">Alasan Cuti</td>
+                            <td style="padding: 4px 0; border: none; color: black; background: transparent; vertical-align: top;">:</td>
+                            <td style="padding: 4px 0; border: none; color: black; background: transparent; white-space: pre-wrap;" id="pdfAlasan">-</td>
+                        </tr>
+                    </table>
+
+                    <p style="margin-top: 20px; margin-bottom: 30px;">Demikian permohonan ini diajukan, atas perhatian Bapak/Ibu pimpinan diucapkan terima kasih.</p>
+                    
+                    <!-- TANDA TANGAN (3 KOLOM BERJAJAR RAPI) -->
+                    <div style="display: flex; justify-content: space-between; margin-top: 50px; font-size: 14px;">
+                        
+                        <!-- Kolom Kiri: Pemohon -->
+                        <div style="width: 30%; text-align: center; display: flex; flex-direction: column; justify-content: space-between; height: 160px; position: relative;">
+                            <div>Pemohon,</div>
+                            <div style="font-weight: bold; text-decoration: underline;" id="pdfSignNama">-</div>
+                            <div style="font-size: 11px; margin-top: 4px;" id="pdfSignNid">NID: -</div>
+                        </div>
+                        
+                        <!-- Kolom Tengah: Atasan Langsung (TL) -->
+                        <div style="width: 30%; text-align: center; display: flex; flex-direction: column; justify-content: space-between; height: 160px; position: relative;">
+                            <div>Menyetujui,<br>Atasan Langsung,</div>
+                            
+                            <!-- STEMPEL APPROVED UNTUK LEVEL 1 (TL) -->
+                            <div id="stampAl" style="position: absolute; top: 35px; left: 50%; transform: translateX(-50%) rotate(-12deg); border: 3px double #16a34a; color: #16a34a; font-size: 16px; font-weight: bold; padding: 4px 10px; border-radius: 6px; text-transform: uppercase; background-color: rgba(255, 255, 255, 0.9); box-shadow: 0 2px 4px rgba(0,0,0,0.05); z-index: 10; display: none;">APPROVED</div>
+                            
+                            <div style="font-weight: bold; text-decoration: underline; margin-top: auto;" id="pdfSignAtasan">-</div>
+                            <div style="font-size: 11px; margin-top: 4px;" id="pdfSignJabatanAl">(TL ADMINISTRASI)</div>
+                        </div>
+                        
+                        <!-- Kolom Kanan: Atasan Tidak Langsung (Manager) -->
+                        <div style="width: 30%; text-align: center; display: flex; flex-direction: column; justify-content: space-between; height: 160px; position: relative;">
+                            <div>Mengetahui,<br>Atasan Tidak Langsung,</div>
+                            
+                            <!-- STEMPEL APPROVED UNTUK LEVEL 2 (MANAGER) -->
+                            <div id="stampAtl" style="position: absolute; top: 35px; left: 50%; transform: translateX(-50%) rotate(-12deg); border: 3px double #16a34a; color: #16a34a; font-size: 16px; font-weight: bold; padding: 4px 10px; border-radius: 6px; text-transform: uppercase; background-color: rgba(255, 255, 255, 0.9); box-shadow: 0 2px 4px rgba(0,0,0,0.05); z-index: 10; display: none;">APPROVED</div>
+                            
+                            <div style="font-weight: bold; text-decoration: underline; margin-top: auto;" id="pdfSignAtasanAtl">-</div>
+                            <div style="font-size: 11px; margin-top: 4px;" id="pdfSignJabatanAtl">(MANAJER UNIT)</div>
+                        </div>
+                        
+                    </div>
+                    
+                </div> <!-- End of #lembarSurat -->
+                
+            </div> <!-- End of .modal-body -->
+        </div> <!-- End of .modal-content -->
+    </div> <!-- End of #modalPreviewSurat -->
+    
+</div> <!-- End of .container -->
+
+<!-- Loading Spinner -->
+<div id="loading" class="loading" style="display: none;">
+    <div class="spinner"></div>
+    <h3 style="color: var(--text-main); font-weight: 500;">Memuat Data...</h3>
+</div>
+
+<?!= include("JavaScript"); ?>
+
+</body>
+</html>

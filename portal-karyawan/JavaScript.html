@@ -1,0 +1,952 @@
+<script>
+/******************************************************
+ * PORTAL KARYAWAN E-CENTER
+ * JavaScript.html - Logika Frontend & Integrasi Backend (ES5 PNG Image Version)
+ ******************************************************/
+
+//======================================
+// GLOBAL DATA (Untuk Keperluan Form Cuti & Navigasi)
+//======================================
+var globalNid = "";
+var globalNama = "";
+var globalSisaCuti = 0;
+var globalNamaAtasan = "";
+var globalJabatanAl = "";
+var globalNamaAtasanAtl = "";
+var globalJabatanAtl = "";
+var globalWebappUrl = ""; // Menyimpan URL deployment webapp
+var currentRiwayat = [];  // Menyimpan riwayat pencarian aktif
+
+// Variabel Global untuk menyimpan draft pesan salin manual
+var globalMessageAl = "";
+var globalMessageAtl = "";
+
+// Pemetaan Nama Header Kolom Spreadsheet ke Tabel UI
+var mappingIdentitas = [
+  "NOMOR KTP",
+  "TANGGAL LAHIR",
+  "STATUS PERKAWINAN",
+  "JUMLAH TANGGUNGAN (ISTRI TIDAK DIHITUNG)",
+  "ALAMAT SESUAI KTP",
+  "PROVINSI",
+  "KODE POS",
+  "USIA (TAHUN)",
+  "NOMOR HP",
+  "JENIS KELAMIN",
+  "AGAMA",
+  "GOLONGAN DARAH",
+  "Ulang Tahun",
+  "SISA HARI ULTAH"
+];
+
+var mappingPegawai = [
+  "MULAI MASUK MKP",
+  "MASA KERJA",
+  "STATUS KONTRAK (ORGANIK/PKWT/OJT/TUGAS KARYA)",
+  "STATUS KARYAWAN",
+  "JABATAN",
+  "BIDANG",
+  "LOKASI KERJA",
+  "NAMA ATASAN LANGSUNG",
+  "JABATAN AL",
+  "NAMA ATASAN TIDAK LANGSUNG",
+  "JABATAN ATL",
+  "TANGGAL RESIGN",
+  "KETERANGAN",
+  "SISA CUTI"
+];
+
+var mappingBpjs = [
+  "BPJS KESEHATAN",
+  "BPJS KETENAGAKERJAAN",
+  "NPWP",
+  "NAMA BANK",
+  "NO REKENING"
+];
+
+var mappingSertifikasi = [
+  "SERTIFIKASI",
+  "LEVEL SKP",
+  "MASA BERLAKU"
+];
+
+var mappingPendidikan = [
+  "PENDIDIKAN TERAKHIR (SD/SMP/SMA/D3/S1/S2)",
+  "NAMA SD",
+  "KOTA SD",
+  "TAHUN LULUS SD",
+  "NAMA SMP",
+  "KOTA SMP",
+  "TAHUN LULUS SMP",
+  "NAMA SMA",
+  "KOTA SMA",
+  "JURUSAN DI SMA",
+  "TAHUN LULUS SMA",
+  "NAMA UNIVERSITAS",
+  "JURUSAN PENDIDIKAN DI UNIVERSITAS",
+  "KOTA UNIVERSITAS",
+  "TAHUN LULUS KULIAH"
+];
+
+//======================================
+// HELPER: LOCALSTORAGE WRAPPERS (Mencegah Crash jika Iframe Sandbox memblokir Storage)
+//======================================
+function getStorageItem(key) {
+    try {
+        return localStorage.getItem(key);
+    } catch (e) {
+        console.warn("Storage tidak diizinkan oleh browser/iframe sandbox:", e);
+        return null;
+    }
+}
+
+function setStorageItem(key, value) {
+    try {
+        localStorage.setItem(key, value);
+    } catch (e) {
+        console.warn("Storage tidak diizinkan oleh browser/iframe sandbox:", e);
+    }
+}
+
+function removeStorageItem(key) {
+    try {
+        localStorage.removeItem(key);
+    } catch (e) {
+        console.warn("Storage tidak diizinkan oleh browser/iframe sandbox:", e);
+    }
+}
+
+//======================================
+// INITIALIZATION
+//======================================
+window.onload = function () {
+    var nidInput = document.getElementById("nid");
+    if (nidInput) {
+        nidInput.addEventListener("keypress", function(e) {
+            if(e.key === "Enter") {
+                cariData();
+            }
+        });
+    }
+
+    // Periksa apakah ada NID yang tersimpan di localStorage dari pencarian sebelumnya secara aman
+    var lastNid = getStorageItem("lastNid");
+    if (lastNid) {
+        document.getElementById("nid").value = lastNid;
+        cariData();
+    }
+};
+
+//======================================
+// RESET/KEMBALI KE HALAMAN UTAMA (TOMBOL DASHBOARD)
+//======================================
+function resetDashboard() {
+    removeStorageItem("lastNid");
+    document.getElementById("nid").value = "";
+    document.getElementById("profileArea").style.display = "none";
+    document.getElementById("hasil").innerHTML = "";
+    globalNid = "";
+    globalNama = "";
+    globalSisaCuti = 0;
+}
+
+//======================================
+// CARI DATA KARYAWAN
+//======================================
+var googleLoadRetries = 0;
+function cariData() {
+    var nid = document.getElementById("nid").value.trim();
+    if(nid == "") {
+        alert("Silakan masukkan NID.");
+        document.getElementById("nid").focus();
+        return;
+    }
+
+    document.getElementById("loading").style.display = "flex";
+    document.getElementById("profileArea").style.display = "none";
+    document.getElementById("hasil").innerHTML = "";
+
+    // PENCEGAHAN RACE CONDITION: Tunggu hingga API SDK Google Apps Script selesai dimuat
+    if (typeof google === "undefined" || !google.script || !google.script.run) {
+        googleLoadRetries++;
+        if (googleLoadRetries > 25) { // Batasi maksimal 5 detik (25 * 200ms)
+            document.getElementById("loading").style.display = "none";
+            alert("Gagal memuat Google Apps Script API.\n\nPastikan Anda membuka halaman ini via URL Web App deployment resmi, bukan dari double-click file HTML lokal.");
+            googleLoadRetries = 0;
+            return;
+        }
+        setTimeout(cariData, 200);
+        return;
+    }
+    googleLoadRetries = 0;
+
+    // Panggil fungsi Apps Script backend
+    google.script.run
+        .withSuccessHandler(showResult)
+        .withFailureHandler(function(err) {
+            document.getElementById("loading").style.display = "none";
+            alert("Terjadi kegagalan koneksi: " + err);
+        })
+        .cariDataKaryawan(nid);
+}
+
+//======================================
+// RENDER DATA HASIL CARIAN
+//======================================
+function showResult(response) {
+    document.getElementById("loading").style.display = "none";
+
+    if (!response.success) {
+        // Hapus NID terakhir jika pencarian gagal
+        removeStorageItem("lastNid");
+        
+        var debugHtml = "";
+        
+        // JIKA ADA DETEKSI INFO DEBUGGING (NID TIDAK COCOK/SALAH TAB)
+        if (response.debug) {
+            debugHtml = 
+                '<div style="margin-top: 15px; padding: 15px; background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 10px; text-align: left; font-size: 11.5px; color: #475569; font-family: monospace; line-height: 1.5; box-shadow: inset 0 2px 4px rgba(0,0,0,0.02);">' +
+                    '<strong style="color: #0f172a; border-bottom: 1px solid #e2e8f0; display:block; padding-bottom: 5px; margin-bottom: 8px;">ℹ️ INFORMASI DETAIL DEBUGGING SPREADSHEET:</strong>' +
+                    '- <b>Sheet Terpilih:</b> "' + response.debug.selectedSheet + '"<br/>' +
+                    '- <b>Semua Sheet di File:</b> ' + response.debug.allSheets.map(function(x) { return '"' + x + '"'; }).join(", ") + '<br/>' +
+                    '- <b>Deteksi Baris Header:</b> Baris ke-' + response.debug.detectedHeaderRow + '<br/>' +
+                    '- <b>Kolom "NID" Berada di Kolom Ke:</b> ' + response.debug.nidColumnIndex + '<br/>' +
+                    '- <b>Daftar Header Terdeteksi (10 Kolom Pertama):</b><br/>' +
+                      '[ ' + response.debug.detectedHeaders.join(" | ") + ' ]<br/>' +
+                    '- <b>Contoh 5 NID Pertama di Sheet Tersebut:</b><br/>' +
+                      '[ ' + response.debug.sampleNidsInSheet.map(function(n) { return '"' + n + '"'; }).join(" , ") + ' ]' +
+                '</div>';
+        }
+        
+        document.getElementById("hasil").innerHTML = 
+            '<div style="color: #dc2626; text-align: center; font-weight: 700; margin-top: 20px; padding: 15px; background-color: #fee2e2; border-radius: 12px; border: 1px solid #fca5a5;">' +
+                '<i class="fa-solid fa-triangle-exclamation"></i> ' + response.message +
+                debugHtml +
+             '</div>';
+        return;
+    }
+
+    var data = response.data;
+    
+    // Set data global untuk Form Cuti & Identitas
+    globalNid = data["NID"] || "";
+    globalNama = data["NAMA KARYAWAN"] || data["NAMA"] || data["NAMA LENGKAP"] || "";
+    globalSisaCuti = parseInt(data["SISA CUTI"]) || 0;
+    globalWebappUrl = response.webappUrl || ""; // Simpan URL webapp
+    
+    // Simpan NID sukses ke localStorage secara aman
+    if (globalNid) {
+        setStorageItem("lastNid", globalNid);
+    }
+    
+    // Pemetaan Atasan Baru (Direct & Indirect)
+    globalNamaAtasan = data["NAMA ATASAN LANGSUNG"] || data["NAMA ATASAN"] || "-";
+    globalJabatanAl = data["JABATAN AL"] || "Team Leader / Spv";
+    globalNamaAtasanAtl = data["NAMA ATASAN TIDAK LANGSUNG"] || data["NAMA ATASAN TIDAK ANGSUNG"] || "-";
+    globalJabatanAtl = data["JABATAN ATL"] || "Manager Unit";
+
+    // Tampilkan data ke Profil Sidebar
+    document.getElementById("namaKaryawan").innerText = globalNama || "-";
+    document.getElementById("profileNid").innerText = "NID: " + (globalNid || "-");
+    document.getElementById("jabatan").innerText = data["JABATAN"] || data["POSISI"] || "-";
+    document.getElementById("unitKerja").innerText = data["NAMA UNIT"] || data["UNIT KERJA"] || data["UNIT"] || "-";
+
+    // Konversi & Tampilkan Foto Karyawan
+    var urlFoto = data["FOTO PROFIL"] || data["FOTO"] || data["URL FOTO"] || "";
+    document.getElementById("fotoProfil").src = konversiLinkDrive(urlFoto) || "https://cdn-icons-png.flaticon.com/512/847/847969.png";
+
+    // Render data ke masing-masing tabel kartu
+    populateTable("tblIdentitas", mappingIdentitas, data);
+    populateTable("tblPegawai", mappingPegawai, data);
+    populateTable("tblBpjs", mappingBpjs, data);
+    populateTable("tblSertifikasi", mappingSertifikasi, data);
+    populateTable("tblPendidikan", mappingPendidikan, data);
+
+    // KATEGORI LAINNYA: Sembunyikan data sensitif dari rendering Informasi Lainnya
+    var allMappedKeys = [].concat(
+        mappingIdentitas, 
+        mappingPegawai, 
+        mappingBpjs, 
+        mappingSertifikasi, 
+        mappingPendidikan,
+        ["NO", "NID", "NAMA KARYAWAN", "E-mail", "NAMA UNIT", "FOTO PROFIL", "FOTO", "URL FOTO",
+         "EMAIL ATASAN LANGSUNG", "EMAIL ATASAN TIDAK LANGSUNG", "SISA CUTI",
+         "PASSWORD LOGIN", "ROLE AKSES", "DAY", "MONTH", "YEAR", 
+         "NAMA ATASAN", "JABATAN AL", "JABATAN ATL", "NAMA ATASAN TIDAK ANGSUNG"]
+    );
+    
+    var tableLainnya = document.getElementById("tblLainnya");
+    tableLainnya.innerHTML = "";
+    var hasLainnya = false;
+
+    Object.keys(data).forEach(function(key) {
+        if (allMappedKeys.indexOf(key) === -1 && key.trim() !== "") {
+            hasLainnya = true;
+            var val = data[key];
+            if (val === undefined || val === null) val = "-";
+
+            var tr = document.createElement("tr");
+            tr.innerHTML = '<td>' + key + '</td><td>' + val + '</td>';
+            tableLainnya.appendChild(tr);
+        }
+    });
+
+    // Tampilkan / Sembunyikan kartu Lainnya
+    var cardLainnya = tableLainnya.closest(".card");
+    if (cardLainnya) {
+        cardLainnya.style.display = hasLainnya ? "block" : "none";
+    }
+
+    // Periksa Ulang Tahun Karyawan
+    checkBirthday(data["TANGGAL LAHIR"]);
+
+    // Muat Riwayat Pengajuan Cuti Karyawan
+    muatRiwayatCuti(globalNid);
+
+    // Buka Tampilan Area Portofolio
+    document.getElementById("profileArea").style.display = "block";
+}
+
+//======================================
+// FUNGSI PENGISI TABEL (Dinamis & Terstruktur)
+//======================================
+function populateTable(tableId, keys, data) {
+    var table = document.getElementById(tableId);
+    if (!table) return;
+    table.innerHTML = "";
+
+    keys.forEach(function(key) {
+        var val = data[key];
+        if (val === undefined || val === null) val = "-";
+
+        // Render khusus sisa cuti dalam bentuk progress bar
+        if (key === "SISA CUTI") {
+            var cutiVal = parseInt(val) || 0;
+            var percent = Math.min(100, Math.max(0, (cutiVal / 12) * 100)); // Asumsi jatah tahunan 12 hari
+            val = 
+                '<div class="cuti-container">' +
+                    '<span class="cuti-text">' + cutiVal + ' Hari</span>' +
+                    '<div class="progress-bar-bg">' +
+                        '<div class="progress-bar-fill" style="width: ' + percent + '%;"></div>' +
+                    '</div>' +
+                '</div>';
+        }
+        // Render Badge Status berwarna jika sesuai
+        else if (key === "STATUS KARYAWAN" || key === "STATUS PERKAWINAN" || key === "KETERANGAN" || key === "TANGGAL RESIGN" || key === "STATUS KONTRAK (ORGANIK/PKWT/OJT/TUGAS KARYA)") {
+            val = getBadgeHtml(val);
+        }
+
+        var tr = document.createElement("tr");
+        tr.innerHTML = '<td>' + key + '</td><td>' + val + '</td>';
+        table.appendChild(tr);
+    });
+}
+
+//======================================
+// FORMAT BADGE STATUS
+//======================================
+function getBadgeHtml(val) {
+    if (!val || val === "-") return "-";
+    var cleanVal = val.toString().toUpperCase().trim();
+
+    if (cleanVal === "ORGANIK" || cleanVal === "AKTIF" || cleanVal === "MENIKAH" || cleanVal === "KAWIN") {
+        return '<span class="pill-badge badge-green">' + val + '</span>';
+    } else if (cleanVal === "PENDING" || cleanVal === "KONTRAK" || cleanVal === "BELUM KAWIN") {
+        return '<span class="pill-badge badge-blue">' + val + '</span>';
+    } else if (cleanVal === "TIDAK AKTIF" || cleanVal === "RESIGN" || cleanVal === "DITOLAK") {
+        return '<span class="pill-badge badge-red">' + val + '</span>';
+    }
+    return '<span class="pill-badge badge-gray">' + val + '</span>';
+}
+
+//======================================
+// CONVERT LINK GOOGLE DRIVE KE DIRECT CDN
+//======================================
+function konversiLinkDrive(url) {
+    if (!url) return "";
+    var idDrive = "";
+    
+    // Pola 1: https://drive.google.com/file/d/ID_FILE/view?usp=sharing
+    if (url.indexOf("drive.google.com/file/d/") !== -1) {
+        idDrive = url.split("drive.google.com/file/d/")[1].split("/")[0];
+    }
+    // Pola 2: https://drive.google.com/open?id=ID_FILE
+    else if (url.indexOf("drive.google.com/open?id=") !== -1) {
+        idDrive = url.split("drive.google.com/open?id=")[1].split("&")[0];
+    }
+    // Pola 3: Google User Content CDN
+    else if (url.indexOf("googleusercontent.com") !== -1) {
+        return url;
+    }
+    else {
+        return url; // Kembalikan link apa adanya jika bukan link Drive
+    }
+    
+    return "https://lh3.googleusercontent.com/d/" + idDrive;
+}
+
+//======================================
+// PERIKSA ULANG TAHUN KARYAWAN
+//======================================
+function checkBirthday(birthDateStr) {
+    var banner = document.getElementById("birthdayBanner");
+    if (!birthDateStr) {
+        banner.style.display = "none";
+        return;
+    }
+
+    try {
+        var parts = birthDateStr.split("-");
+        if (parts.length < 3) {
+            banner.style.display = "none";
+            return;
+        }
+
+        var birthMonth = parseInt(parts[1]) - 1; // 0-based month
+        var birthDay = parseInt(parts[2]);
+
+        var today = new Date();
+        if (today.getMonth() === birthMonth && today.getDate() === birthDay) {
+            banner.style.display = "flex";
+        } else {
+            banner.style.display = "none";
+        }
+    } catch (e) {
+        banner.style.display = "none";
+    }
+}
+
+//======================================
+// KONTROL MODAL CUTI & IZIN
+//======================================
+function bukaModalCuti() {
+    if (!globalNid) {
+        alert("Harap cari data karyawan dengan NID terlebih dahulu sebelum mengajukan cuti.");
+        return;
+    }
+    
+    // Pre-fill data
+    document.getElementById("cutiNid").value = globalNid;
+    document.getElementById("cutiNama").value = globalNama;
+    document.getElementById("cutiSisa").value = globalSisaCuti;
+    
+    // Reset form
+    document.getElementById("cutiJenis").selectedIndex = 0;
+    document.getElementById("cutiMulai").value = "";
+    document.getElementById("cutiSelesai").value = "";
+    document.getElementById("cutiDurasi").value = "";
+    document.getElementById("cutiAlasan").value = "";
+    
+    cekKuotaForm();
+    
+    document.getElementById("modalCuti").style.display = "flex";
+}
+
+//======================================
+// TUTUP MODAL CUTI
+//======================================
+function tutupModalCuti() {
+    document.getElementById("modalCuti").style.display = "none";
+}
+
+function cekKuotaForm() {
+    var jenis = document.getElementById("cutiJenis").value;
+    var groupSisaCuti = document.getElementById("groupSisaCuti");
+    
+    if (jenis === "Cuti Tahunan") {
+        groupSisaCuti.style.visibility = "visible";
+    } else {
+        groupSisaCuti.style.visibility = "hidden";
+    }
+}
+
+//======================================
+// HITUNG HARI CUTI OTOMATIS
+//======================================
+function hitungHariCuti() {
+    var tglMulaiVal = document.getElementById("cutiMulai").value;
+    var tglSelesaiVal = document.getElementById("cutiSelesai").value;
+    var durasiInput = document.getElementById("cutiDurasi");
+    
+    if (tglMulaiVal && tglSelesaiVal) {
+        var tglMulai = new Date(tglMulaiVal);
+        var tglSelesai = new Date(tglSelesaiVal);
+        
+        if (tglSelesai < tglMulai) {
+            alert("Tanggal Selesai tidak boleh mendahului Tanggal Mulai.");
+            document.getElementById("cutiSelesai").value = "";
+            durasiInput.value = "";
+            return;
+        }
+        
+        // Selisih hari (+1 agar hari mulai dihitung)
+        var diffTime = Math.abs(tglSelesai - tglMulai);
+        var diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+        
+        durasiInput.value = diffDays;
+    } else {
+        durasiInput.value = "";
+    }
+}
+
+//======================================
+// SUBMIT PENGAJUAN CUTI & IZIN
+//======================================
+function kirimFormCuti(event) {
+    event.preventDefault();
+    
+    var nid = document.getElementById("cutiNid").value;
+    var jenisForm = document.getElementById("cutiJenis").value;
+    var tanggalMulai = document.getElementById("cutiMulai").value;
+    var tanggalSelesai = document.getElementById("cutiSelesai").value;
+    var jumlahHari = parseInt(document.getElementById("cutiDurasi").value) || 0;
+    var alasan = document.getElementById("cutiAlasan").value.trim();
+    
+    if (jenisForm === "Cuti Tahunan" && jumlahHari > globalSisaCuti) {
+        alert("Kuota Jatah Cuti Anda tidak mencukupi untuk pengajuan sebanyak " + jumlahHari + " hari.");
+        return;
+    }
+    
+    var btn = document.getElementById("btnSubmitCuti");
+    btn.disabled = true;
+    btn.innerHTML = "<i class='fa-solid fa-spinner fa-spin'></i> Menyimpan...";
+    
+    // Kirim data ke Apps Script backend
+    google.script.run
+        .withSuccessHandler(function(response) {
+            btn.disabled = false;
+            btn.innerText = "Simpan Pengajuan";
+            
+            if (response.success) {
+                // Tampilkan Modal Preview Surat Resmi dan bagikan
+                bukaModalPreviewSurat(response.data);
+                tutupModalCuti();
+                cariData(); // Cari ulang data untuk menyegarkan database & riwayat cuti
+            } else {
+                alert(response.message);
+            }
+        })
+        .withFailureHandler(function(err) {
+            btn.disabled = false;
+            btn.innerText = "Simpan Pengajuan";
+            alert("Gagal memproses pengajuan: " + err);
+        })
+        .kirimPengajuanCuti({
+            nid: nid,
+            jenisForm: jenisForm,
+            tanggalMulai: tanggalMulai,
+            tanggalSelesai: tanggalSelesai,
+            jumlahHari: jumlahHari,
+            alasan: alasan
+        });
+}
+
+//======================================
+// KONTROL MODAL PREVIEW SURAT CUTI (PDF & SHARE 3 KOLOM)
+//======================================
+function bukaModalPreviewSurat(data) {
+    // --- KONTROL STEMPEL DI TANDA TANGAN ---
+    var stampAl = document.getElementById("stampAl");
+    var stampAtl = document.getElementById("stampAtl");
+    if (stampAl && stampAtl) {
+        // Sembunyikan stempel default terlebih dahulu
+        stampAl.style.display = "none";
+        stampAtl.style.display = "none";
+        
+        if (data.status) {
+            var s = data.status.toUpperCase();
+            
+            // 1. Jika status Disetujui sepenuhnya (APPROVED)
+            if (s === "APPROVED") {
+                stampAl.style.display = "block";
+                stampAtl.style.display = "block";
+            }
+            // 2. Jika disetujui Level 1 (Atasan Langsung) saja
+            else if (s === "PENDING ATASAN TIDAK LANGSUNG") {
+                stampAl.style.display = "block";
+                stampAtl.style.display = "none";
+            }
+        }
+    }
+    // ---------------------------------------
+
+    // Isi data lembar surat resmi
+    document.getElementById("pdfNoSurat").innerText = "Nomor: " + data.id;
+    document.getElementById("pdfNid").innerText = data.nid;
+    document.getElementById("pdfNama").innerText = data.nama;
+    document.getElementById("pdfJabatan").innerText = document.getElementById("jabatan").innerText;
+    document.getElementById("pdfUnit").innerText = document.getElementById("unitKerja").innerText;
+    document.getElementById("pdfJenis").innerText = data.jenis;
+    document.getElementById("pdfTanggal").innerText = data.tanggal;
+    document.getElementById("pdfDurasi").innerText = data.durasi;
+    document.getElementById("pdfAlasan").innerText = data.alasan;
+    
+    // Tanda tangan 3 Kolom
+    document.getElementById("pdfSignNama").innerText = data.nama;
+    document.getElementById("pdfSignNid").innerText = "NID: " + data.nid;
+    
+    document.getElementById("pdfSignAtasan").innerText = data.namaAl || "-";
+    document.getElementById("pdfSignJabatanAl").innerText = "(" + (data.jabatanAl || "TL / Spv") + ")";
+    
+    document.getElementById("pdfSignAtasanAtl").innerText = data.namaAtl || "-";
+    document.getElementById("pdfSignJabatanAtl").innerText = "(" + (data.jabatanAtl || "Manager / Asman") + ")";
+    
+    // ----------------------------------------------------
+    // 1. DRAFT PESAN UNTUK ATASAN LANGSUNG (TL)
+    // ----------------------------------------------------
+    var messageTextAl = 
+        "Yth. Bapak/Ibu " + (data.namaAl || "Atasan") + ",\n\n" +
+        "Saya mengajukan permohonan " + data.jenis + " dengan rincian berikut:\n" +
+        "- Nama: " + data.nama + "\n" +
+        "- NID: " + data.nid + "\n" +
+        "- Tanggal: " + data.tanggal + "\n" +
+        "- Durasi: " + data.durasi + " Hari\n" +
+        "- Alasan: " + data.alasan + "\n\n" +
+        "Mohon persetujuan Level 1 dari Bapak/Ibu selaku Atasan Langsung melalui link di bawah ini:\n" +
+        "👉 SETUJUI (TL): " + data.approveLinkAl + "\n" +
+        "👉 TOLAK: " + data.rejectLink + "\n\n" +
+        "Terima kasih.";
+        
+    globalMessageAl = messageTextAl; // Simpan ke global
+    var waUrlAl = "https://api.whatsapp.com/send?text=" + encodeURIComponent(messageTextAl);
+    document.getElementById("btnKirimWaAl").setAttribute("href", waUrlAl);
+    
+    var emailSubjectAl = "Persetujuan Cuti/Izin Level 1 - " + data.nama + " (" + data.nid + ")";
+    var mailtoUrlAl = "mailto:" + (data.emailAl || "") + "?subject=" + encodeURIComponent(emailSubjectAl) + "&body=" + encodeURIComponent(messageTextAl);
+    document.getElementById("btnKirimEmailAl").setAttribute("href", mailtoUrlAl);
+    
+    // ----------------------------------------------------
+    // 2. DRAFT PESAN UNTUK ATASAN TIDAK LANGSUNG (MANAGER)
+    // ----------------------------------------------------
+    var messageTextAtl = 
+        "Yth. Bapak/Ibu " + (data.namaAtl || "Manager") + ",\n\n" +
+        "Saya mengajukan permohonan " + data.jenis + " (Sudah Disetujui oleh TL/Spv) dengan rincian berikut:\n" +
+        "- Nama: " + data.nama + "\n" +
+        "- NID: " + data.nid + "\n" +
+        "- Tanggal: " + data.tanggal + "\n" +
+        "- Durasi: " + data.durasi + " Hari\n" +
+        "- Alasan: " + data.alasan + "\n\n" +
+        "Mohon persetujuan akhir Level 2 dari Bapak/Ibu selaku Manager/Asman melalui link di bawah ini:\n" +
+        "👉 SETUJUI (MANAGER): " + data.approveLinkAtl + "\n" +
+        "👉 TOLAK: " + data.rejectLink + "\n\n" +
+        "Terima kasih.";
+        
+    globalMessageAtl = messageTextAtl; // Simpan ke global
+    var waUrlAtl = "https://api.whatsapp.com/send?text=" + encodeURIComponent(messageTextAtl);
+    document.getElementById("btnKirimWaAtl").setAttribute("href", waUrlAtl);
+    
+    var emailSubjectAtl = "Persetujuan Cuti/Izin Akhir Level 2 - " + data.nama + " (" + data.nid + ")";
+    var mailtoUrlAtl = "mailto:" + (data.emailAtl || "") + "?subject=" + encodeURIComponent(emailSubjectAtl) + "&body=" + encodeURIComponent(messageTextAtl);
+    document.getElementById("btnKirimEmailAtl").setAttribute("href", mailtoUrlAtl);
+    
+    // Tampilkan Modal
+    document.getElementById("modalPreviewSurat").style.display = "flex";
+}
+
+//======================================
+// TUTUP MODAL PREVIEW SURAT CUTI
+//======================================
+function tutupModalPreviewSurat() {
+    document.getElementById("modalPreviewSurat").style.display = "none";
+}
+
+//======================================
+// FUNGSI SALIN MANUAL KE CLIPBOARD (GUNA MENGHINDARI POPUP ERROR DI HP)
+//======================================
+function salinPesanAl() {
+    if (!globalMessageAl) {
+        alert("Draft pesan tidak tersedia.");
+        return;
+    }
+    salinTeksKeClipboard(globalMessageAl, "Teks & Link persetujuan TL berhasil disalin! Silakan paste/tempel pesan di WhatsApp.");
+}
+
+function salinPesanAtl() {
+    if (!globalMessageAtl) {
+        alert("Draft pesan tidak tersedia.");
+        return;
+    }
+    salinTeksKeClipboard(globalMessageAtl, "Teks & Link persetujuan Manager berhasil disalin! Silakan paste/tempel pesan di WhatsApp.");
+}
+
+function salinTeksKeClipboard(text, successMsg) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(function() {
+            alert(successMsg);
+        }, function(err) {
+            fallbackCopyText(text, successMsg);
+        });
+    } else {
+        fallbackCopyText(text, successMsg);
+    }
+}
+
+function fallbackCopyText(text, successMsg) {
+    var tempTextArea = document.createElement("textarea");
+    tempTextArea.value = text;
+    tempTextArea.style.top = "0";
+    tempTextArea.style.left = "0";
+    tempTextArea.style.position = "fixed";
+    document.body.appendChild(tempTextArea);
+    tempTextArea.focus();
+    tempTextArea.select();
+    try {
+        var successful = document.execCommand('copy');
+        if (successful) {
+            alert(successMsg);
+        } else {
+            alert("Gagal menyalin teks.");
+        }
+    } catch (err) {
+        alert("Fitur salin tidak didukung pada browser ini.");
+    }
+    document.body.removeChild(tempTextArea);
+}
+
+//======================================
+// UNDUH SURAT CUTI SEBAGAI GAMBAR PNG MURNI (BEBAS BLANK 100% & AMAN DARI ERROR)
+//======================================
+function downloadPDFSuratCuti() {
+    var element = document.getElementById("lembarSurat");
+    var idCuti = document.getElementById("pdfNoSurat").innerText.replace("Nomor: ", "").trim();
+    var filename = "Surat_Permohonan_" + idCuti + ".png"; // Nama File Gambar PNG
+    
+    // 1. Simpan posisi asli elemen di dalam modal agar bisa dikembalikan nanti
+    var parent = element.parentNode;
+    var nextSibling = element.nextSibling;
+    
+    // 2. Simpan style asli
+    var originalStyle = element.getAttribute("style");
+    
+    // Fungsi Pembantu untuk selalu mengembalikan elemen ke posisi semula
+    function kembalikanElemenKeModal() {
+        element.setAttribute("style", originalStyle);
+        if (nextSibling) {
+            parent.insertBefore(element, nextSibling);
+        } else {
+            parent.appendChild(element);
+        }
+    }
+    
+    try {
+        // 3. Pindahkan elemen langsung ke document.body (di luar modal & bebas dari animasi CSS)
+        document.body.appendChild(element);
+        
+        // Atur style sementara agar nampak jelas, bersih di atas body
+        element.style.position = "absolute";
+        element.style.top = "0";
+        element.style.left = "0";
+        element.style.width = "750px";
+        element.style.background = "#ffffff";
+        element.style.zIndex = "99999";
+        
+        // Cek apakah library html2canvas tersedia di browser
+        if (typeof html2canvas === "undefined") {
+            throw new Error("Pustaka cetak gambar (html2canvas) tidak terdeteksi. Silakan muat ulang halaman atau periksa apakah tag script html2canvas sudah terpasang di index.html.");
+        }
+        
+        // 4. Proses render langsung ke GAMBAR PNG menggunakan HTML5 Canvas asli browser
+        html2canvas(element, {
+            scale: 2,
+            useCORS: true,
+            backgroundColor: "#ffffff"
+        }).then(function(canvas) {
+            // Ambil data URL PNG
+            var imgData = canvas.toDataURL("image/png");
+            
+            // A. Unduh PNG secara lokal ke HP/PC
+            var link = document.createElement("a");
+            link.download = filename;
+            link.href = imgData;
+            link.click();
+            
+            // B. Unggah salinan PNG secara background ke Google Drive Folder
+            var base64 = imgData.split(',')[1];
+            google.script.run
+                .withSuccessHandler(function(res) {
+                    if (res.success) {
+                        console.log("PNG Drive Backup Success: " + res.url);
+                    } else {
+                        console.error("PNG Drive Backup Failed: " + res.message);
+                    }
+                })
+                .simpanPngKeDrive(base64, filename);
+                
+            // 5. Kembalikan elemen dan style aslinya ke dalam modal
+            kembalikanElemenKeModal();
+        }).catch(function(err) {
+            console.error("PNG Render Promise Error: ", err);
+            kembalikanElemenKeModal();
+            alert("Gagal memproses gambar: " + err.message);
+        });
+        
+    } catch (err) {
+        console.error("PNG Catch Error: ", err);
+        // Penting: Selalu kembalikan elemen agar bayangan di belakang modal hilang
+        kembalikanElemenKeModal();
+        alert("Sistem gagal cetak: " + err.message);
+    }
+}
+
+//======================================
+// MUAT RIWAYAT CUTI DARI BACKEND
+//======================================
+function muatRiwayatCuti(nid) {
+    google.script.run
+        .withSuccessHandler(function(riwayat) {
+            var body = document.getElementById("bodyRiwayatCuti");
+            var card = document.getElementById("cardRiwayatCuti");
+            if (!body || !card) return;
+            body.innerHTML = "";
+            
+            // Simpan ke variable global
+            currentRiwayat = riwayat || [];
+            
+            if (riwayat && riwayat.length > 0) {
+                riwayat.forEach(function(row, idx) {
+                    var badgeClass = "badge-gray";
+                    var label = row.status;
+                    
+                    if (row.status === "APPROVED") {
+                        badgeClass = "badge-green";
+                    } else if (row.status === "REJECTED") {
+                        badgeClass = "badge-red";
+                    } else if (row.status.indexOf("PENDING") !== -1) {
+                        badgeClass = "badge-blue";
+                        if (row.status === "PENDING ATASAN LANGSUNG") {
+                            label = "PENDING TL";
+                        } else if (row.status === "PENDING ATASAN TIDAK LANGSUNG") {
+                            label = "PENDING ASMAN";
+                        }
+                    }
+                    
+                    // PANEL AKSI DINAMIS: Tombol berubah jadi 'Download' (Hijau) jika status APPROVED
+                    var btnHtml = "";
+                    if (row.status === "APPROVED") {
+                        btnHtml = '<button onclick="bukaPreviewDariRiwayat(' + idx + ')" style="background-color: #16a34a; color: white; border: none; padding: 5px 10px; border-radius: 6px; font-size: 11px; cursor: pointer; font-family: inherit; font-weight: 600; display: inline-flex; align-items: center; gap: 4px;"><i class="fa-solid fa-file-arrow-down"></i> Download</button>';
+                    } else {
+                        btnHtml = '<button onclick="bukaPreviewDariRiwayat(' + idx + ')" style="background-color: var(--tosca); color: white; border: none; padding: 5px 10px; border-radius: 6px; font-size: 11px; cursor: pointer; font-family: inherit; font-weight: 600; display: inline-flex; align-items: center; gap: 4px;"><i class="fa-solid fa-paper-plane"></i> Kirim</button>';
+                    }
+                    
+                    var tr = document.createElement("tr");
+                    tr.innerHTML = 
+                        '<td style="text-align: left;">' + row.timestamp + '</td>' +
+                        '<td style="text-align: left; font-weight:600; color:var(--tosca);">' + row.jenisForm + '</td>' +
+                        '<td style="text-align: left;">' + row.tanggalMulai + ' s/d ' + row.tanggalSelesai + '</td>' +
+                        '<td style="text-align: center; font-weight:700;">' + row.jumlahHari + ' Hari</td>' +
+                        '<td style="text-align: left; max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="' + row.alasan + '">' + row.alasan + '</td>' +
+                        '<td style="text-align: center;"><span class="pill-badge ' + badgeClass + '">' + label + '</span></td>' +
+                        '<td style="text-align: right;">' + btnHtml + '</td>';
+                    body.appendChild(tr);
+                });
+                card.style.display = "block";
+            } else {
+                body.innerHTML = '<tr><td colspan="7" style="text-align:center; color:#94a3b8; padding: 25px;">Belum ada riwayat pengajuan cuti/izin.</td></tr>';
+                card.style.display = "block";
+            }
+        })
+        .ambilRiwayatCuti(nid);
+}
+
+//======================================
+// BUKA PREVIEW SURAT KEMBALI DARI RIWAYAT
+//======================================
+function bukaPreviewDariRiwayat(idx) {
+    var row = currentRiwayat[idx];
+    if (!row) return;
+    
+    // Rekonstruksi link approval berjenjang
+    var approveLinkAl = globalWebappUrl + "?action=approve&id=" + row.id + "&role=atasan_langsung";
+    var approveLinkAtl = globalWebappUrl + "?action=approve&id=" + row.id + "&role=atasan_tidak_langsung";
+    var rejectLink = globalWebappUrl + "?action=reject&id=" + row.id + "&role=reject";
+    
+    // Tampilkan panel preview surat dengan data histori terpilih
+    bukaModalPreviewSurat({
+        id: row.id,
+        nid: globalNid,
+        nama: globalNama,
+        jenis: row.jenisForm,
+        tanggal: row.tanggalMulai + " s/d " + row.tanggalSelesai,
+        durasi: row.jumlahHari,
+        alasan: row.alasan,
+        namaAl: globalNamaAtasan,
+        jabatanAl: globalJabatanAl,
+        namaAtl: globalNamaAtasanAtl,
+        jabatanAtl: globalJabatanAtl,
+        approveLinkAl: approveLinkAl,
+        approveLinkAtl: approveLinkAtl,
+        rejectLink: rejectLink,
+        status: row.status // Mengirim data status pengajuan
+    });
+}
+
+//======================================
+// SALIN DATA PROFIL RINGKAS
+//======================================
+function salinRingkasan() {
+    var nama = document.getElementById("namaKaryawan").innerText;
+    var jabatan = document.getElementById("jabatan").innerText;
+    var unit = document.getElementById("unitKerja").innerText;
+    var nid = globalNid;
+
+    if (!nid) {
+        alert("Tidak ada data untuk disalin.");
+        return;
+    }
+
+    var textToCopy = "Ringkasan Data Karyawan:\nNID: " + nid + "\nNama: " + nama + "\nJabatan: " + jabatan + "\nUnit: " + unit;
+    
+    navigator.clipboard.writeText(textToCopy).then(function() {
+        alert("Ringkasan data berhasil disalin!");
+    }, function(err) {
+        alert("Gagal menyalin data: ", err);
+    });
+}
+
+//======================================
+// DOWNLOAD PORTFOLIO A4 PDF
+//======================================
+function downloadPDF() {
+    var areaProfil = document.getElementById("profileArea");
+    if (!areaProfil || areaProfil.style.display === "none") {
+        alert("Cari data karyawan terlebih dahulu sebelum mengunduh PDF.");
+        return;
+    }
+
+    var btnDownload = document.querySelector(".btn-print");
+    if (!btnDownload) return;
+    btnDownload.disabled = true;
+    btnDownload.innerHTML = "<i class='fa-solid fa-spinner fa-spin'></i> Memproses...";
+
+    // Tambahkan kelas override cetakan
+    document.body.classList.add("pdf-generating");
+
+    var elementToPrint = document.getElementById("profileArea");
+    var actualHeight = elementToPrint.scrollHeight;
+
+    var opt = {
+        margin: 5,
+        filename: "Portfolio_Karyawan_" + (globalNid || "Data") + ".pdf",
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { 
+            scale: 2.2,             
+            useCORS: true,          // Mengatasi isu CORS pemuatan gambar Drive
+            letterRendering: true,
+            height: actualHeight,   // Tinggi dinamis agar tidak terpotong ke halaman 2
+            windowHeight: actualHeight + 150
+        },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+    };
+
+    html2pdf().set(opt).from(elementToPrint).save().then(function() {
+        document.body.classList.remove("pdf-generating");
+        btnDownload.disabled = false;
+        btnDownload.innerHTML = "<i class='fa-solid fa-download'></i> Download PDF";
+    }).catch(function(error) {
+        document.body.classList.remove("pdf-generating");
+        btnDownload.disabled = false;
+        btnDownload.innerHTML = "<i class='fa-solid fa-download'></i> Download PDF";
+        alert("Gagal membuat PDF: " + error);
+    });
+}
+</script>

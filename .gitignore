@@ -1,4 +1,7 @@
 *.bak
+*.rbac_backup
+*.zip
+node_modules/
 temp_*.css
 .DS_Store
 Thumbs.db

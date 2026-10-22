@@ -1,0 +1,1083 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <base target="_top">
+  <meta charset="UTF-8">
+  <!-- Viewport khusus untuk mobile agar tampilan optimal, normal (tidak zoom-out / kecil) -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Tracking Status SPPD MKP</title>
+  
+  <!-- FontAwesome untuk Icon -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <!-- Google Fonts: Poppins (Modern & Premium Typography) -->
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <style>
+    /* ==========================================================
+       TRACKING STATUS SPPD - PT MITRA KARYA PRIMA
+       CSS THEME: PREMIUM DARK NAVY & TOSCA GLASSMORPHISM
+    ========================================================== */
+    
+    :root {
+        --navy-bg: #0A1128;          /* Background Utama Layar */
+        --navy-card: #101F42;        /* Background Kartu / Box */
+        --navy-light: #1C2D5A;       /* Border / State Hover */
+        --tosca: #249BA6;            /* Aksen Utama (Turquoise/Tosca) */
+        --tosca-light: #34b3c0;      /* Tosca Terang (Hover & Highlight) */
+        --tosca-bg: rgba(36, 155, 166, 0.15); /* Aksen semi-transparan */
+        --text-main: #F4F6FA;        /* Teks Utama Terang */
+        --text-muted: #94A3B8;       /* Teks Redup/Keterangan */
+        --border-color: rgba(255, 255, 255, 0.08);
+        --shadow-premium: 0 10px 30px rgba(0, 0, 0, 0.35);
+        --radius-lg: 16px;
+        --radius-md: 12px;
+    }
+
+    * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+    }
+
+    /* Mencegah auto-zoom input di Safari iOS */
+    input, select, textarea {
+        -webkit-user-select: text !important;
+        -moz-user-select: text !important;
+        -ms-user-select: text !important;
+        user-select: text !important;
+    }
+
+    body {
+        font-family: 'Poppins', sans-serif;
+        background-color: var(--navy-bg);
+        color: var(--text-main);
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        line-height: 1.6;
+        padding: 0;
+        -webkit-tap-highlight-color: transparent;
+    }
+
+    /* ==========================
+       HEADER (NAVBAR STYLE)
+    ========================== */
+    .header {
+        background: linear-gradient(135deg, #071026, #101F42);
+        border-bottom: 1px solid var(--border-color);
+        padding: 20px 0;
+        box-shadow: var(--shadow-premium);
+    }
+
+    .header-content {
+        max-width: 850px;
+        width: 90%;
+        margin: 0 auto;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+    }
+
+    .header-logo-left {
+        width: 150px; /* Lebar tetap kontainer logo kiri agar teks tengah presisi */
+        display: flex;
+        justify-content: flex-start;
+        align-items: center;
+    }
+
+    .header-logo-right {
+        width: 150px; /* Lebar tetap kontainer logo kanan agar teks tengah presisi */
+        display: flex;
+        justify-content: flex-end;
+        align-items: center;
+    }
+
+    .header-text {
+        flex: 1;
+        text-align: center; /* Teks presisi berada di tengah */
+    }
+
+    .logo-box {
+        background: rgba(255, 255, 255, 0.95);
+        padding: 6px 14px;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+    }
+
+    .logo {
+        height: 35px;
+        width: auto;
+        object-fit: contain;
+    }
+
+    .header-text h1 {
+        font-size: 20px;
+        font-weight: 800;
+        color: #ffffff;
+        letter-spacing: 0.5px;
+        line-height: 1.2;
+    }
+
+    .header-text h3 {
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--tosca-light);
+        margin-top: 1px;
+    }
+
+    .header-text p {
+        font-size: 10.5px;
+        color: var(--text-muted);
+        margin-top: 3px;
+    }
+
+    /* ==========================
+       CONTAINER UTAMA
+    ========================== */
+    .container {
+        max-width: 850px;
+        width: 90%;
+        margin: 25px auto;
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+    }
+
+    /* ==========================
+       CARD CARIAN (SEARCH CARD)
+    ========================== */
+    .search-card {
+        background-color: var(--navy-card);
+        border: 1px solid var(--border-color);
+        border-radius: var(--radius-lg);
+        padding: 28px;
+        box-shadow: var(--shadow-premium);
+    }
+
+    .search-title {
+        text-align: center;
+        margin-bottom: 24px;
+    }
+
+    .search-title h2 {
+        color: var(--tosca-light);
+        font-size: 19px;
+        font-weight: 700;
+        margin-bottom: 4px;
+    }
+
+    .search-title p {
+        color: var(--text-muted);
+        font-size: 12.5px;
+    }
+
+    .form-group {
+        margin-bottom: 20px;
+    }
+
+    .form-group label {
+        display: block;
+        margin-bottom: 8px;
+        font-weight: 600;
+        color: var(--text-main);
+        font-size: 11.5px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .form-group input {
+        width: 100%;
+        padding: 13px 16px;
+        font-size: 16px; /* Mencegah auto-zoom otomatis oleh browser mobile */
+        border: 1.5px solid var(--navy-light);
+        background: rgba(10, 17, 40, 0.6);
+        color: var(--text-main);
+        border-radius: 10px;
+        transition: all 0.3s;
+        font-family: inherit;
+        outline: none;
+    }
+
+    .form-group input::placeholder {
+        color: rgba(244, 246, 250, 0.3);
+    }
+
+    .form-group input:focus {
+        border-color: var(--tosca);
+        box-shadow: 0 0 0 3px rgba(36, 155, 166, 0.25);
+        background: rgba(10, 17, 40, 0.85);
+    }
+
+    /* ==========================
+       BUTTONS
+    ========================== */
+    .button-group {
+        display: flex;
+        gap: 12px;
+    }
+
+    button {
+        flex: 1;
+        border: none;
+        border-radius: 10px;
+        padding: 13px;
+        font-size: 14px;
+        cursor: pointer;
+        transition: all 0.2s;
+        font-weight: 600;
+        font-family: inherit;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+    }
+
+    .btn-primary {
+        background: linear-gradient(135deg, var(--tosca), var(--tosca-light));
+        color: #ffffff;
+        box-shadow: 0 4px 14px rgba(36, 155, 166, 0.3);
+    }
+
+    .btn-primary:hover {
+        opacity: 0.95;
+        transform: translateY(-1px);
+    }
+
+    .btn-secondary {
+        background: rgba(255, 255, 255, 0.06);
+        color: var(--text-main);
+        border: 1.5px solid var(--navy-light);
+    }
+
+    .btn-secondary:hover {
+        background: rgba(255, 255, 255, 0.12);
+    }
+
+    /* ==========================
+       DETAIL CARDS (HASIL CARI)
+    ========================== */
+    .card {
+        background: var(--navy-card);
+        border-radius: var(--radius-lg);
+        border: 1px solid var(--border-color);
+        border-top: 4px solid var(--tosca);
+        box-shadow: var(--shadow-premium);
+        padding: 24px;
+        display: none; /* Disembunyikan di awal */
+        animation: fadeUp 0.35s ease-out forwards;
+    }
+
+    .card-header {
+        font-size: 14.5px;
+        font-weight: 700;
+        color: var(--tosca-light);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+        padding-bottom: 10px;
+        margin-bottom: 15px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .card-header i {
+        font-size: 15px;
+    }
+
+    /* INFO GRID */
+    .info-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 14px;
+    }
+
+    .info-item {
+        display: flex;
+        flex-direction: column;
+        background: rgba(10, 17, 40, 0.4);
+        border: 1.5px solid var(--navy-light);
+        border-radius: 10px;
+        padding: 12px 14px;
+        transition: all 0.25s;
+    }
+
+    .info-item:hover {
+        background: rgba(10, 17, 40, 0.7);
+        border-color: var(--tosca);
+        transform: translateY(-1.5px);
+    }
+
+    .info-item label {
+        font-size: 10.5px;
+        color: var(--text-muted);
+        margin-bottom: 4px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .info-item span {
+        font-size: 13.5px;
+        font-weight: 600;
+        color: var(--text-main);
+        word-break: break-word;
+    }
+
+    /* NOMINAL BOX */
+    .nominal-box {
+        text-align: center;
+        background: rgba(36, 155, 166, 0.08);
+        border: 1.5px dashed var(--tosca);
+        border-radius: 12px;
+        padding: 18px;
+    }
+
+    .nominal-box label {
+        font-size: 11.5px;
+        color: var(--text-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.8px;
+        font-weight: 600;
+    }
+
+    .nominal-box span {
+        font-size: 26px;
+        font-weight: 800;
+        color: var(--tosca-light);
+        display: block;
+        margin-top: 4px;
+        text-shadow: 0 0 8px rgba(36, 155, 166, 0.35);
+    }
+
+    /* STATUS AREA */
+    .status-area {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 14px;
+        padding: 8px 0;
+    }
+
+    .status {
+        display: inline-block;
+        padding: 10px 24px;
+        border-radius: 30px;
+        color: #ffffff;
+        font-size: 13px;
+        font-weight: 700;
+        letter-spacing: 0.5px;
+        text-align: center;
+        text-transform: uppercase;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+    }
+
+    .status-pengajuan {
+        background: #D97706; /* Amber / Orange */
+        color: #ffffff;
+    }
+
+    .status-approval {
+        background: #2563EB; /* Royal Blue */
+    }
+
+    .status-proses {
+        background: #7C3AED; /* Purple */
+    }
+
+    .status-selesai {
+        background: #059669; /* Emerald Green */
+    }
+
+    .status-ditolak {
+        background: #DC2626; /* Crimson Red */
+    }
+
+    .btn-copy {
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid var(--border-color);
+        padding: 7px 16px;
+        border-radius: 8px;
+        font-size: 11.5px;
+        color: var(--text-main);
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        transition: all 0.2s;
+    }
+
+    .btn-copy:hover {
+        background: rgba(255, 255, 255, 0.12);
+    }
+
+    /* ==========================
+       TIMELINE DESIGN
+    ========================== */
+    .timeline {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
+
+    .step {
+        display: flex;
+        align-items: flex-start;
+        position: relative;
+        padding-bottom: 20px;
+    }
+
+    .step:last-child {
+        padding-bottom: 0;
+    }
+
+    .step::before {
+        content: "";
+        position: absolute;
+        left: 14px;
+        top: 28px;
+        width: 2px;
+        height: calc(100% - 18px);
+        background: var(--navy-light);
+    }
+
+    .step:last-child::before {
+        display: none;
+    }
+
+    .circle {
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        background: var(--navy-light);
+        border: 2px solid rgba(255, 255, 255, 0.08);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 11px;
+        font-weight: 700;
+        margin-right: 14px;
+        flex-shrink: 0;
+        color: var(--text-muted);
+    }
+
+    .circle.done {
+        background: #059669;
+        color: #ffffff;
+        border-color: #34d399;
+    }
+
+    .circle.active {
+        background: #D97706;
+        color: #ffffff;
+        border-color: #fbbf24;
+        animation: pulseTimeline 1.5s infinite;
+    }
+
+    @keyframes pulseTimeline {
+        0% { box-shadow: 0 0 0 0 rgba(217, 119, 6, 0.4); }
+        70% { box-shadow: 0 0 0 8px rgba(217, 119, 6, 0); }
+        100% { box-shadow: 0 0 0 0 rgba(217, 119, 6, 0); }
+    }
+
+    .step-text {
+        margin-top: 4px;
+        font-size: 13px;
+        color: var(--text-main);
+        font-weight: 500;
+    }
+
+    .step.done .step-text {
+        color: #34d399;
+    }
+
+    .step.active .step-text {
+        color: #fbbf24;
+        font-weight: 600;
+    }
+
+    /* ==========================
+       LOADING & ERROR COMPONENT
+    ========================== */
+    .loading-box {
+        text-align: center;
+        padding: 16px;
+        font-size: 13.5px;
+        font-weight: 600;
+        color: var(--tosca-light);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        animation: pulseLoading 1.4s infinite;
+    }
+
+    @keyframes pulseLoading {
+        0%, 100% { opacity: 0.6; }
+        50% { opacity: 1; }
+    }
+
+    .error-box {
+        background: rgba(220, 38, 38, 0.12);
+        border-left: 4px solid #DC2626;
+        padding: 14px 16px;
+        border-radius: 8px;
+        color: #fca5a5;
+        font-weight: 600;
+        font-size: 13px;
+        margin-top: 15px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    /* ==========================
+       FOOTER & SCROLLBAR
+    ========================== */
+    .footer {
+        margin-top: auto;
+        padding: 20px 0;
+        text-align: center;
+        border-top: 1px solid var(--border-color);
+        color: var(--text-muted);
+        font-size: 10.5px;
+    }
+
+    ::-webkit-scrollbar {
+        width: 8px;
+    }
+    ::-webkit-scrollbar-track {
+        background: var(--navy-bg);
+    }
+    ::-webkit-scrollbar-thumb {
+        background: var(--navy-light);
+        border-radius: 10px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+        background: var(--tosca);
+    }
+
+    /* ANIMATIONS */
+    @keyframes fadeUp {
+        from {
+            opacity: 0;
+            transform: translateY(12px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    /* ==========================
+       RESPONSIVE DESIGN (MEDIA QUERY)
+       PENTING: Di HP tampilan akan membesar, proporsional, dan sangat rapi
+    ========================== */
+    @media (max-width: 768px) {
+        body {
+            padding: 0;
+        }
+
+        .header {
+            padding: 12px 0;
+        }
+
+        .header-content {
+            width: 92%;
+            gap: 8px;
+            justify-content: space-between;
+        }
+
+        .header-logo-left {
+            width: 70px; /* Lebar logo kontainer di mobile agar teks tengah tetap lebar */
+            justify-content: flex-start;
+            display: flex;
+            align-items: center;
+        }
+
+        .header-logo-right {
+            width: 70px; /* Lebar logo kontainer di mobile agar teks tengah tetap lebar */
+            justify-content: flex-end;
+            display: flex;
+            align-items: center;
+        }
+
+        .logo-box {
+            padding: 4px 8px;
+        }
+
+        .logo {
+            height: 22px;
+        }
+
+        .header-text h1 {
+            font-size: 14.5px;
+        }
+
+        .header-text h3 {
+            font-size: 10px;
+        }
+
+        .header-text p {
+            display: none; /* Sembunyikan keterangan teks di HP agar hemat ruang */
+        }
+
+        .container {
+            width: 92%;
+            margin: 18px auto;
+            gap: 14px;
+        }
+
+        .search-card {
+            padding: 20px 16px;
+            border-radius: 12px;
+        }
+
+        .search-title h2 {
+            font-size: 16.5px;
+        }
+
+        .search-title p {
+            font-size: 11.5px;
+        }
+
+        .form-group label {
+            font-size: 10px;
+        }
+
+        .form-group input {
+            padding: 11px 14px;
+            font-size: 15px;
+        }
+
+        .button-group {
+            gap: 8px;
+        }
+
+        button {
+            padding: 11px;
+            font-size: 13px;
+        }
+
+        .card {
+            padding: 16px 18px;
+            border-radius: 12px;
+        }
+
+        .card-header {
+            font-size: 13.5px;
+            padding-bottom: 8px;
+            margin-bottom: 12px;
+        }
+
+        .info-grid {
+            grid-template-columns: 1fr; /* Berubah menjadi satu baris penuh per info di HP */
+            gap: 10px;
+        }
+
+        .info-item {
+            padding: 9px 12px;
+        }
+
+        .info-item label {
+            font-size: 9px;
+            margin-bottom: 3px;
+        }
+
+        .info-item span {
+            font-size: 12.5px;
+        }
+
+        .nominal-box {
+            padding: 14px;
+        }
+
+        .nominal-box span {
+            font-size: 21px;
+        }
+
+        .status {
+            font-size: 12px;
+            padding: 8px 18px;
+            width: 100%; /* Lebar penuh di HP */
+        }
+
+        .step-text {
+            font-size: 12px;
+        }
+
+        .circle {
+            width: 26px;
+            height: 26px;
+            font-size: 10px;
+            margin-right: 10px;
+        }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- HEADER -->
+  <header class="header">
+    <div class="header-content">
+      <div class="header-logo-left">
+        <div class="logo-box">
+          <!-- Logo PLN di sebelah kiri -->
+          <img class="logo" src="https://lh3.googleusercontent.com/d/10bTHjcZSSkyAGpDkBvsdVSUv8vOjahxp" alt="Logo PLN">
+        </div>
+      </div>
+      
+      <div class="header-text">
+        <h1>SPPD ONLINE</h1>
+        <h3>PT MITRA KARYA PRIMA</h3>
+        <p>Aplikasi Resmi Pemantauan Status Perjalanan Dinas Karyawan</p>
+      </div>
+      
+      <div class="header-logo-right">
+        <div class="logo-box">
+          <!-- Logo MKP di sebelah kanan -->
+          <img class="logo" src="https://lh3.googleusercontent.com/d/1s8f_zsOM9WMAYIvAVNgt62SXSBk53MqW" alt="Logo MKP">
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- CONTAINER UTAMA -->
+  <main class="container">
+    
+    <!-- SEARCH CARD -->
+    <section class="search-card">
+      <div class="search-title">
+        <h2>Tracking Status SPPD</h2>
+        <p>Masukkan NID Anda untuk melihat rincian dan progres pengajuan SPPD</p>
+      </div>
+      
+      <div class="form-group">
+        <label for="nid">NID Karyawan</label>
+        <input type="text" id="nid" placeholder="Masukkan NID Karyawan Anda..." autocomplete="off">
+      </div>
+      
+      <div class="button-group">
+        <button class="btn-primary" onclick="cekData()">
+          <i class="fa-solid fa-magnifying-glass"></i> Cari Data
+        </button>
+        <button class="btn-secondary" onclick="resetForm()">
+          <i class="fa-solid fa-rotate-left"></i> Reset
+        </button>
+      </div>
+      
+      <!-- LOADING & ERROR BOX -->
+      <div id="loading"></div>
+      <div id="hasil"></div>
+    </section>
+
+    <!-- CARD DETAIL INFORMASI KARYAWAN -->
+    <article id="cardKaryawan" class="card">
+      <div class="card-header">
+        <i class="fa-solid fa-user"></i> Informasi Karyawan
+      </div>
+      <div class="info-grid">
+        <div class="info-item">
+          <label>Nama Karyawan</label>
+          <span id="vNama">-</span>
+        </div>
+        <div class="info-item">
+          <label>NID Karyawan</label>
+          <span id="vNid">-</span>
+        </div>
+        <div class="info-item" style="grid-column: span 2;">
+          <label>Jabatan</label>
+          <span id="vJabatan">-</span>
+        </div>
+      </div>
+    </article>
+
+    <!-- CARD DETAIL SPPD -->
+    <article id="cardSPPD" class="card">
+      <div class="card-header">
+        <i class="fa-solid fa-plane-departure"></i> Detail Rencana SPPD
+      </div>
+      <div class="info-grid">
+        <div class="info-item" style="grid-column: span 2;">
+          <label>Nama Kegiatan / Perjalanan</label>
+          <span id="vKegiatan">-</span>
+        </div>
+        <div class="info-item">
+          <label>Tanggal Kegiatan</label>
+          <span id="vTglKegiatan">-</span>
+        </div>
+        <div class="info-item">
+          <label>Tanggal Berangkat</label>
+          <span id="vBerangkat">-</span>
+        </div>
+        <div class="info-item" style="grid-column: span 2;">
+          <label>Tanggal Pulang</label>
+          <span id="vPulang">-</span>
+        </div>
+      </div>
+    </article>
+
+    <!-- CARD NOMINAL -->
+    <article id="cardNominal" class="card">
+      <div class="card-header">
+        <i class="fa-solid fa-money-bill-wave"></i> Nominal SPPD
+      </div>
+      <div class="nominal-box">
+        <label>Total Nominal Biaya Perjalanan Dinas</label>
+        <span id="vNominal">-</span>
+      </div>
+    </article>
+
+    <!-- CARD STATUS & COPY -->
+    <article id="cardStatus" class="card">
+      <div class="card-header">
+        <i class="fa-solid fa-circle-info"></i> Status Pengajuan Terkini
+      </div>
+      <div class="status-area">
+        <span id="badgeStatus" class="status">PENGANJUAN</span>
+        <button class="btn-copy" onclick="copyStatus()">
+          <i class="fa-solid fa-copy"></i> Salin Status
+        </button>
+      </div>
+    </article>
+
+    <!-- CARD TIMELINE PROGRESS -->
+    <article id="cardProgress" class="card">
+      <div class="card-header">
+        <i class="fa-solid fa-bars-progress"></i> Progres Alur Persetujuan
+      </div>
+      <div id="timeline"></div>
+    </article>
+
+  </main>
+
+  <!-- FOOTER -->
+  <footer class="footer">
+    <p>&copy; 2026 PT Mitra Karya Prima. All Rights Reserved.</p>
+    <p>Aplikasi Pemantauan Status Perjalanan Dinas Internal MKP</p>
+  </footer>
+
+  <!-- CLIENT-SIDE JAVASCRIPT -->
+  <script>
+    // Penanganan Event saat Halaman Pertama Kali Dibuka
+    document.addEventListener("DOMContentLoaded", function () {
+        const txtNid = document.getElementById("nid");
+        if (txtNid) {
+            txtNid.focus();
+            txtNid.addEventListener("keypress", function(e){
+                if(e.key === "Enter"){
+                    cekData();
+                }
+            });
+        }
+    });
+
+    // Panggil Endpoint API Apps Script
+    function cekData(){
+        const nid = document.getElementById("nid").value.trim();
+        if(nid === ""){
+            tampilError("Silakan masukkan NID terlebih dahulu.");
+            return;
+        }
+
+        tampilLoading();
+        clearCard();
+
+        // Mencegah error jika dibuka di browser lokal tanpa server Google
+        if (typeof google === "undefined" || !google.script || !google.script.run) {
+            document.getElementById("loading").innerHTML = "";
+            tampilError("Gagal memuat API Google Apps Script. Halaman ini harus dijalankan di lingkungan Google Apps Script Web App.");
+            return;
+        }
+
+        google.script.run
+            .withSuccessHandler(function(data){
+                document.getElementById("loading").innerHTML = "";
+                tampilkanData(data);
+            })
+            .withFailureHandler(function(err){
+                document.getElementById("loading").innerHTML = "";
+                tampilError(err.message || err);
+            })
+            .getData(nid);
+    }
+
+    // Reset formulir kembali seperti semula
+    function resetForm(){
+        document.getElementById("nid").value = "";
+        document.getElementById("hasil").innerHTML = "";
+        document.getElementById("loading").innerHTML = "";
+        clearCard();
+        document.getElementById("nid").focus();
+    }
+
+    // Tampilkan Animasi Memuat Data
+    function tampilLoading(){
+        document.getElementById("loading").innerHTML = `
+        <div class="loading-box">
+            <i class="fa-solid fa-spinner fa-spin"></i> Sedang mengambil data SPPD...
+        </div>
+        `;
+    }
+
+    // Tampilkan Pesan Kegagalan / Notifikasi Error
+    function tampilError(pesan){
+        document.getElementById("hasil").innerHTML = `
+        <div class="error-box">
+            <i class="fa-solid fa-triangle-exclamation"></i> ${pesan}
+        </div>
+        `;
+    }
+
+    // Mengurai dan mempopulasi data ke elemen HTML
+    function tampilkanData(data){
+        if(!data.success){
+            tampilError(data.message);
+            return;
+        }
+
+        // Tampilkan semua kartu detail
+        document.getElementById("cardKaryawan").style.display = "block";
+        document.getElementById("cardSPPD").style.display = "block";
+        document.getElementById("cardStatus").style.display = "block";
+        document.getElementById("cardNominal").style.display = "block";
+        document.getElementById("cardProgress").style.display = "block";
+
+        // Tampilkan data Karyawan
+        document.getElementById("vNama").innerText = data.nama || "-";
+        document.getElementById("vNid").innerText = data.nid || "-";
+        document.getElementById("vJabatan").innerText = data.jabatan || "-";
+
+        // Tampilkan data SPPD
+        document.getElementById("vKegiatan").innerText = data.kegiatan || "-";
+        document.getElementById("vTglKegiatan").innerText = data.tglKegiatan || "-";
+        document.getElementById("vBerangkat").innerText = data.tglBerangkat || "-";
+        document.getElementById("vPulang").innerText = data.tglPulang || "-";
+
+        // Konfigurasi visual untuk Badge Status
+        const badge = document.getElementById("badgeStatus");
+        badge.className = "status";
+        let status = String(data.status).toLowerCase();
+
+        if(status.includes("pengajuan")){
+            badge.classList.add("status-pengajuan");
+        } else if(status.includes("approval") || status.includes("approved") || status.includes("menunggu approved")){
+            badge.classList.add("status-approval");
+        } else if(status.includes("keuangan") || status.includes("proses") || status.includes("tiket")){
+            badge.classList.add("status-proses");
+        } else if(status.includes("selesai") || status.includes("rilis") || status.includes("rillis")){
+            badge.classList.add("status-selesai");
+        } else if(status.includes("ditolak") || status.includes("reject")){
+            badge.classList.add("status-ditolak");
+        } else {
+            badge.classList.add("status-pengajuan");
+        }
+
+        badge.innerText = data.status || "-";
+
+        // Format Nominal Biaya Perjalanan Dinas
+        document.getElementById("vNominal").innerText = formatRupiah(data.nominal);
+
+        // Bentuk Progres Timeline
+        document.getElementById("timeline").innerHTML = buatTimeline(data.status);
+    }
+
+    // Membuat visual alur timeline
+    function buatTimeline(status){
+        const tahap = [
+            "Pengajuan AMS ke Unit",
+            "Approval Manajemen Unit",
+            "Approval Area",
+            "Approval Keuangan",
+            "Tiket Terbit",
+            "Rillis"
+        ];
+
+        status = String(status).trim().toLowerCase();
+        let posisi = 0;
+
+        if (status === "status 0" || status.includes("pengajuan ams ke unit")) {
+            posisi = 0;
+        } else if (status === "status 1" || status.includes("menunggu approved ams unit") || status.includes("approval manajemen unit")) {
+            posisi = 1;
+        } else if (status === "status 2" || status.includes("approval area")) {
+            posisi = 2;
+        } else if (status === "status 3" || status.includes("approval keuangan")) {
+            posisi = 3;
+        } else if (status === "status 4" || status.includes("tiket terbit")) {
+            posisi = 4;
+        } else if (status === "status 5" || status.includes("rilis") || status.includes("rillis")) {
+            posisi = 5;
+        } else {
+            posisi = 0;
+        }
+
+        let html = '<div class="timeline">';
+        tahap.forEach((item, index) => {
+            let kelas = "";
+            let icon = '<i class="fa-regular fa-circle"></i>';
+
+            if(index < posisi){
+                kelas = "done";
+                icon = '<i class="fa-solid fa-check"></i>';
+            } else if(index === posisi){
+                kelas = "active";
+                icon = '<i class="fa-solid fa-circle-dot"></i>';
+            }
+
+            html += `
+                <div class="step ${kelas}">
+                    <div class="circle ${kelas}">
+                        ${icon}
+                    </div>
+                    <div class="step-text">${item}</div>
+                </div>
+            `;
+        });
+        html += "</div>";
+        return html;
+    }
+
+    // Sembunyikan semua kartu detail
+    function clearCard(){
+        document.getElementById("cardKaryawan").style.display = "none";
+        document.getElementById("cardSPPD").style.display = "none";
+        document.getElementById("cardStatus").style.display = "none";
+        document.getElementById("cardNominal").style.display = "none";
+        document.getElementById("cardProgress").style.display = "none";
+    }
+
+    // Salin Teks Status
+    function copyStatus(){
+        const status = document.getElementById("badgeStatus").innerText;
+        navigator.clipboard.writeText(status).then(function() {
+            alert("Status SPPD berhasil disalin ke papan klip!");
+        }).catch(function() {
+            // Alternatif penyalinan manual (fallback)
+            var temp = document.createElement("textarea");
+            temp.value = status;
+            document.body.appendChild(temp);
+            temp.select();
+            document.execCommand("copy");
+            document.body.removeChild(temp);
+            alert("Status SPPD berhasil disalin ke papan klip!");
+        });
+    }
+
+    // Format nilai angka ke format mata uang Rupiah
+    function formatRupiah(angka){
+        if(angka == null || String(angka).trim() === ""){
+            return "-";
+        }
+        angka = String(angka).replace(/[^\d]/g,"");
+        if (angka === "") return "-";
+        return "Rp " + Number(angka).toLocaleString("id-ID");
+    }
+  </script>
+
+</body>
+</html>

@@ -773,22 +773,26 @@ function renderTables(attToday) {
     }
 }
 
-// Fitur Animasi Auto Scroll untuk Tabel
+// Fitur Animasi Auto Scroll untuk Tabel (Dioptimasi agar hemat CPU & lancar)
 function startAutoScroll() {
-    setInterval(() => {
-        const wrappers = document.querySelectorAll('.table-wrapper');
-        wrappers.forEach(wrap => {
-            // Hanya scroll jika konten lebih panjang dari kotaknya
-            if (wrap.scrollHeight > wrap.clientHeight) {
-                wrap.scrollTop += 1; // Kecepatan scroll (1px)
-                
-                // Jika sudah mentok sampai bawah, ulangi lagi dari atas
-                if (Math.ceil(wrap.scrollTop) + wrap.clientHeight >= wrap.scrollHeight) {
-                    wrap.scrollTop = 0;
+    let lastTime = 0;
+    function step(now) {
+        if (!document.hidden && now - lastTime > 60) {
+            lastTime = now;
+            const wrappers = document.querySelectorAll('.table-wrapper');
+            wrappers.forEach(wrap => {
+                if (wrap.matches(':hover')) return; // Jeda otomatis saat user menyorot tabel
+                if (wrap.scrollHeight > wrap.clientHeight) {
+                    wrap.scrollTop += 1;
+                    if (Math.ceil(wrap.scrollTop) + wrap.clientHeight >= wrap.scrollHeight) {
+                        wrap.scrollTop = 0;
+                    }
                 }
-            }
-        });
-    }, 50); // 50ms = halus
+            });
+        }
+        requestAnimationFrame(step);
+    }
+    requestAnimationFrame(step);
 }
 
 // Mulai scroll otomatis saat halaman dimuat

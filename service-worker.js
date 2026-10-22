@@ -1,10 +1,9 @@
-const CACHE_NAME = 'aman-s-v7-offline-safety';
+const CACHE_NAME = 'aman-s-v8-performance-fixed';
 const ASSETS_TO_CACHE = [
     './',
     './index.html',
     './styles.css',
     './app.js',
-    './mobile-camera.js',
     './config.local.js',
     './manifest.json',
     './js/db.js',

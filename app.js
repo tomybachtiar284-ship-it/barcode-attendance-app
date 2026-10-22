@@ -101,11 +101,32 @@ window.addEventListener('DOMContentLoaded', () => {
     }
   }, true); // capturing phase to intercept onclick redirects
 
+  // DOM & LocalStorage Safe Helpers
+  const $ = window.$ || ((s, r = document) => r.querySelector(s));
+  const $$ = window.$$ || ((s, r = document) => [...r.querySelectorAll(s)]);
+  window.$ = $;
+  window.$$ = $$;
+
+  const load = (key, fallback = null) => {
+    try {
+      const v = localStorage.getItem(key);
+      return v ? JSON.parse(v) : fallback;
+    } catch (e) {
+      return fallback;
+    }
+  };
+  const save = (key, val) => {
+    try {
+      localStorage.setItem(key, JSON.stringify(val));
+    } catch (e) {}
+  };
+  window.load = load;
+  window.save = save;
+
   const LS_EMP = 'SA_EMPLOYEES', LS_ATT = 'SA_ATTENDANCE', LS_SHIFTS = 'SA_SHIFTS',
     LS_NEWS = 'SA_NEWS', LS_SCHED = 'SA_SHIFT_MONTHLY', LS_EDU = 'SA_EDUCATION';
 
   const BLINK_ALL_COMPANY_CARDS = true;
-
 
   let employees = window.employees || load(LS_EMP, []),
     attendance = window.attendance || load(LS_ATT, []),
@@ -585,7 +606,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
         attendance = [...filteredOld, ...newAtts, ...newBreaks].sort((a, b) => a.ts - b.ts);
         save(LS_ATT, attendance);
-        await repairAttendanceStats();
+        // Note: repairAttendanceStats is kept on window for manual maintenance only to avoid sync loops
       }
 
       // News (Bi-directional Sync)
@@ -1830,16 +1851,20 @@ window.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // Animate the line continuously (flowing effect)
+    // Animate the line only when dashboard is active and visible
+    if (window._dashTopLateAnimInterval) clearInterval(window._dashTopLateAnimInterval);
     window._dashTopLateAnimInterval = setInterval(() => {
-        if (window.dashTopLateChart && window.dashTopLateChart.data.datasets[0]) {
+        if (document.hidden) return;
+        const dashRoute = document.getElementById('route-dashboard');
+        if (dashRoute && dashRoute.classList.contains('hidden')) return;
+        if (window.dashTopLateChart && window.dashTopLateChart.data && window.dashTopLateChart.data.datasets && window.dashTopLateChart.data.datasets[0]) {
             let offset = window.dashTopLateChart.data.datasets[0].borderDashOffset || 0;
             window.dashTopLateChart.data.datasets[0].borderDashOffset = offset - 1;
             window.dashTopLateChart.update('none'); // Update without triggering full animation
         } else {
             clearInterval(window._dashTopLateAnimInterval);
         }
-    }, 40); // 25fps for a smooth flowing effect
+    }, 100); // 10fps lightweight flowing effect when visible
   };
 
   window.renderMobileDashboard = function () {
@@ -4243,9 +4268,6 @@ function fs(btnSel, targetSel) {
   // periodic
   window.addEventListener('attendance:update', renderLiveCompanyStats);
   setInterval(() => { updateScanLiveCircle(false); renderScanStats(); }, 15000);
-  // periodic
-  window.addEventListener('attendance:update', renderLiveCompanyStats);
-  setInterval(() => { updateScanLiveCircle(false); renderScanStats(); }, 15000);
 
   // ===== Education Logic (Migrated) =====
   // LS_EDU, loadEdu, saveEdu moved to top
@@ -4557,7 +4579,7 @@ function fs(btnSel, targetSel) {
   window.addEventListener('storage', (e) => { if (e.key === LS_EDU) { renderEduTable(); renderHighlights(); } });
   window.addEventListener('education:changed', () => { renderEduTable(); renderHighlights(); });
 
-  repairAttendanceStats();
+  // repairAttendanceStats is available via window.repairAttendanceStats for manual admin use
   if (navigator.onLine) pullAll();
 
   // ===== Global Tooltip (Free Floating) =====
